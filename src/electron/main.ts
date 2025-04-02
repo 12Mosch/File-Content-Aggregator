@@ -17,6 +17,7 @@ import {
     SearchParams,
     ProgressData,
     SearchResult, // Ensure SearchResult is imported correctly
+    FileReadError, // Import FileReadError if needed for type safety here
   } from "./fileSearchService.js";
   import mime from "mime";
   
@@ -175,13 +176,14 @@ import {
     "search-files",
     async (event, params: SearchParams): Promise<SearchResult> => {
       if (!validateSender(event.senderFrame)) {
-        // Ensure the returned object matches SearchResult structure
+        // --- Fix 1: Added fileReadErrors ---
         return {
           output: "Error: Invalid IPC sender",
           filesFound: 0,
           filesProcessed: 0,
-          errorsEncountered: 1, // Indicate an error occurred
-          pathErrors: ["Invalid IPC sender"], // Include pathErrors array
+          errorsEncountered: 1,
+          pathErrors: ["Invalid IPC sender"],
+          fileReadErrors: [], // Add empty array
         };
       }
   
@@ -192,23 +194,24 @@ import {
         }
       };
       try {
-        // This 'results' object from searchFiles should already include pathErrors
+        // This 'results' object from searchFiles should already include pathErrors and fileReadErrors
         const results = await searchFiles(params, progressCallback);
         console.log(`IPC: search-files completed.`);
-        return results; // This should be compliant now
+        return results;
       } catch (error: any) {
         console.error("IPC: Error during searchFiles execution:", error);
         const errorMsg = `Search failed: ${error.message || "Unknown error"}`;
         progressCallback({
           processed: 0, total: 0, message: errorMsg, error: error.message,
         });
-        // Ensure the returned object matches SearchResult structure
-        return { // <-- Fix applied here
+        // --- Fix 2: Added fileReadErrors ---
+        return {
           output: errorMsg,
           filesFound: 0,
           filesProcessed: 0,
-          errorsEncountered: 1, // Indicate an error occurred
-          pathErrors: [errorMsg], // Include the error message in pathErrors
+          errorsEncountered: 1,
+          pathErrors: [errorMsg],
+          fileReadErrors: [], // Add empty array
         };
       }
     },

@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 
-// Define structure for ProgressData expected from backend
 interface ProgressData {
     processed: number;
     total: number;
@@ -9,16 +8,22 @@ interface ProgressData {
     error?: string;
   }
   
-  // Define structure for SearchResult expected from backend
+  // Define structure for specific file read errors
+  interface FileReadError {
+    filePath: string;
+    reason: string;
+    detail?: string;
+  }
+  
   interface SearchResult {
     output: string;
     filesProcessed: number;
     filesFound: number;
-    errorsEncountered: number;
-    pathErrors: string[]; // <-- Add pathErrors array
+    errorsEncountered: number; // Count of file read errors
+    pathErrors: string[];
+    fileReadErrors: FileReadError[]; // <-- Add structured file read errors
   }
   
-  // Define the interface for the API exposed on the window object
   export interface IElectronAPI {
     invokeSearch: (params: {
       searchPaths: string[];
@@ -35,13 +40,11 @@ interface ProgressData {
     ) => () => void;
   }
   
-  // Extend the Window interface
   declare global {
     interface Window {
       electronAPI: IElectronAPI;
     }
   }
   
-  // Export interfaces if needed elsewhere (optional)
-  export type { ProgressData, SearchResult };
+  export type { ProgressData, SearchResult, FileReadError }; // Export new type
   

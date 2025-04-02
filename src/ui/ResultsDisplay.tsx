@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { FixedSizeList as List } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 import "./ResultsDisplay.css";
 
 interface ResultsDisplayProps {
@@ -8,57 +10,77 @@ interface ResultsDisplayProps {
     filesProcessed: number;
     errorsEncountered: number; // File read errors
   };
-  // pathErrors: string[]; // <-- Receive path errors as prop
-  onCopy: () => Promise<boolean>;
+  onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>; // Modified return type
   onSave: () => Promise<void>;
 }
+
+// --- ADJUST THIS VALUE ---
+// Estimate line height based on your font-size and line-height in CSS.
+const LINE_HEIGHT = 22; // Adjust based on inspection
+
+// Component to render each line in the virtualized list
+const Row = ({
+  index,
+  style,
+  data,
+}: {
+  index: number;
+  style: React.CSSProperties;
+  data: string[];
+}) => (
+  <div style={style} className="results-line">
+    <pre className="results-line-content">
+      {data[index] === "" ? "\u00A0" : data[index]}
+    </pre>
+  </div>
+);
+
+// Threshold for showing clipboard warning (adjust as needed)
+const LARGE_RESULT_LINE_THRESHOLD = 100000; // e.g., 100k lines
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   results,
   summary,
-  // pathErrors, // <-- Destructure prop
   onCopy,
   onSave,
 }) => {
   const [copyStatus, setCopyStatus] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<string>("");
 
+  // Memoize splitting the results string into lines only when 'results' changes
+  const lines = useMemo(() => results.split("\n"), [results]);
+  const isResultLarge = useMemo(() => lines.length > LARGE_RESULT_LINE_THRESHOLD, [lines]);
+
   const handleCopy = async () => {
     setCopyStatus("Copying...");
-    const success = await onCopy();
-    setCopyStatus(success ? "Copied!" : "Copy Failed!");
-    setTimeout(() => setCopyStatus(""), 3000);
+    const { success, potentiallyTruncated } = await onCopy(); // Get status object
+
+    let statusMessage = success ? "Copied!" : "Copy Failed!";
+    if (success && potentiallyTruncated) {
+      statusMessage = "Copied! (May be truncated due to size)";
+    }
+    setCopyStatus(statusMessage);
+
+    // Clear status after a few seconds
+    setTimeout(() => setCopyStatus(""), 5000); // Longer timeout for warning
   };
 
   const handleSave = async () => {
     setSaveStatus("Saving...");
     try {
-        await onSave();
-        setSaveStatus("Save initiated...");
-        setTimeout(() => setSaveStatus(""), 5000);
+      await onSave();
+      setSaveStatus("Save initiated...");
+      setTimeout(() => setSaveStatus(""), 5000);
     } catch (error) {
-        console.error("Save process error:", error);
-        setSaveStatus("Save Failed/Cancelled!");
-        setTimeout(() => setSaveStatus(""), 3000);
+      console.error("Save process error:", error);
+      setSaveStatus("Save Failed/Cancelled!");
+      setTimeout(() => setSaveStatus(""), 3000);
     }
   };
 
   return (
     <div className="results-display">
       <h3>Search Results</h3>
-
-      {/* Optional: Display path errors here instead of App.tsx */}
-      {/* {pathErrors.length > 0 && (
-        <div className="path-errors-container error-message">
-          <h4>Path Errors Encountered:</h4>
-          <ul>
-            {pathErrors.map((err, index) => (
-              <li key={index}>{err}</li>
-            ))}
-          </ul>
-        </div>
-      )} */}
-
 
       <div className="results-summary">
         <span>Files Found (Initial): {summary.filesFound}</span>
@@ -68,14 +90,34 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             File Read Errors: {summary.errorsEncountered}
           </span>
         )}
+        <span>Total Lines: {lines.length}</span>
       </div>
-      <textarea
-        className="results-textarea"
-        value={results}
-        readOnly
-        rows={15}
-        aria-label="Search results content"
-      />
+
+      {/* Display warning for large results regarding clipboard */}
+      {isResultLarge && (
+         <p className="clipboard-warning">
+            Note: Results are very large. Copying to clipboard may be truncated by system limits. Use "Save to File" for guaranteed full content.
+         </p>
+      )}
+
+      <div className="results-virtualized-container">
+        <AutoSizer>
+          {({ height, width }) => (
+            <List
+              className="results-list-scrollbar"
+              height={height}
+              itemCount={lines.length}
+              itemSize={LINE_HEIGHT}
+              width={width}
+              itemData={lines}
+              overscanCount={10}
+            >
+              {Row}
+            </List>
+          )}
+        </AutoSizer>
+      </div>
+
       <div className="results-actions">
         <button onClick={handleCopy} disabled={!results || !!copyStatus}>
           {copyStatus || "Copy to Clipboard"}

@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react"; // Added useMemo
 import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
 import ProgressBar from "./ProgressBar";
-// Import the types defined in vite-env.d.ts
-import type { ProgressData, SearchResult, IElectronAPI } from "./vite-env.d";
+import type { ProgressData, SearchResult, FileReadError, IElectronAPI } from "./vite-env.d"; // Import FileReadError
 
-import "./App.css"; // Keep existing base styles
-import "./index.css"; // Ensure global styles are imported
+import "./App.css";
+import "./index.css";
 
-// Define the shape of the search parameters used in the UI state
 interface SearchParamsUI {
   searchPaths: string[];
   extensions: string[];
@@ -16,45 +14,54 @@ interface SearchParamsUI {
   excludeFolders: string[];
 }
 
+const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
+
+// Helper type for grouped errors
+type GroupedErrors = { [reason: string]: string[] }; // { "Reason": ["path1", "path2"] }
+
 function App() {
-  // State for search results and status
   const [results, setResults] = useState<string | null>(null);
   const [searchSummary, setSearchSummary] = useState<{
     filesFound: number;
     filesProcessed: number;
     errorsEncountered: number;
   } | null>(null);
-  const [pathErrors, setPathErrors] = useState<string[]>([]); // <-- State for path errors
+  const [pathErrors, setPathErrors] = useState<string[]>([]);
+  const [fileReadErrors, setFileReadErrors] = useState<FileReadError[]>([]); // <-- State for structured read errors
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null); // Renamed for clarity
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // Effect to listen for progress updates from the main process
+  // Group file read errors by reason using useMemo
+  const groupedFileReadErrors: GroupedErrors = useMemo(() => {
+    return fileReadErrors.reduce((acc, error) => {
+      if (!acc[error.reason]) {
+        acc[error.reason] = [];
+      }
+      acc[error.reason].push(error.filePath);
+      return acc;
+    }, {} as GroupedErrors);
+  }, [fileReadErrors]); // Recalculate only when fileReadErrors changes
+
   useEffect(() => {
     if (window.electronAPI?.onSearchProgress) {
-      console.log("UI: Subscribing to search progress");
       const unsubscribe = window.electronAPI.onSearchProgress(
         (progressData) => {
           setProgress(progressData);
         },
       );
-      return () => {
-        console.log("UI: Unsubscribing from search progress");
-        unsubscribe();
-      };
+      return () => unsubscribe();
     } else {
-      console.warn("UI: electronAPI.onSearchProgress not found on window.");
       setGeneralError("Error: Could not connect to backend for progress updates.");
     }
   }, []);
 
-  // Handler for submitting the search form
   const handleSearchSubmit = useCallback(async (params: SearchParamsUI) => {
-    console.log("UI: Starting search with params:", params);
     setIsLoading(true);
     setResults(null);
     setSearchSummary(null);
-    setPathErrors([]); // <-- Clear previous path errors
+    setPathErrors([]);
+    setFileReadErrors([]); // <-- Clear previous file read errors
     setProgress({ processed: 0, total: 0, message: "Starting search..." });
     setGeneralError(null);
 
@@ -63,31 +70,24 @@ function App() {
         throw new Error("Search function not available.");
       }
       const searchResult: SearchResult = await window.electronAPI.invokeSearch(params);
-      console.log("UI: Search completed. Result summary:", {
-          found: searchResult.filesFound,
-          processed: searchResult.filesProcessed,
-          errors: searchResult.errorsEncountered,
-          pathErrors: searchResult.pathErrors.length
-      });
 
       setResults(searchResult.output);
       setSearchSummary({
         filesFound: searchResult.filesFound,
         filesProcessed: searchResult.filesProcessed,
-        errorsEncountered: searchResult.errorsEncountered,
+        errorsEncountered: searchResult.errorsEncountered, // This count comes from backend now
       });
-      setPathErrors(searchResult.pathErrors); // <-- Store path errors
+      setPathErrors(searchResult.pathErrors);
+      setFileReadErrors(searchResult.fileReadErrors); // <-- Store structured errors
 
-      // Final progress update
       setProgress((prev) => ({
           ...(prev ?? { processed: 0, total: 0 }),
           processed: searchResult.filesProcessed,
-          total: searchResult.filesProcessed > 0 ? searchResult.filesProcessed : (prev?.total ?? 0), // Adjust total logic slightly
+          total: searchResult.filesProcessed > 0 ? searchResult.filesProcessed : (prev?.total ?? 0),
           message: `Search complete. Processed ${searchResult.filesProcessed} files.`,
       }));
 
     } catch (err: any) {
-      console.error("UI: Search failed:", err);
       setGeneralError(`Search failed: ${err.message || "Unknown error"}`);
       setProgress(null);
     } finally {
@@ -95,44 +95,39 @@ function App() {
     }
   }, []);
 
-  // Handler for copying results to clipboard
-  const handleCopyResults = useCallback(async (): Promise<boolean> => {
-    if (results && window.electronAPI?.copyToClipboard) {
-      console.log("UI: Requesting copy to clipboard");
-      try {
-        const success = await window.electronAPI.copyToClipboard(results);
-        console.log("UI: Copy request status:", success);
-        return success;
-      } catch (err: any) {
-        console.error("UI: Copy to clipboard failed:", err);
-        setGeneralError(`Copy failed: ${err.message}`);
-        return false;
-      }
+  const handleCopyResults = useCallback(async (): Promise<{ success: boolean; potentiallyTruncated: boolean }> => {
+    let potentiallyTruncated = false;
+    if (results) {
+        const lineCount = results.split('\n').length;
+        if (lineCount > LARGE_RESULT_LINE_THRESHOLD_APP) {
+            potentiallyTruncated = true;
+            console.warn("UI: Attempting to copy large results, may be truncated.");
+        }
+        if (window.electronAPI?.copyToClipboard) {
+            try {
+                const success = await window.electronAPI.copyToClipboard(results);
+                return { success, potentiallyTruncated };
+            } catch (err: any) {
+                setGeneralError(`Copy failed: ${err.message}`);
+                return { success: false, potentiallyTruncated };
+            }
+        }
     }
-    return false;
+    return { success: false, potentiallyTruncated: false };
   }, [results]);
 
-  // Handler for saving results to a file
   const handleSaveResults = useCallback(async (): Promise<void> => {
      if (results && window.electronAPI?.showSaveDialog && window.electronAPI?.writeFile) {
-        console.log("UI: Requesting save file dialog");
         setGeneralError(null);
         try {
             const filePath = await window.electronAPI.showSaveDialog();
             if (filePath) {
-                console.log(`UI: File path selected: ${filePath}. Requesting write.`);
                 const success = await window.electronAPI.writeFile(filePath, results);
-                if (success) {
-                    console.log("UI: File write successful.");
-                } else {
-                    console.error("UI: File write failed (backend reported failure).");
+                if (!success) {
                     setGeneralError("Failed to save file.");
                 }
-            } else {
-                console.log("UI: Save file dialog cancelled.");
             }
         } catch (err: any) {
-            console.error("UI: Save process failed:", err);
             setGeneralError(`Save failed: ${err.message}`);
         }
      }
@@ -149,15 +144,33 @@ function App() {
 
       {/* Display path-specific errors */}
       {pathErrors.length > 0 && (
-        <div className="path-errors-container error-message"> {/* Reuse error style */}
-          <h4>Path Errors Encountered:</h4>
+        <div className="path-errors-container warning-message"> {/* Use warning style */}
+          <h4>Path Access Issues Encountered:</h4>
           <ul>
             {pathErrors.map((err, index) => (
-              <li key={index}>{err}</li>
+              <li key={`path-err-${index}`}>{err}</li>
             ))}
           </ul>
         </div>
       )}
+
+      {/* Display grouped file read errors */}
+      {fileReadErrors.length > 0 && (
+        <div className="file-read-errors-container error-message"> {/* Use error style */}
+          <h4>File Read Errors Encountered ({fileReadErrors.length} total):</h4>
+          {Object.entries(groupedFileReadErrors).map(([reason, paths]) => (
+            <div key={reason} className="error-group">
+              <h5>{reason} ({paths.length}):</h5>
+              <ul>
+                {paths.map((filePath, index) => (
+                  <li key={`${reason}-${index}`}>{filePath}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
 
       {/* Display progress bar */}
       {isLoading && progress && (
@@ -165,7 +178,7 @@ function App() {
           processed={progress.processed}
           total={progress.total}
           message={progress.message}
-          error={progress.error} // This is for file read errors during progress
+          error={progress.error} // Shows simplified error during progress
         />
       )}
 
@@ -174,7 +187,6 @@ function App() {
         <ResultsDisplay
           results={results}
           summary={searchSummary}
-          // pathErrors={pathErrors} // Pass path errors to ResultsDisplay
           onCopy={handleCopyResults}
           onSave={handleSaveResults}
         />

@@ -1,60 +1,110 @@
 .results-display {
     margin-top: 1.5rem;
     padding: 1rem;
-    border: 1px solid #444;
-    border-radius: 8px;
-    background-color: #2a2a2a;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-medium);
+    background-color: var(--color-bg-medium);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 300px;
+    overflow: hidden;
   }
   
   .results-display h3 {
     margin-top: 0;
     margin-bottom: 1rem;
-    color: #eee;
+    color: var(--color-text-primary);
+    flex-shrink: 0;
   }
   
   .results-summary {
-      display: flex;
-      gap: 1.5rem; /* Space between summary items */
-      margin-bottom: 1rem;
-      font-size: 0.9em;
-      color: #bbb;
-      flex-wrap: wrap;
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.9em;
+    color: var(--color-text-secondary);
+    flex-wrap: wrap;
+    flex-shrink: 0;
   }
   
   .summary-errors {
-      color: #ff8c8c;
-      font-weight: bold;
+    color: var(--color-error-text);
+    font-weight: bold;
   }
   
-  .results-textarea {
-    width: 100%;
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
-    padding: 0.8em 1em;
-    border-radius: 6px;
-    border: 1px solid #555;
-    background-color: #1e1e1e; /* Slightly darker background */
-    color: #ddd;
-    font-family: Consolas, "Courier New", monospace; /* Monospaced font */
-    font-size: 0.9em;
-    resize: vertical;
+  /* Warning message for large clipboard content */
+  .clipboard-warning {
+    background-color: var(--color-warning-bg); /* Use warning variable */
+    border: 1px solid var(--color-warning-border); /* Use warning variable */
+    color: var(--color-warning-text); /* Use warning variable */
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius-small);
+    font-size: 0.85em;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .results-virtualized-container {
+    flex-grow: 1;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-small);
+    background-color: var(--color-bg-deep);
+    overflow: hidden;
     min-height: 200px;
   }
   
-  .results-textarea:focus {
-    outline: none;
-    border-color: #646cff;
+  .results-line {
+    box-sizing: border-box;
+    padding: 0 0.8em;
+    overflow: hidden;
+    /* text-align: left; */ /* Ensure left alignment if needed, but <pre> should handle it */
   }
+  
+  .results-line-content {
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    line-height: 1.5; /* Adjust if needed */
+    color: var(--color-text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    user-select: text;
+    display: block; /* Ensure pre takes block layout */
+    text-align: left; /* Explicitly set left alignment */
+    width: 100%; /* Ensure it takes full width */
+  }
+  
+  
+  .results-list-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .results-list-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .results-list-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 4px;
+    border: 2px solid var(--color-bg-deep);
+  }
+  .results-list-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-secondary);
+  }
+  
   
   .results-actions {
     margin-top: 1rem;
     display: flex;
-    gap: 1rem; /* Space between buttons */
+    gap: 1rem;
+    flex-shrink: 0;
   }
   
   .results-actions button:disabled {
-    background-color: #555;
-    border-color: #666;
-    color: #999;
+    background-color: var(--color-bg-light);
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
     cursor: not-allowed;
+    box-shadow: none;
   }
   

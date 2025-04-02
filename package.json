@@ -20,8 +20,15 @@
     "postinstall": "electron-fuses disable:runAsNode disable:nodeCliInspect"
   },
   "dependencies": {
+    "@types/react-window": "^1.8.8",
+    "electron-store": "^10.0.1",
+    "i18next": "^24.2.3",
+    "i18next-http-backend": "^3.0.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-i18next": "^15.4.1",
+    "react-virtualized-auto-sizer": "^1.0.26",
+    "react-window": "^1.8.11"
   },
   "devDependencies": {
     "@electron/fuses": "^1.8.0",
@@ -30,6 +37,7 @@
     "@types/mime": "^4.0.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.3.4",
     "cross-env": "^7.0.3",
     "electron": "^35.1.2",
