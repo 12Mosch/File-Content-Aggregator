@@ -1,0 +1,60 @@
+.results-display {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background-color: #2a2a2a;
+  }
+  
+  .results-display h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #eee;
+  }
+  
+  .results-summary {
+      display: flex;
+      gap: 1.5rem; /* Space between summary items */
+      margin-bottom: 1rem;
+      font-size: 0.9em;
+      color: #bbb;
+      flex-wrap: wrap;
+  }
+  
+  .summary-errors {
+      color: #ff8c8c;
+      font-weight: bold;
+  }
+  
+  .results-textarea {
+    width: 100%;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    padding: 0.8em 1em;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background-color: #1e1e1e; /* Slightly darker background */
+    color: #ddd;
+    font-family: Consolas, "Courier New", monospace; /* Monospaced font */
+    font-size: 0.9em;
+    resize: vertical;
+    min-height: 200px;
+  }
+  
+  .results-textarea:focus {
+    outline: none;
+    border-color: #646cff;
+  }
+  
+  .results-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem; /* Space between buttons */
+  }
+  
+  .results-actions button:disabled {
+    background-color: #555;
+    border-color: #666;
+    color: #999;
+    cursor: not-allowed;
+  }
+  

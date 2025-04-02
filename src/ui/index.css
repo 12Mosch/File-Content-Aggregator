@@ -1,68 +1,195 @@
+/* Define color palette and base styles using CSS variables */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Fonts */
+  --font-primary: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  --font-monospace: Consolas, 'Courier New', monospace;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* Core Colors */
+  --color-bg-deep: #1a1d21;      /* Deepest background */
+  --color-bg-medium: #24282f;   /* Medium background (containers) */
+  --color-bg-light: #2e333d;    /* Lighter background (inputs, hover) */
+  --color-text-primary: #e0e0e0; /* Primary text */
+  --color-text-secondary: #a0a0b0;/* Secondary text (labels, placeholders) */
+  --color-border: #4a4e5a;       /* Borders */
+
+  /* Accent Colors */
+  --color-accent-primary: #7b68ee; /* Primary accent (MediumSlateBlue) */
+  --color-accent-primary-hover: #8a7ffa; /* Lighter accent for hover */
+  --color-accent-primary-focus: rgba(123, 104, 238, 0.5); /* Focus ring */
+  --color-accent-secondary: #4ecdc4; /* Optional secondary accent (Teal) */
+
+  /* Status Colors */
+  --color-error-bg: #4d2020;
+  --color-error-border: #ff5252;
+  --color-error-text: #ff8c8c;
+  --color-success-bg: #1e4d2b;
+  --color-success-border: #66bb6a;
+  --color-success-text: #a5d6a7;
+
+  /* UI Elements */
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
+  --transition-speed: 0.2s;
+
+  /* Default color scheme */
+  color-scheme: dark; /* Explicitly set to dark */
+}
+
+/* Apply base styles to the body */
+body {
+  font-family: var(--font-primary);
+  line-height: 1.6;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-deep);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  margin: 0;
+  min-height: 100vh;
+  padding: 2rem; /* Add padding around the whole content */
+  box-sizing: border-box;
 }
 
+/* Main application container */
+#root {
+  max-width: 1024px; /* Slightly wider max-width */
+  margin: 0 auto; /* Center the content */
+}
+
+/* Headings */
+h1 {
+  font-size: 2.8em; /* Slightly smaller */
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border); /* Subtle separator */
+  padding-bottom: 0.5rem;
+}
+
+h3 { /* Style for ResultsDisplay heading */
+  font-size: 1.5em;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Links */
 a {
   font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  color: var(--color-accent-primary);
+  text-decoration: none; /* Remove underline by default */
+  transition: color var(--transition-speed) ease;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--color-accent-primary-hover);
+  text-decoration: underline; /* Add underline on hover */
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
+/* Buttons */
 button {
-  border-radius: 8px;
+  border-radius: var(--border-radius-medium);
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
+  padding: 0.7em 1.4em; /* Slightly larger padding */
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--color-accent-primary);
+  color: #ffffff; /* White text on accent */
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: background-color var(--transition-speed) ease,
+              border-color var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow */
 }
 button:hover {
-  border-color: #646cff;
+  background-color: var(--color-accent-primary-hover);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Slightly larger shadow on hover */
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 4px auto -webkit-focus-ring-color; /* Default focus ring */
+  outline-offset: 2px;
+  /* Or use a custom focus style: */
+  /* outline: none; */
+  /* box-shadow: 0 0 0 3px var(--color-accent-primary-focus); */
+}
+button:disabled {
+  background-color: var(--color-bg-light);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Base Input/Textarea styles (can be refined in component CSS) */
+input[type="text"],
+textarea {
+  font-family: inherit;
+  font-size: 1em;
+  padding: 0.7em 1em;
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-light);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease;
+}
+input[type="text"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 2px var(--color-accent-primary-focus);
+}
+textarea {
+    font-family: var(--font-monospace); /* Default textarea to monospace */
+}
+
+/* Placeholder text style */
+::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+/* Error Message Styling */
+.error-message {
+  color: var(--color-error-text);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  padding: 0.8rem 1.2rem;
+  border-radius: var(--border-radius-small);
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
+/* Optional: Custom Scrollbar Styling (for WebKit browsers like Chrome/Electron) */
+::-webkit-scrollbar {
+  width: 10px; /* Width of the vertical scrollbar */
+  height: 10px; /* Height of the horizontal scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-medium);
+  border-radius: var(--border-radius-medium);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: var(--border-radius-medium);
+  border: 2px solid var(--color-bg-medium); /* Creates padding around thumb */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-secondary);
+}
+
+/* Container for the main app layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Consistent gap between major sections */
 }

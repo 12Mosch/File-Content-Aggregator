@@ -1,0 +1,57 @@
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem; /* Spacing between form groups */
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background-color: #2a2a2a;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .form-group label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #ccc;
+  }
+  
+  .form-group input[type="text"],
+  .form-group textarea {
+    padding: 0.6em 1em;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #eee;
+    font-family: inherit;
+    font-size: 1em;
+    transition: border-color 0.2s;
+  }
+  
+  .form-group input[type="text"]:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: #646cff;
+  }
+  
+  .form-group textarea {
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 60px;
+  }
+  
+  .search-form button {
+    align-self: flex-start; /* Align button to the left */
+    /* Inherits button styles from index.css/App.css but can be overridden */
+  }
+  
+  .search-form button:disabled {
+    background-color: #555;
+    border-color: #666;
+    color: #999;
+    cursor: not-allowed;
+  }
+  

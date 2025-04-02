@@ -1,6 +1,11 @@
 {
-    "appId": "de.mosch.calculator",
-    "files": ["dist-electron", "dist-react"],
+    "appId": "de.mosch.filecontentaggregator",
+    "productName": "File Content Aggregator",
+    "files": ["dist-electron", "dist-react", "node_modules"],
+    "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
     "icon": "./desktopIcon.png",
     "mac": {
       "target": "dmg"
