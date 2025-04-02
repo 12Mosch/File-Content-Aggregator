@@ -1,0 +1,18 @@
+{
+    "heading": "Resultados de la Búsqueda",
+    "summaryFound": "Archivos Encontrados (Inicial): {{count}}",
+    "summaryProcessed": "Archivos Procesados: {{count}}",
+    "summaryReadErrors": "Errores de Lectura de Archivo: {{count}}",
+    "summaryTotalLines": "Líneas Totales: {{count}}",
+    "clipboardWarning": "Nota: Los resultados son muy grandes. La copia al portapapeles puede ser truncada por límites del sistema. Use \"Guardar en Archivo\" para garantizar el contenido completo.",
+    "copyButton": "Copiar al Portapapeles",
+    "copyButtonCopying": "Copiando...",
+    "copyButtonSuccess": "¡Copiado!",
+    "copyButtonTruncated": "¡Copiado! (Puede estar truncado)",
+    "copyButtonFailed": "¡Error al Copiar!",
+    "saveButton": "Guardar en Archivo...",
+    "saveButtonSaving": "Guardando...",
+    "saveButtonInitiated": "Guardado iniciado...",
+    "saveButtonFailed": "¡Error al Guardar/Cancelado!"
+  }
+  

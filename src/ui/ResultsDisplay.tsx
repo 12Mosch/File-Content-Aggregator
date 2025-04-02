@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next"; // Import the hook
 import { FixedSizeList as List } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import "./ResultsDisplay.css";
@@ -8,14 +9,12 @@ interface ResultsDisplayProps {
   summary: {
     filesFound: number;
     filesProcessed: number;
-    errorsEncountered: number; // File read errors
+    errorsEncountered: number;
   };
-  onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>; // Modified return type
+  onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>;
   onSave: () => Promise<void>;
 }
 
-// --- ADJUST THIS VALUE ---
-// Estimate line height based on your font-size and line-height in CSS.
 const LINE_HEIGHT = 22; // Adjust based on inspection
 
 // Component to render each line in the virtualized list
@@ -35,8 +34,7 @@ const Row = ({
   </div>
 );
 
-// Threshold for showing clipboard warning (adjust as needed)
-const LARGE_RESULT_LINE_THRESHOLD = 100000; // e.g., 100k lines
+const LARGE_RESULT_LINE_THRESHOLD = 100000;
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   results,
@@ -44,59 +42,62 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   onCopy,
   onSave,
 }) => {
+  // Use the hook, specifying the 'results' namespace
+  const { t } = useTranslation(['results']);
+
   const [copyStatus, setCopyStatus] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<string>("");
 
-  // Memoize splitting the results string into lines only when 'results' changes
   const lines = useMemo(() => results.split("\n"), [results]);
   const isResultLarge = useMemo(() => lines.length > LARGE_RESULT_LINE_THRESHOLD, [lines]);
 
   const handleCopy = async () => {
-    setCopyStatus("Copying...");
-    const { success, potentiallyTruncated } = await onCopy(); // Get status object
+    setCopyStatus(t('copyButtonCopying')); // Translate status
+    const { success, potentiallyTruncated } = await onCopy();
 
-    let statusMessage = success ? "Copied!" : "Copy Failed!";
+    let statusKey = success ? 'copyButtonSuccess' : 'copyButtonFailed';
     if (success && potentiallyTruncated) {
-      statusMessage = "Copied! (May be truncated due to size)";
+      statusKey = 'copyButtonTruncated';
     }
-    setCopyStatus(statusMessage);
+    setCopyStatus(t(statusKey)); // Translate final status
 
-    // Clear status after a few seconds
-    setTimeout(() => setCopyStatus(""), 5000); // Longer timeout for warning
+    setTimeout(() => setCopyStatus(""), 5000);
   };
 
   const handleSave = async () => {
-    setSaveStatus("Saving...");
+    setSaveStatus(t('saveButtonSaving')); // Translate status
     try {
       await onSave();
-      setSaveStatus("Save initiated...");
+      setSaveStatus(t('saveButtonInitiated')); // Translate status
       setTimeout(() => setSaveStatus(""), 5000);
     } catch (error) {
       console.error("Save process error:", error);
-      setSaveStatus("Save Failed/Cancelled!");
+      setSaveStatus(t('saveButtonFailed')); // Translate status
       setTimeout(() => setSaveStatus(""), 3000);
     }
   };
 
   return (
     <div className="results-display">
-      <h3>Search Results</h3>
+      {/* Translate heading */}
+      <h3>{t('heading')}</h3>
 
       <div className="results-summary">
-        <span>Files Found (Initial): {summary.filesFound}</span>
-        <span>Files Processed: {summary.filesProcessed}</span>
+        {/* Translate summary labels with interpolation */}
+        <span>{t('summaryFound', { count: summary.filesFound })}</span>
+        <span>{t('summaryProcessed', { count: summary.filesProcessed })}</span>
         {summary.errorsEncountered > 0 && (
           <span className="summary-errors">
-            File Read Errors: {summary.errorsEncountered}
+            {t('summaryReadErrors', { count: summary.errorsEncountered })}
           </span>
         )}
-        <span>Total Lines: {lines.length}</span>
+        <span>{t('summaryTotalLines', { count: lines.length })}</span>
       </div>
 
-      {/* Display warning for large results regarding clipboard */}
+      {/* Translate clipboard warning */}
       {isResultLarge && (
          <p className="clipboard-warning">
-            Note: Results are very large. Copying to clipboard may be truncated by system limits. Use "Save to File" for guaranteed full content.
+            {t('clipboardWarning')}
          </p>
       )}
 
@@ -119,11 +120,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       </div>
 
       <div className="results-actions">
+        {/* Translate button text, using status if available */}
         <button onClick={handleCopy} disabled={!results || !!copyStatus}>
-          {copyStatus || "Copy to Clipboard"}
+          {copyStatus || t('copyButton')}
         </button>
         <button onClick={handleSave} disabled={!results || !!saveStatus}>
-          {saveStatus || "Save to File..."}
+          {saveStatus || t('saveButton')}
         </button>
       </div>
     </div>

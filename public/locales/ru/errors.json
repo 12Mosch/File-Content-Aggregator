@@ -1,0 +1,21 @@
+{
+    "generalErrorPrefix": "Ошибка:",
+    "pathErrorsHeading": "Обнаружены Проблемы с Доступом к Путям:",
+    "fileReadErrorsHeading": "Обнаружены Ошибки Чтения Файлов (всего {{count}}):",
+    "fileReadErrorReason": "{{reason}} ({{count}}):",
+    "generalSearchFailed": "Поиск не удался: {{detail}}",
+    "copyFailed": "Копирование не удалось: {{detail}}",
+    "saveFailed": "Сохранение не удалось: {{detail}}",
+    "saveFailedBackend": "Не удалось сохранить файл.",
+    "invalidSender": "Неверный отправитель IPC",
+    "connectError": "Ошибка: Не удалось подключиться к бэкэнду для обновления прогресса.",
+    "searchFunctionNA": "Функция поиска недоступна.",
+    "pathNotFound": "Путь поиска не найден: {{path}}",
+    "pathNotDir": "Путь поиска не является каталогом: {{path}}",
+    "pathPermissionDenied": "Доступ к пути поиска запрещен: {{path}}",
+    "readPermissionDenied": "Доступ Запрещен",
+    "readError": "Ошибка Чтения",
+    "fileNotFoundDuringRead": "Файл Не Найден Во Время Чтения",
+    "pathIsDir": "Путь Является Каталогом"
+  }
+  

@@ -1,0 +1,21 @@
+{
+    "generalErrorPrefix": "Error:",
+    "pathErrorsHeading": "Path Access Issues Encountered:",
+    "fileReadErrorsHeading": "File Read Errors Encountered ({{count}} total):",
+    "fileReadErrorReason": "{{reason}} ({{count}}):",
+    "generalSearchFailed": "Search failed: {{detail}}",
+    "copyFailed": "Copy failed: {{detail}}",
+    "saveFailed": "Save failed: {{detail}}",
+    "saveFailedBackend": "Failed to save file.",
+    "invalidSender": "Invalid IPC sender",
+    "connectError": "Error: Could not connect to backend for progress updates.",
+    "searchFunctionNA": "Search function not available.",
+    "pathNotFound": "Search path not found: {{path}}",
+    "pathNotDir": "Search path is not a directory: {{path}}",
+    "pathPermissionDenied": "Permission denied for search path: {{path}}",
+    "readPermissionDenied": "Permission Denied",
+    "readError": "Read Error",
+    "fileNotFoundDuringRead": "File Not Found During Read",
+    "pathIsDir": "Path is Directory"
+  }
+  

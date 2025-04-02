@@ -1,0 +1,13 @@
+{
+    "searchPathLabel": "Rutas de Búsqueda (una por línea o separadas por coma):",
+    "searchPathPlaceholder": "ej., C:\\Usuarios\\Yo\\Documentos, /home/usuario/proyectos",
+    "extensionsLabel": "Extensiones de Archivo (separadas por coma):",
+    "extensionsPlaceholder": "ej., txt, log, cs, tsx",
+    "excludeFilesLabel": "Excluir Archivos (separados por coma, soporta comodines como *):",
+    "excludeFilesPlaceholder": "ej., temp*.log, *.tmp",
+    "excludeFoldersLabel": "Excluir Carpetas (separadas por coma, coincidencia de subcadena):",
+    "excludeFoldersPlaceholder": "ej., node_modules, .git, bin",
+    "searchButton": "Buscar Archivos",
+    "searchButtonLoading": "Buscando..."
+  }
+  

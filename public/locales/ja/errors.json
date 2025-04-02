@@ -1,0 +1,21 @@
+{
+    "generalErrorPrefix": "エラー:",
+    "pathErrorsHeading": "検出されたパスアクセスに関する問題:",
+    "fileReadErrorsHeading": "検出されたファイル読み取りエラー (合計 {{count}} 件):",
+    "fileReadErrorReason": "{{reason}} ({{count}}):",
+    "generalSearchFailed": "検索に失敗しました: {{detail}}",
+    "copyFailed": "コピーに失敗しました: {{detail}}",
+    "saveFailed": "保存に失敗しました: {{detail}}",
+    "saveFailedBackend": "ファイルの保存に失敗しました。",
+    "invalidSender": "無効なIPC送信者",
+    "connectError": "エラー: 進行状況更新のためにバックエンドに接続できませんでした。",
+    "searchFunctionNA": "検索機能が利用できません。",
+    "pathNotFound": "検索パスが見つかりません: {{path}}",
+    "pathNotDir": "検索パスはディレクトリではありません: {{path}}",
+    "pathPermissionDenied": "検索パスへのアクセス許可が拒否されました: {{path}}",
+    "readPermissionDenied": "アクセス許可が拒否されました",
+    "readError": "読み取りエラー",
+    "fileNotFoundDuringRead": "読み取り中にファイルが見つかりません",
+    "pathIsDir": "パスはディレクトリです"
+  }
+  

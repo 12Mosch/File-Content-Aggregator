@@ -1,0 +1,18 @@
+{
+    "heading": "Risultati Ricerca",
+    "summaryFound": "File Trovati (Iniziale): {{count}}",
+    "summaryProcessed": "File Elaborati: {{count}}",
+    "summaryReadErrors": "Errori Lettura File: {{count}}",
+    "summaryTotalLines": "Linee Totali: {{count}}",
+    "clipboardWarning": "Nota: I risultati sono molto grandi. La copia negli appunti potrebbe essere troncata dai limiti di sistema. Usa \"Salva su File\" per garantire il contenuto completo.",
+    "copyButton": "Copia negli Appunti",
+    "copyButtonCopying": "Copia in corso...",
+    "copyButtonSuccess": "Copiato!",
+    "copyButtonTruncated": "Copiato! (Potrebbe essere troncato)",
+    "copyButtonFailed": "Copia Fallita!",
+    "saveButton": "Salva su File...",
+    "saveButtonSaving": "Salvataggio...",
+    "saveButtonInitiated": "Salvataggio avviato...",
+    "saveButtonFailed": "Salvataggio Fallito/Annullato!"
+  }
+  

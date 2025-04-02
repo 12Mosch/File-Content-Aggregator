@@ -1,0 +1,20 @@
+{
+    "generalErrorPrefix": "Fehler:",
+    "pathErrorsHeading": "Probleme beim Pfadzugriff festgestellt:",
+    "fileReadErrorsHeading": "Dateilesefehler festgestellt ({{count}} gesamt):",
+    "fileReadErrorReason": "{{reason}} ({{count}}):",
+    "generalSearchFailed": "Suche fehlgeschlagen: {{detail}}",
+    "copyFailed": "Kopieren fehlgeschlagen: {{detail}}",
+    "saveFailed": "Speichern fehlgeschlagen: {{detail}}",
+    "saveFailedBackend": "Fehler beim Speichern der Datei.",
+    "invalidSender": "Ungültiger IPC-Absender",
+    "connectError": "Fehler: Konnte keine Verbindung zum Backend für Fortschrittsaktualisierungen herstellen.",
+    "searchFunctionNA": "Suchfunktion nicht verfügbar.",
+    "pathNotFound": "Suchpfad nicht gefunden: {{path}}",
+    "pathNotDir": "Suchpfad ist kein Verzeichnis: {{path}}",
+    "pathPermissionDenied": "Zugriff verweigert für Suchpfad: {{path}}",
+    "readPermissionDenied": "Zugriff verweigert",
+    "readError": "Lesefehler",
+    "fileNotFoundDuringRead": "Datei beim Lesen nicht gefunden",
+    "pathIsDir": "Pfad ist ein Verzeichnis"
+}

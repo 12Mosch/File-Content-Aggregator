@@ -1,0 +1,18 @@
+{
+    "heading": "検索結果",
+    "summaryFound": "発見ファイル数 (初期): {{count}}",
+    "summaryProcessed": "処理済みファイル数: {{count}}",
+    "summaryReadErrors": "ファイル読み取りエラー: {{count}}",
+    "summaryTotalLines": "合計行数: {{count}}",
+    "clipboardWarning": "注意: 結果が非常に大きいです。クリップボードへのコピーはシステムの制限により切り捨てられる可能性があります。完全な内容を保証するには「ファイルに保存」を使用してください。",
+    "copyButton": "クリップボードにコピー",
+    "copyButtonCopying": "コピー中...",
+    "copyButtonSuccess": "コピーしました！",
+    "copyButtonTruncated": "コピーしました！ (切り捨てられた可能性あり)",
+    "copyButtonFailed": "コピーに失敗しました！",
+    "saveButton": "ファイルに保存...",
+    "saveButtonSaving": "保存中...",
+    "saveButtonInitiated": "保存を開始しました...",
+    "saveButtonFailed": "保存に失敗/キャンセルされました！"
+  }
+  

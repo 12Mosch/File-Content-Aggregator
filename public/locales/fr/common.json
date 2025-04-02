@@ -1,0 +1,19 @@
+{
+    "appName": "Agrégateur de Contenu de Fichiers",
+    "language": "Langue",
+    "settings": "Paramètres",
+    "progressDefault": "Traitement de {{processed}} sur {{total}} fichiers...",
+    "progressErrorPrefix": "Erreur:",
+    "settingsTitle": "Paramètres de l'Application",
+    "languageLabel": "Langue de l'Interface :",
+    "closeButton": "Fermer",
+    "lang_en": "Anglais (English)",
+    "lang_es": "Espagnol (Español)",
+    "lang_de": "Allemand (Deutsch)",
+    "lang_ja": "Japonais (日本語)",
+    "lang_fr": "Français",
+    "lang_pt": "Portugais (Português)",
+    "lang_ru": "Russe (Русский)",
+    "lang_it": "Italien (Italiano)"
+  }
+  

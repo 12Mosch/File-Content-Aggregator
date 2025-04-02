@@ -1,0 +1,13 @@
+{
+    "searchPathLabel": "Chemins de Recherche (un par ligne ou séparés par virgule) :",
+    "searchPathPlaceholder": "ex: C:\\Utilisateurs\\Moi\\Documents, /home/utilisateur/projets",
+    "extensionsLabel": "Extensions de Fichier (séparées par virgule) :",
+    "extensionsPlaceholder": "ex: txt, log, cs, tsx",
+    "excludeFilesLabel": "Exclure Fichiers (séparés par virgule, supporte les jokers comme *) :",
+    "excludeFilesPlaceholder": "ex: temp*.log, *.tmp",
+    "excludeFoldersLabel": "Exclure Dossiers (séparés par virgule, correspondance de sous-chaîne) :",
+    "excludeFoldersPlaceholder": "ex: node_modules, .git, bin",
+    "searchButton": "Rechercher Fichiers",
+    "searchButtonLoading": "Recherche..."
+  }
+  

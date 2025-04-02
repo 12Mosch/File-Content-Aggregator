@@ -1,0 +1,21 @@
+{
+    "generalErrorPrefix": "Errore:",
+    "pathErrorsHeading": "Rilevati Problemi di Accesso ai Percorsi:",
+    "fileReadErrorsHeading": "Rilevati Errori di Lettura File ({{count}} totali):",
+    "fileReadErrorReason": "{{reason}} ({{count}}):",
+    "generalSearchFailed": "Ricerca fallita: {{detail}}",
+    "copyFailed": "Copia fallita: {{detail}}",
+    "saveFailed": "Salvataggio fallito: {{detail}}",
+    "saveFailedBackend": "Impossibile salvare il file.",
+    "invalidSender": "Mittente IPC non valido",
+    "connectError": "Errore: Impossibile connettersi al backend per gli aggiornamenti di avanzamento.",
+    "searchFunctionNA": "Funzione di ricerca non disponibile.",
+    "pathNotFound": "Percorso di ricerca non trovato: {{path}}",
+    "pathNotDir": "Il percorso di ricerca non è una directory: {{path}}",
+    "pathPermissionDenied": "Permesso negato per il percorso di ricerca: {{path}}",
+    "readPermissionDenied": "Permesso Negato",
+    "readError": "Errore di Lettura",
+    "fileNotFoundDuringRead": "File Non Trovato Durante la Lettura",
+    "pathIsDir": "Il Percorso è una Directory"
+  }
+  

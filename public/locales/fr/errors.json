@@ -1,0 +1,21 @@
+{
+    "generalErrorPrefix": "Erreur :",
+    "pathErrorsHeading": "Problèmes d'Accès aux Chemins Rencontrés :",
+    "fileReadErrorsHeading": "Erreurs de Lecture de Fichier Rencontrées ({{count}} au total) :",
+    "fileReadErrorReason": "{{reason}} ({{count}}) :",
+    "generalSearchFailed": "Échec de la recherche : {{detail}}",
+    "copyFailed": "Échec de la copie : {{detail}}",
+    "saveFailed": "Échec de l'enregistrement : {{detail}}",
+    "saveFailedBackend": "Échec de l'enregistrement du fichier.",
+    "invalidSender": "Expéditeur IPC invalide",
+    "connectError": "Erreur : Impossible de se connecter au backend pour les mises à jour de progression.",
+    "searchFunctionNA": "Fonction de recherche non disponible.",
+    "pathNotFound": "Chemin de recherche introuvable : {{path}}",
+    "pathNotDir": "Le chemin de recherche n'est pas un répertoire : {{path}}",
+    "pathPermissionDenied": "Permission refusée pour le chemin de recherche : {{path}}",
+    "readPermissionDenied": "Permission Refusée",
+    "readError": "Erreur de Lecture",
+    "fileNotFoundDuringRead": "Fichier Introuvable Pendant la Lecture",
+    "pathIsDir": "Le Chemin est un Répertoire"
+  }
+  

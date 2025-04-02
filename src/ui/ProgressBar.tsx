@@ -1,5 +1,6 @@
 import React from "react";
-import "./ProgressBar.css"; // We'll create this CSS file next
+import { useTranslation } from "react-i18next"; // Import the hook
+import "./ProgressBar.css";
 
 interface ProgressBarProps {
   processed: number;
@@ -14,17 +15,22 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   message,
   error,
 }) => {
-  // Avoid division by zero and handle initial state
+  // Use the hook, specifying the 'common' namespace
+  const { t } = useTranslation(['common']);
+
   const percentage = total > 0 ? Math.round((processed / total) * 100) : 0;
+
+  // Use provided message or generate default translated message with interpolation
+  const displayMessage = message || t('progressDefault', { processed, total });
 
   return (
     <div className="progress-container">
       <div className="progress-info">
         <span>
-          {message || `Processing ${processed} of ${total} files...`} (
-          {percentage}%)
+          {displayMessage} ({percentage}%)
         </span>
-        {error && <span className="progress-error">Error: {error}</span>}
+        {/* Translate error prefix */}
+        {error && <span className="progress-error">{t('progressErrorPrefix')} {error}</span>}
       </div>
       <div className="progress-bar-background">
         <div
@@ -34,7 +40,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
           aria-valuenow={percentage}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={message || "Search progress"}
+          aria-label={displayMessage} // Use translated message for accessibility
         ></div>
       </div>
     </div>

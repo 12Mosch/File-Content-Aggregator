@@ -1,0 +1,13 @@
+{
+    "searchPathLabel": "Пути Поиска (один на строку или через запятую):",
+    "searchPathPlaceholder": "например, C:\\Users\\Me\\Documents, /home/user/projects",
+    "extensionsLabel": "Расширения Файлов (через запятую):",
+    "extensionsPlaceholder": "например, txt, log, cs, tsx",
+    "excludeFilesLabel": "Исключить Файлы (через запятую, поддерживает *):",
+    "excludeFilesPlaceholder": "например, temp*.log, *.tmp",
+    "excludeFoldersLabel": "Исключить Папки (через запятую, совпадение подстроки):",
+    "excludeFoldersPlaceholder": "например, node_modules, .git, bin",
+    "searchButton": "Искать Файлы",
+    "searchButtonLoading": "Поиск..."
+  }
+  

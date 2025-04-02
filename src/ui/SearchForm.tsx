@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import "./SearchForm.css"; // We'll create this CSS file next
+import { useTranslation } from "react-i18next"; // Import the hook
+import "./SearchForm.css";
 
 interface SearchFormData {
-  searchPaths: string; // Comma or newline separated
-  extensions: string; // Comma separated
-  excludeFiles: string; // Comma separated
-  excludeFolders: string; // Comma separated
+  searchPaths: string;
+  extensions: string;
+  excludeFiles: string;
+  excludeFolders: string;
 }
 
 interface SearchFormProps {
@@ -19,11 +20,14 @@ interface SearchFormProps {
 }
 
 const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
+  // Use the hook, specifying the 'form' namespace
+  const { t } = useTranslation(['form']);
+
   const [formData, setFormData] = useState<SearchFormData>({
     searchPaths: "",
     extensions: "",
     excludeFiles: "",
-    excludeFolders: ".git, node_modules, bin, obj, dist", // Sensible defaults
+    excludeFolders: ".git, node_modules, bin, obj, dist",
   });
 
   const handleChange = (
@@ -35,12 +39,11 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Split comma/newline separated strings into arrays, trim whitespace, filter empty
     const splitAndClean = (str: string) =>
       str
-        .split(/[\n,]+/) // Split by newline or comma
+        .split(/[\n,]+/)
         .map((s) => s.trim())
-        .filter(Boolean); // Remove empty strings
+        .filter(Boolean);
 
     onSubmit({
       searchPaths: splitAndClean(formData.searchPaths),
@@ -53,7 +56,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   return (
     <form onSubmit={handleSubmit} className="search-form">
       <div className="form-group">
-        <label htmlFor="searchPaths">Search Paths (one per line or comma-separated):</label>
+        {/* Use t() for translation */}
+        <label htmlFor="searchPaths">{t('searchPathLabel')}</label>
         <textarea
           id="searchPaths"
           name="searchPaths"
@@ -61,13 +65,13 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
           onChange={handleChange}
           rows={3}
           required
-          placeholder="e.g., C:\Users\Me\Documents, /home/user/projects"
+          placeholder={t('searchPathPlaceholder')} // Translate placeholder
           disabled={isLoading}
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="extensions">File Extensions (comma-separated):</label>
+        <label htmlFor="extensions">{t('extensionsLabel')}</label>
         <input
           type="text"
           id="extensions"
@@ -75,39 +79,40 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
           value={formData.extensions}
           onChange={handleChange}
           required
-          placeholder="e.g., txt, log, cs, tsx"
+          placeholder={t('extensionsPlaceholder')} // Translate placeholder
           disabled={isLoading}
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="excludeFiles">Exclude Files (comma-separated, supports wildcards like *):</label>
+        <label htmlFor="excludeFiles">{t('excludeFilesLabel')}</label>
         <input
           type="text"
           id="excludeFiles"
           name="excludeFiles"
           value={formData.excludeFiles}
           onChange={handleChange}
-          placeholder="e.g., temp*.log, *.tmp"
+          placeholder={t('excludeFilesPlaceholder')} // Translate placeholder
           disabled={isLoading}
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="excludeFolders">Exclude Folders (comma-separated, substring match):</label>
+        <label htmlFor="excludeFolders">{t('excludeFoldersLabel')}</label>
         <input
           type="text"
           id="excludeFolders"
           name="excludeFolders"
           value={formData.excludeFolders}
           onChange={handleChange}
-          placeholder="e.g., node_modules, .git, bin"
+          placeholder={t('excludeFoldersPlaceholder')} // Translate placeholder
           disabled={isLoading}
         />
       </div>
 
       <button type="submit" disabled={isLoading}>
-        {isLoading ? "Searching..." : "Search Files"}
+        {/* Translate button text based on loading state */}
+        {isLoading ? t('searchButtonLoading') : t('searchButton')}
       </button>
     </form>
   );

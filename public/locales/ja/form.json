@@ -1,0 +1,13 @@
+{
+    "searchPathLabel": "検索パス (1行に1つ、またはカンマ区切り):",
+    "searchPathPlaceholder": "例: C:\\Users\\Me\\Documents, /home/user/projects",
+    "extensionsLabel": "ファイル拡張子 (カンマ区切り):",
+    "extensionsPlaceholder": "例: txt, log, cs, tsx",
+    "excludeFilesLabel": "除外ファイル (カンマ区切り、* などのワイルドカードをサポート):",
+    "excludeFilesPlaceholder": "例: temp*.log, *.tmp",
+    "excludeFoldersLabel": "除外フォルダ (カンマ区切り、部分文字列一致):",
+    "excludeFoldersPlaceholder": "例: node_modules, .git, bin",
+    "searchButton": "ファイルを検索",
+    "searchButtonLoading": "検索中..."
+  }
+  

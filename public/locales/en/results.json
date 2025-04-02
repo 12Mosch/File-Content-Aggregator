@@ -1,0 +1,18 @@
+{
+    "heading": "Search Results",
+    "summaryFound": "Files Found (Initial): {{count}}",
+    "summaryProcessed": "Files Processed: {{count}}",
+    "summaryReadErrors": "File Read Errors: {{count}}",
+    "summaryTotalLines": "Total Lines: {{count}}",
+    "clipboardWarning": "Note: Results are very large. Copying to clipboard may be truncated by system limits. Use \"Save to File\" for guaranteed full content.",
+    "copyButton": "Copy to Clipboard",
+    "copyButtonCopying": "Copying...",
+    "copyButtonSuccess": "Copied!",
+    "copyButtonTruncated": "Copied! (May be truncated)",
+    "copyButtonFailed": "Copy Failed!",
+    "saveButton": "Save to File...",
+    "saveButtonSaving": "Saving...",
+    "saveButtonInitiated": "Save initiated...",
+    "saveButtonFailed": "Save Failed/Cancelled!"
+  }
+  

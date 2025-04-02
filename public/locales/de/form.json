@@ -1,0 +1,13 @@
+{
+    "searchPathLabel": "Suchpfade (einer pro Zeile oder kommasepariert):",
+    "searchPathPlaceholder": "z.B. C:\\Benutzer\\Ich\\Dokumente, /home/benutzer/projekte",
+    "extensionsLabel": "Dateierweiterungen (kommasepariert):",
+    "extensionsPlaceholder": "z.B. txt, log, cs, tsx",
+    "excludeFilesLabel": "Dateien ausschließen (kommasepariert, unterstützt Wildcards wie *):",
+    "excludeFilesPlaceholder": "z.B. temp*.log, *.tmp",
+    "excludeFoldersLabel": "Ordner ausschließen (kommasepariert, Teilstring-Übereinstimmung):",
+    "excludeFoldersPlaceholder": "z.B. node_modules, .git, bin",
+    "searchButton": "Dateien suchen",
+    "searchButtonLoading": "Suche läuft..."
+  }
+  

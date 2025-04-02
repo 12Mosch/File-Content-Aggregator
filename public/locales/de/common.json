@@ -1,0 +1,19 @@
+{
+    "appName": "Datei-Inhalts-Aggregator",
+    "language": "Sprache",
+    "settings": "Einstellungen",
+    "progressDefault": "Verarbeite {{processed}} von {{total}} Dateien...",
+    "progressErrorPrefix": "Fehler:",
+    "settingsTitle": "Anwendungseinstellungen",
+    "languageLabel": "Oberflächensprache:",
+    "closeButton": "Schließen",
+    "lang_en": "Englisch (English)",
+    "lang_es": "Spanisch (Español)",
+    "lang_de": "Deutsch",
+    "lang_ja": "Japanisch (日本語)",
+    "lang_fr": "Französisch (Français)",
+    "lang_pt": "Portugiesisch (Português)",
+    "lang_ru": "Russisch (Русский)",
+    "lang_it": "Italienisch (Italiano)"
+  }
+  

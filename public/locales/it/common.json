@@ -1,0 +1,19 @@
+{
+    "appName": "Aggregatore di Contenuto File",
+    "language": "Lingua",
+    "settings": "Impostazioni",
+    "progressDefault": "Elaborazione di {{processed}} su {{total}} file...",
+    "progressErrorPrefix": "Errore:",
+    "settingsTitle": "Impostazioni Applicazione",
+    "languageLabel": "Lingua Interfaccia:",
+    "closeButton": "Chiudi",
+    "lang_en": "Inglese (English)",
+    "lang_es": "Spagnolo (Español)",
+    "lang_de": "Tedesco (Deutsch)",
+    "lang_ja": "Giapponese (日本語)",
+    "lang_fr": "Francese (Français)",
+    "lang_pt": "Portoghese (Português)",
+    "lang_ru": "Russo (Русский)",
+    "lang_it": "Italiano"
+  }
+  

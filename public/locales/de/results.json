@@ -1,0 +1,18 @@
+{
+    "heading": "Suchergebnisse",
+    "summaryFound": "Gefundene Dateien (Initial): {{count}}",
+    "summaryProcessed": "Verarbeitete Dateien: {{count}}",
+    "summaryReadErrors": "Dateilesefehler: {{count}}",
+    "summaryTotalLines": "Zeilen gesamt: {{count}}",
+    "clipboardWarning": "Hinweis: Die Ergebnisse sind sehr groß. Das Kopieren in die Zwischenablage kann durch Systemlimits gekürzt werden. Verwenden Sie \"In Datei speichern\" für garantierten vollständigen Inhalt.",
+    "copyButton": "In Zwischenablage kopieren",
+    "copyButtonCopying": "Kopiere...",
+    "copyButtonSuccess": "Kopiert!",
+    "copyButtonTruncated": "Kopiert! (Möglicherweise gekürzt)",
+    "copyButtonFailed": "Kopieren fehlgeschlagen!",
+    "saveButton": "In Datei speichern...",
+    "saveButtonSaving": "Speichere...",
+    "saveButtonInitiated": "Speichern eingeleitet...",
+    "saveButtonFailed": "Speichern fehlgeschlagen/Abgebrochen!"
+  }
+  

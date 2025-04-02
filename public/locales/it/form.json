@@ -1,0 +1,13 @@
+{
+    "searchPathLabel": "Percorsi di Ricerca (uno per riga o separati da virgola):",
+    "searchPathPlaceholder": "es. C:\\Utenti\\Io\\Documenti, /home/utente/progetti",
+    "extensionsLabel": "Estensioni File (separate da virgola):",
+    "extensionsPlaceholder": "es. txt, log, cs, tsx",
+    "excludeFilesLabel": "Escludi File (separati da virgola, supporta wildcard come *):",
+    "excludeFilesPlaceholder": "es. temp*.log, *.tmp",
+    "excludeFoldersLabel": "Escludi Cartelle (separate da virgola, corrispondenza sottostringa):",
+    "excludeFoldersPlaceholder": "es. node_modules, .git, bin",
+    "searchButton": "Cerca File",
+    "searchButtonLoading": "Ricerca..."
+  }
+  

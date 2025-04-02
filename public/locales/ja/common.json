@@ -1,0 +1,19 @@
+{
+    "appName": "ファイルコンテンツアグリゲーター",
+    "language": "言語",
+    "settings": "設定",
+    "progressDefault": "{{total}} 件中 {{processed}} 件のファイルを処理中...",
+    "progressErrorPrefix": "エラー:",
+    "settingsTitle": "アプリケーション設定",
+    "languageLabel": "インターフェース言語:",
+    "closeButton": "閉じる",
+    "lang_en": "英語 (English)",
+    "lang_es": "スペイン語 (Español)",
+    "lang_de": "ドイツ語 (Deutsch)",
+    "lang_ja": "日本語",
+    "lang_fr": "フランス語 (Français)",
+    "lang_pt": "ポルトガル語 (Português)",
+    "lang_ru": "ロシア語 (Русский)",
+    "lang_it": "イタリア語 (Italiano)"
+  }
+  

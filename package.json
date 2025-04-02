@@ -20,10 +20,11 @@
     "postinstall": "electron-fuses disable:runAsNode disable:nodeCliInspect"
   },
   "dependencies": {
-    "@types/react-window": "^1.8.8",
     "electron-store": "^10.0.1",
     "i18next": "^24.2.3",
+    "i18next-fs-backend": "^2.6.0",
     "i18next-http-backend": "^3.0.2",
+    "mime": "^4.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-i18next": "^15.4.1",

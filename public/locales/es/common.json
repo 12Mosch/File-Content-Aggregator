@@ -1,0 +1,19 @@
+{
+    "appName": "Agregador de Contenido de Archivos",
+    "language": "Idioma",
+    "settings": "Configuración",
+    "progressDefault": "Procesando {{processed}} de {{total}} archivos...",
+    "progressErrorPrefix": "Error:",
+    "settingsTitle": "Configuración de la Aplicación",
+    "languageLabel": "Idioma de la Interfaz:",
+    "closeButton": "Cerrar",
+    "lang_en": "Inglés (English)",
+    "lang_es": "Español",
+    "lang_de": "Alemán (Deutsch)",
+    "lang_ja": "Japonés (日本語)",
+    "lang_fr": "Francés (Français)",
+    "lang_pt": "Portugués (Português)",
+    "lang_ru": "Ruso (Русский)",
+    "lang_it": "Italiano (Italiano)"
+  }
+  

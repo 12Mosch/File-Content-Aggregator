@@ -1,0 +1,18 @@
+{
+    "heading": "Résultats de la Recherche",
+    "summaryFound": "Fichiers Trouvés (Initial) : {{count}}",
+    "summaryProcessed": "Fichiers Traités : {{count}}",
+    "summaryReadErrors": "Erreurs de Lecture de Fichier : {{count}}",
+    "summaryTotalLines": "Lignes Totales : {{count}}",
+    "clipboardWarning": "Note : Les résultats sont très volumineux. La copie dans le presse-papiers peut être tronquée par les limites du système. Utilisez \"Enregistrer dans un fichier\" pour garantir le contenu complet.",
+    "copyButton": "Copier dans le Presse-papiers",
+    "copyButtonCopying": "Copie...",
+    "copyButtonSuccess": "Copié !",
+    "copyButtonTruncated": "Copié ! (Peut être tronqué)",
+    "copyButtonFailed": "Échec de la Copie !",
+    "saveButton": "Enregistrer dans un fichier...",
+    "saveButtonSaving": "Enregistrement...",
+    "saveButtonInitiated": "Enregistrement initié...",
+    "saveButtonFailed": "Échec/Annulation de l'enregistrement !"
+  }
+  

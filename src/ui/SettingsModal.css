@@ -1,0 +1,114 @@
+/* Modal Overlay */
+.settings-modal-overlay {
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0, 0, 0, 0.6); /* Black w/ opacity */
+    display: flex; /* Use flexbox for centering */
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+  }
+  
+  /* Modal Content Box */
+  .settings-modal-content {
+    background-color: var(--color-bg-medium);
+    margin: auto; /* Auto margins also help center */
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-medium);
+    width: 80%; /* Could be more specific */
+    max-width: 500px; /* Maximum width */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    color: var(--color-text-primary);
+    animation: fadeIn 0.3s ease-out; /* Simple fade-in */
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  /* Modal Header */
+  .settings-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 15px;
+  }
+  
+  .settings-modal-header h2 {
+    margin: 0;
+    font-size: 1.4em;
+    font-weight: 600;
+  }
+  
+  /* Close Button */
+  .settings-modal-close-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 2rem;
+    font-weight: bold;
+    line-height: 1;
+    padding: 0 5px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  
+  .settings-modal-close-btn:hover,
+  .settings-modal-close-btn:focus {
+    color: var(--color-text-primary);
+    text-decoration: none;
+    outline: none;
+  }
+  
+  /* Modal Body */
+  .settings-modal-body {
+    padding: 10px 0;
+  }
+  
+  .settings-group {
+    margin-bottom: 1rem;
+  }
+  
+  .settings-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+  
+  /* Language Select Dropdown */
+  .settings-language-select {
+    width: 100%; /* Full width of its container */
+    padding: 0.7em 1em;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 1em;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .settings-language-select:focus {
+    outline: none;
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 0 2px var(--color-accent-primary-focus);
+  }
+  
+  /* Modal Footer (if used) */
+  .settings-modal-footer {
+    padding-top: 15px;
+    border-top: 1px solid var(--color-border);
+    margin-top: 20px;
+    text-align: right;
+  }
+  

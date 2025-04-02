@@ -1,0 +1,19 @@
+{
+    "appName": "Агрегатор Содержимого Файлов",
+    "language": "Язык",
+    "settings": "Настройки",
+    "progressDefault": "Обработка {{processed}} из {{total}} файлов...",
+    "progressErrorPrefix": "Ошибка:",
+    "settingsTitle": "Настройки Приложения",
+    "languageLabel": "Язык Интерфейса:",
+    "closeButton": "Закрыть",
+    "lang_en": "Английский (English)",
+    "lang_es": "Испанский (Español)",
+    "lang_de": "Немецкий (Deutsch)",
+    "lang_ja": "Японский (日本語)",
+    "lang_fr": "Французский (Français)",
+    "lang_pt": "Португальский (Português)",
+    "lang_ru": "Русский",
+    "lang_it": "Итальянский (Italiano)"
+  }
+  
