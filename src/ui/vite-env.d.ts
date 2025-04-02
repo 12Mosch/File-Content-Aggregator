@@ -1,10 +1,5 @@
 /// <reference types="vite/client" />
 
-// Import types from the backend if they are shared or define them here
-// Assuming ProgressData and SearchResult might be useful in the frontend too
-// If not already exported from fileSearchService.ts, ensure they are.
-// For simplicity, we might redefine simplified versions or import them if structure allows.
-
 // Define structure for ProgressData expected from backend
 interface ProgressData {
     processed: number;
@@ -20,6 +15,7 @@ interface ProgressData {
     filesProcessed: number;
     filesFound: number;
     errorsEncountered: number;
+    pathErrors: string[]; // <-- Add pathErrors array
   }
   
   // Define the interface for the API exposed on the window object
@@ -29,18 +25,14 @@ interface ProgressData {
       extensions: string[];
       excludeFiles: string[];
       excludeFolders: string[];
-    }) => Promise<SearchResult>; // Use the defined SearchResult type
+    }) => Promise<SearchResult>; // Uses updated SearchResult type
   
     showSaveDialog: () => Promise<string | undefined>;
-  
     writeFile: (filePath: string, content: string) => Promise<boolean>;
-  
     copyToClipboard: (content: string) => Promise<boolean>;
-  
-    // Define the listener function signature
     onSearchProgress: (
-      callback: (data: ProgressData) => void, // Use the defined ProgressData type
-    ) => () => void; // The listener returns an unsubscribe function
+      callback: (data: ProgressData) => void,
+    ) => () => void;
   }
   
   // Extend the Window interface
@@ -49,4 +41,7 @@ interface ProgressData {
       electronAPI: IElectronAPI;
     }
   }
+  
+  // Export interfaces if needed elsewhere (optional)
+  export type { ProgressData, SearchResult };
   

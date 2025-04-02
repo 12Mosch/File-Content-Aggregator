@@ -1,20 +1,22 @@
 import React, { useState } from "react";
-import "./ResultsDisplay.css"; // We'll create this CSS file next
+import "./ResultsDisplay.css";
 
 interface ResultsDisplayProps {
   results: string;
   summary: {
     filesFound: number;
     filesProcessed: number;
-    errorsEncountered: number;
+    errorsEncountered: number; // File read errors
   };
+  // pathErrors: string[]; // <-- Receive path errors as prop
   onCopy: () => Promise<boolean>;
-  onSave: () => Promise<void>; // Changed to void as success/failure handled internally
+  onSave: () => Promise<void>;
 }
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   results,
   summary,
+  // pathErrors, // <-- Destructure prop
   onCopy,
   onSave,
 }) => {
@@ -25,17 +27,15 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     setCopyStatus("Copying...");
     const success = await onCopy();
     setCopyStatus(success ? "Copied!" : "Copy Failed!");
-    // Clear status after a few seconds
     setTimeout(() => setCopyStatus(""), 3000);
   };
 
   const handleSave = async () => {
     setSaveStatus("Saving...");
     try {
-        await onSave(); // onSave now handles showing dialog and writing
-        setSaveStatus("Save initiated..."); // Dialog shown, actual save happens async
-        // Consider a more robust status update if needed (e.g., via IPC event)
-        setTimeout(() => setSaveStatus(""), 5000); // Clear status after a while
+        await onSave();
+        setSaveStatus("Save initiated...");
+        setTimeout(() => setSaveStatus(""), 5000);
     } catch (error) {
         console.error("Save process error:", error);
         setSaveStatus("Save Failed/Cancelled!");
@@ -46,12 +46,26 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   return (
     <div className="results-display">
       <h3>Search Results</h3>
+
+      {/* Optional: Display path errors here instead of App.tsx */}
+      {/* {pathErrors.length > 0 && (
+        <div className="path-errors-container error-message">
+          <h4>Path Errors Encountered:</h4>
+          <ul>
+            {pathErrors.map((err, index) => (
+              <li key={index}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )} */}
+
+
       <div className="results-summary">
         <span>Files Found (Initial): {summary.filesFound}</span>
         <span>Files Processed: {summary.filesProcessed}</span>
         {summary.errorsEncountered > 0 && (
           <span className="summary-errors">
-            Errors Reading: {summary.errorsEncountered}
+            File Read Errors: {summary.errorsEncountered}
           </span>
         )}
       </div>
@@ -59,7 +73,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         className="results-textarea"
         value={results}
         readOnly
-        rows={15} // Adjust as needed
+        rows={15}
         aria-label="Search results content"
       />
       <div className="results-actions">

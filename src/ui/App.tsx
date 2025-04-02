@@ -6,6 +6,7 @@ import ProgressBar from "./ProgressBar";
 import type { ProgressData, SearchResult, IElectronAPI } from "./vite-env.d";
 
 import "./App.css"; // Keep existing base styles
+import "./index.css"; // Ensure global styles are imported
 
 // Define the shape of the search parameters used in the UI state
 interface SearchParamsUI {
@@ -23,53 +24,50 @@ function App() {
     filesProcessed: number;
     errorsEncountered: number;
   } | null>(null);
+  const [pathErrors, setPathErrors] = useState<string[]>([]); // <-- State for path errors
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null); // Renamed for clarity
 
   // Effect to listen for progress updates from the main process
   useEffect(() => {
-    // Ensure the API is available before subscribing
     if (window.electronAPI?.onSearchProgress) {
       console.log("UI: Subscribing to search progress");
       const unsubscribe = window.electronAPI.onSearchProgress(
         (progressData) => {
-          // console.log("UI: Received progress update", progressData); // Log received data
           setProgress(progressData);
         },
       );
-
-      // Cleanup function to remove the listener when the component unmounts
       return () => {
         console.log("UI: Unsubscribing from search progress");
         unsubscribe();
       };
     } else {
       console.warn("UI: electronAPI.onSearchProgress not found on window.");
-      setError("Error: Could not connect to backend for progress updates.");
+      setGeneralError("Error: Could not connect to backend for progress updates.");
     }
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   // Handler for submitting the search form
   const handleSearchSubmit = useCallback(async (params: SearchParamsUI) => {
     console.log("UI: Starting search with params:", params);
     setIsLoading(true);
-    setResults(null); // Clear previous results
+    setResults(null);
     setSearchSummary(null);
-    setProgress({ processed: 0, total: 0, message: "Starting search..." }); // Initial progress
-    setError(null); // Clear previous errors
+    setPathErrors([]); // <-- Clear previous path errors
+    setProgress({ processed: 0, total: 0, message: "Starting search..." });
+    setGeneralError(null);
 
     try {
-      // Ensure the API function exists
       if (!window.electronAPI?.invokeSearch) {
         throw new Error("Search function not available.");
       }
-      // Call the backend search function via IPC
       const searchResult: SearchResult = await window.electronAPI.invokeSearch(params);
       console.log("UI: Search completed. Result summary:", {
           found: searchResult.filesFound,
           processed: searchResult.filesProcessed,
-          errors: searchResult.errorsEncountered
+          errors: searchResult.errorsEncountered,
+          pathErrors: searchResult.pathErrors.length
       });
 
       setResults(searchResult.output);
@@ -78,22 +76,24 @@ function App() {
         filesProcessed: searchResult.filesProcessed,
         errorsEncountered: searchResult.errorsEncountered,
       });
-      // Final progress update might come via listener, or set explicitly here
+      setPathErrors(searchResult.pathErrors); // <-- Store path errors
+
+      // Final progress update
       setProgress((prev) => ({
-          ...(prev ?? { processed: 0, total: 0 }), // Keep existing data if available
+          ...(prev ?? { processed: 0, total: 0 }),
           processed: searchResult.filesProcessed,
-          total: searchResult.filesProcessed, // Or use a total from the result if available
+          total: searchResult.filesProcessed > 0 ? searchResult.filesProcessed : (prev?.total ?? 0), // Adjust total logic slightly
           message: `Search complete. Processed ${searchResult.filesProcessed} files.`,
       }));
 
     } catch (err: any) {
       console.error("UI: Search failed:", err);
-      setError(`Search failed: ${err.message || "Unknown error"}`);
-      setProgress(null); // Clear progress on error
+      setGeneralError(`Search failed: ${err.message || "Unknown error"}`);
+      setProgress(null);
     } finally {
-      setIsLoading(false); // Ensure loading is set to false
+      setIsLoading(false);
     }
-  }, []); // useCallback with empty dependency array, as it doesn't depend on component state directly
+  }, []);
 
   // Handler for copying results to clipboard
   const handleCopyResults = useCallback(async (): Promise<boolean> => {
@@ -105,18 +105,18 @@ function App() {
         return success;
       } catch (err: any) {
         console.error("UI: Copy to clipboard failed:", err);
-        setError(`Copy failed: ${err.message}`);
+        setGeneralError(`Copy failed: ${err.message}`);
         return false;
       }
     }
     return false;
-  }, [results]); // Depends on the 'results' state
+  }, [results]);
 
   // Handler for saving results to a file
   const handleSaveResults = useCallback(async (): Promise<void> => {
      if (results && window.electronAPI?.showSaveDialog && window.electronAPI?.writeFile) {
         console.log("UI: Requesting save file dialog");
-        setError(null); // Clear previous save errors
+        setGeneralError(null);
         try {
             const filePath = await window.electronAPI.showSaveDialog();
             if (filePath) {
@@ -124,55 +124,61 @@ function App() {
                 const success = await window.electronAPI.writeFile(filePath, results);
                 if (success) {
                     console.log("UI: File write successful.");
-                    // Optionally show a success message to the user here
                 } else {
                     console.error("UI: File write failed (backend reported failure).");
-                    setError("Failed to save file.");
+                    setGeneralError("Failed to save file.");
                 }
             } else {
                 console.log("UI: Save file dialog cancelled.");
             }
         } catch (err: any) {
             console.error("UI: Save process failed:", err);
-            setError(`Save failed: ${err.message}`);
+            setGeneralError(`Save failed: ${err.message}`);
         }
      }
-  }, [results]); // Depends on the 'results' state
+  }, [results]);
 
   return (
-    <div className="app-container"> {/* Optional: Add a container class */}
+    <div className="app-container">
       <h1>File Content Aggregator</h1>
 
       <SearchForm onSubmit={handleSearchSubmit} isLoading={isLoading} />
 
+      {/* Display general errors */}
+      {generalError && <p className="error-message">Error: {generalError}</p>}
+
+      {/* Display path-specific errors */}
+      {pathErrors.length > 0 && (
+        <div className="path-errors-container error-message"> {/* Reuse error style */}
+          <h4>Path Errors Encountered:</h4>
+          <ul>
+            {pathErrors.map((err, index) => (
+              <li key={index}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Display progress bar */}
       {isLoading && progress && (
         <ProgressBar
           processed={progress.processed}
           total={progress.total}
           message={progress.message}
-          error={progress.error}
+          error={progress.error} // This is for file read errors during progress
         />
       )}
 
-      {error && <p className="error-message">Error: {error}</p>}
-
+      {/* Display results */}
       {results !== null && searchSummary && (
         <ResultsDisplay
           results={results}
           summary={searchSummary}
+          // pathErrors={pathErrors} // Pass path errors to ResultsDisplay
           onCopy={handleCopyResults}
           onSave={handleSaveResults}
         />
       )}
-
-      {/* Remove or keep the placeholder content below as needed */}
-      {/*
-            <div className="placeholder-content">
-                <p className="read-the-docs">
-                    Based on Vite + React + Electron
-                </p>
-            </div>
-            */}
     </div>
   );
 }
