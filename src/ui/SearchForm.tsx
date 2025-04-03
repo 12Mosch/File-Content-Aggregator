@@ -16,8 +16,8 @@ type SizeUnit = keyof typeof SIZE_UNITS;
 interface SearchFormData {
   searchPaths: string;
   extensions: string;
-  excludeFiles: string;
-  excludeFolders: string;
+  excludeFiles: string; // Will contain Regex/Glob patterns
+  excludeFolders: string; // Will contain Regex/Glob patterns
   contentSearchTerm: string;
   caseSensitive: boolean;
   modifiedAfter: string;
@@ -32,8 +32,8 @@ interface SearchFormData {
 interface SubmitParams {
   searchPaths: string[];
   extensions: string[];
-  excludeFiles: string[];
-  excludeFolders: string[];
+  excludeFiles: string[]; // Pass patterns as strings
+  excludeFolders: string[]; // Pass patterns as strings
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
@@ -53,8 +53,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   const [formData, setFormData] = useState<SearchFormData>({
     searchPaths: "",
     extensions: "",
-    excludeFiles: "",
-    excludeFolders: ".git, node_modules, bin, obj, dist",
+    excludeFiles: "", // Initialize empty
+    excludeFolders: ".git, node_modules, bin, obj, dist", // Keep defaults or clear
     contentSearchTerm: "",
     caseSensitive: false,
     modifiedAfter: "",
@@ -89,27 +89,24 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     e.preventDefault();
     const splitAndClean = (str: string) =>
       str
-        .split(/[\n,]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+        .split(/[\n,]+/) // Split by newline or comma
+        .map((s) => s.trim()) // Trim whitespace
+        .filter(Boolean); // Remove empty strings
 
     const submitParams: SubmitParams = {
       searchPaths: splitAndClean(formData.searchPaths),
       extensions: splitAndClean(formData.extensions),
+      // Pass the raw, cleaned exclusion strings directly
       excludeFiles: splitAndClean(formData.excludeFiles),
       excludeFolders: splitAndClean(formData.excludeFolders),
     };
 
     if (formData.contentSearchTerm.trim()) {
       submitParams.contentSearchTerm = formData.contentSearchTerm.trim();
-      // Only pass caseSensitive if contentSearchTerm is present
       submitParams.caseSensitive = formData.caseSensitive;
     } else {
-      // Ensure caseSensitive is false if contentSearchTerm is empty
-      // (Although it won't be rendered, this ensures clean state if needed)
       setFormData(prev => ({ ...prev, caseSensitive: false }));
     }
-
 
     if (formData.modifiedAfter) {
       submitParams.modifiedAfter = formData.modifiedAfter;
@@ -143,7 +140,6 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     onSubmit(submitParams);
   };
 
-  // Determine if the content search term is present (trimmed)
   const hasContentSearchTerm = !!formData.contentSearchTerm.trim();
 
   return (
@@ -160,16 +156,32 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         <input type="text" id="extensions" name="extensions" value={formData.extensions} onChange={handleChange} required placeholder={t("extensionsPlaceholder")} disabled={isLoading} />
       </div>
 
-      {/* Exclude Files */}
+      {/* Exclude Files - Updated Label/Placeholder */}
       <div className="form-group">
-        <label htmlFor="excludeFiles">{t("excludeFilesLabel")}</label>
-        <input type="text" id="excludeFiles" name="excludeFiles" value={formData.excludeFiles} onChange={handleChange} placeholder={t("excludeFilesPlaceholder")} disabled={isLoading} />
+        <label htmlFor="excludeFiles">{t("excludeFilesLabelRegex")}</label>
+        <textarea // Use textarea for potentially longer/multiple patterns
+          id="excludeFiles"
+          name="excludeFiles"
+          value={formData.excludeFiles}
+          onChange={handleChange}
+          rows={2} // Adjust rows as needed
+          placeholder={t("excludeFilesPlaceholderRegex")}
+          disabled={isLoading}
+        />
       </div>
 
-      {/* Exclude Folders */}
+      {/* Exclude Folders - Updated Label/Placeholder */}
       <div className="form-group">
-        <label htmlFor="excludeFolders">{t("excludeFoldersLabel")}</label>
-        <input type="text" id="excludeFolders" name="excludeFolders" value={formData.excludeFolders} onChange={handleChange} placeholder={t("excludeFoldersPlaceholder")} disabled={isLoading} />
+        <label htmlFor="excludeFolders">{t("excludeFoldersLabelRegex")}</label>
+        <textarea // Use textarea for potentially longer/multiple patterns
+          id="excludeFolders"
+          name="excludeFolders"
+          value={formData.excludeFolders}
+          onChange={handleChange}
+          rows={2} // Adjust rows as needed
+          placeholder={t("excludeFoldersPlaceholderRegex")}
+          disabled={isLoading}
+        />
       </div>
 
       {/* Content Search Term */}
@@ -179,24 +191,10 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       </div>
 
       {/* Case Sensitive Checkbox - Conditionally Rendered */}
-      {/* Only show this group if there is a content search term */}
       {hasContentSearchTerm && (
         <div className="form-group form-group-checkbox">
-          <input
-            type="checkbox"
-            id="caseSensitive"
-            name="caseSensitive"
-            checked={formData.caseSensitive}
-            onChange={handleCheckboxChange}
-            // The disabled attribute here is slightly redundant now,
-            // but harmless. It ensures it's disabled if somehow rendered
-            // without a term (though that shouldn't happen with the condition).
-            disabled={isLoading || !hasContentSearchTerm}
-            className="form-checkbox"
-          />
-          <label htmlFor="caseSensitive" className="form-checkbox-label">
-            {t("caseSensitiveLabel")}
-          </label>
+          <input type="checkbox" id="caseSensitive" name="caseSensitive" checked={formData.caseSensitive} onChange={handleCheckboxChange} disabled={isLoading || !hasContentSearchTerm} className="form-checkbox" />
+          <label htmlFor="caseSensitive" className="form-checkbox-label">{t("caseSensitiveLabel")}</label>
         </div>
       )}
 
