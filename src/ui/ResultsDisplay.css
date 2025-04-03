@@ -108,3 +108,112 @@
     box-shadow: none;
   }
   
+/* --- Text View Specific --- */
+.results-line {
+  box-sizing: border-box;
+  padding: 0 0.8em;
+  overflow: hidden;
+}
+.results-line-content {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  line-height: 1.5; /* Matches TEXT_BLOCK_LINE_HEIGHT calculation */
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  user-select: text;
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+
+/* --- Tree View Specific --- */
+.tree-item {
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border); /* Separator between files */
+  overflow: hidden; /* Prevent content bleed */
+}
+
+.tree-item-header {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px; /* Adjust padding as needed */
+  cursor: pointer;
+  background-color: var(--color-bg-medium);
+  transition: background-color 0.1s ease;
+  height: 30px; /* Corresponds to TREE_ITEM_HEADER_HEIGHT */
+  box-sizing: border-box;
+}
+
+.tree-item-header:hover {
+   background-color: var(--color-bg-light);
+}
+
+.tree-item-toggle {
+  display: inline-block;
+  width: 1.5em; /* Space for the icon */
+  font-size: 0.8em;
+  margin-right: 0.3em;
+  text-align: center;
+  color: var(--color-text-secondary);
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+.tree-item-path {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  color: var(--color-text-primary);
+  white-space: nowrap; /* Prevent path wrapping */
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Show ellipsis (...) for long paths */
+  flex-grow: 1; /* Allow path to take remaining space */
+}
+
+.tree-item-content {
+  padding: 5px 8px 5px 2.6em; /* Indent content under path (adjust left padding) */
+  background-color: var(--color-bg-deep); /* Match list background */
+  box-sizing: border-box;
+}
+
+.tree-item-content pre {
+  margin: 0;
+  font-family: var(--font-monospace);
+  font-size: 0.85em; /* Slightly smaller for content */
+  line-height: 1.4; /* Adjust for content line height */
+  color: var(--color-text-primary);
+  white-space: pre-wrap; /* Allow wrapping */
+  word-break: break-all; /* Break long words/lines */
+}
+
+.tree-item-error {
+  display: block; /* Make it block level */
+  font-family: var(--font-monospace);
+  font-size: 0.85em;
+  color: var(--color-error-text);
+  font-style: italic;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Add styles for the Show More button */
+.show-more-button {
+  display: block; /* Make it block level */
+  margin-top: 5px; /* Space above button */
+  margin-left: 0; /* Align with content */
+  padding: 3px 8px;
+  font-size: 0.8em;
+  /* Use button variables or specific styles */
+  background-color: var(--color-bg-light);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.show-more-button:hover {
+  background-color: var(--color-accent-primary-focus);
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-primary);
+}

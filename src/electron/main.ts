@@ -170,7 +170,7 @@ ipcMain.handle(
   "search-files",
   async (event, params: SearchParams): Promise<SearchResult> => {
     if (!validateSender(event.senderFrame)) {
-      return { output: "Error: Invalid IPC sender", filesFound: 0, filesProcessed: 0, errorsEncountered: 1, pathErrors: ["Invalid IPC sender"], fileReadErrors: [] };
+      return { output: "Error: Invalid IPC sender", structuredItems: [], filesFound: 0, filesProcessed: 0, errorsEncountered: 1, pathErrors: ["Invalid IPC sender"], fileReadErrors: [] };
     }
     // Log received parameters, including new size fields if present
     console.log("IPC: Received search-files request with params:", params);
@@ -188,7 +188,7 @@ ipcMain.handle(
       console.error("IPC: Error during searchFiles execution:", error);
       const errorMsg = `Search failed: ${error.message || "Unknown error"}`;
       progressCallback({ processed: 0, total: 0, message: errorMsg, error: error.message });
-      return { output: errorMsg, filesFound: 0, filesProcessed: 0, errorsEncountered: 1, pathErrors: [errorMsg], fileReadErrors: [] };
+      return { output: errorMsg, structuredItems: [], filesFound: 0, filesProcessed: 0, errorsEncountered: 1, pathErrors: [errorMsg], fileReadErrors: [] };
     }
   },
 );

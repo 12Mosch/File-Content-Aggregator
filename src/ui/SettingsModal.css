@@ -129,4 +129,5 @@
   }
   .form-input-depth {
     -moz-appearance: textfield;
+    appearance: textfield;
   }

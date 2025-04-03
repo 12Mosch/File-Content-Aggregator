@@ -79,3 +79,35 @@
   outline-offset: 2px;
   box-shadow: none;
 }
+
+.results-area {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* Space between switcher and results display */
+  flex-grow: 1; /* Allow results area to grow */
+  min-height: 0; /* Important for flex-grow in some contexts */
+}
+
+.view-mode-switcher {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  align-self: flex-start; /* Align switcher to the left */
+  flex-shrink: 0; /* Prevent switcher from shrinking */
+}
+
+.view-mode-switcher label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+}
+
+.view-mode-switcher input[type="radio"] {
+  cursor: pointer;
+  /* Optional: Style radio buttons */
+  accent-color: var(--color-accent-primary);
+}

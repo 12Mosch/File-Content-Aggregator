@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next"; // For translations
-import SearchForm from "./SearchForm"; // Input form component
-import ResultsDisplay from "./ResultsDisplay"; // Results display component (virtualized)
-import ProgressBar from "./ProgressBar"; // Progress bar component
-import SettingsModal from "./SettingsModal"; // Settings modal component
-
+import { useTranslation } from "react-i18next";
+import SearchForm from "./SearchForm";
+import ResultsDisplay from "./ResultsDisplay";
+import ProgressBar from "./ProgressBar";
+import SettingsModal from "./SettingsModal";
 // Import types defined in vite-env.d.ts for API and data structures
 import type {
   ProgressData,
@@ -14,7 +13,7 @@ import type {
 } from "./vite-env.d";
 
 // Import CSS files
-import "./App.css"; // App specific styles (including settings button)
+import "./App.css"; // App specific styles (including settings button, view switcher)
 import "./index.css"; // Global styles
 import "./SettingsModal.css"; // Modal styles (ensure this is created)
 
@@ -24,21 +23,40 @@ interface SearchParamsUI {
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
+  folderExclusionMode?: 'contains' | 'exact' | 'startsWith' | 'endsWith';
+  contentSearchTerm?: string;
+  caseSensitive?: boolean;
+  modifiedAfter?: string;
+  modifiedBefore?: string;
+  maxDepth?: number;
 }
 
 // Threshold for considering results "large" for clipboard warning
 const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 
-// Helper type for grouping file read errors by their reason key
+// Helper type for grouping errors
 type GroupedErrors = { [reasonKey: string]: string[] }; // e.g., { "readPermissionDenied": ["path1", "path2"] }
+
+// Define type for structured items used in UI state
+type StructuredResultItem = { filePath: string; content: string | null; readError?: string };
+
+// --- New State Structure for Tree Items ---
+interface ItemDisplayState {
+    expanded: boolean;
+    showFull: boolean; // Track if full content is shown for this item
+}
+// Use a Map for efficient lookups: filePath -> ItemDisplayState
+type ItemDisplayStates = Map<string, ItemDisplayState>;
+// -----------------------------------------
+
 
 function App() {
   // --- i18n Hook ---
-  // Initialize translation hook, specifying namespaces used in this component
   const { t, i18n } = useTranslation(['common', 'errors', 'results']);
 
   // --- State Management ---
-  const [results, setResults] = useState<string | null>(null); // Stores the aggregated file content
+  const [results, setResults] = useState<string | null>(null); // Stores the aggregated file content (for text view, copy, save)
+  const [structuredResults, setStructuredResults] = useState<StructuredResultItem[] | null>(null); // Stores structured data for tree view
   const [searchSummary, setSearchSummary] = useState<{
     filesFound: number;
     filesProcessed: number;
@@ -50,80 +68,73 @@ function App() {
   const [progress, setProgress] = useState<ProgressData | null>(null); // Stores progress updates from backend
   const [generalError, setGeneralError] = useState<string | null>(null); // Stores general app/process errors
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false); // Controls visibility of the settings modal
+  const [viewMode, setViewMode] = useState<'text' | 'tree'>('text'); // State for results view mode ('text' or 'tree')
+  // --- Updated State for Tree View ---
+  const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(new Map()); // State for expanded/showFull tree items
 
   // --- Memoized Grouping for File Read Errors ---
-  // Groups file read errors by their 'reason' (which is a translation key)
-  // This avoids recalculating on every render unless fileReadErrors changes.
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
-      const reasonKey = error.reason || "unknownError"; // Use reason key, provide a fallback key
+      const reasonKey = error.reason || "unknownError"; // Use key, provide fallback key
       if (!acc[reasonKey]) {
         acc[reasonKey] = []; // Initialize array for this reason if it's the first time
       }
       acc[reasonKey].push(error.filePath); // Add the file path to the group
       return acc;
     }, {} as GroupedErrors); // Start with an empty object
-  }, [fileReadErrors]); // Dependency array: only recalculate when fileReadErrors changes
+  }, [fileReadErrors]); // Recalculate only when fileReadErrors changes
 
   // --- Effect for Progress Updates ---
-  // Subscribes to progress events from the main process when the component mounts
   useEffect(() => {
-    // Ensure the Electron API for progress updates is available
     if (window.electronAPI?.onSearchProgress) {
       console.log("UI: Subscribing to search progress");
-      // Call the API function, providing a callback to update the progress state
       const unsubscribe = window.electronAPI.onSearchProgress(
         (progressData) => {
-          setProgress(progressData); // Update state with received progress data
+          setProgress(progressData);
         },
       );
-      // Return a cleanup function that unsubscribes the listener when the component unmounts
-      return () => {
+      return () => { // Cleanup function
         console.log("UI: Unsubscribing from search progress");
         unsubscribe();
       };
     } else {
-      // Log a warning and set an error state if the API is not found
       console.warn("UI: electronAPI.onSearchProgress not found on window.");
-      setGeneralError(t('errors:connectError')); // Use translated error message
+      setGeneralError(t('errors:connectError'));
     }
-    // Add 't' to dependency array because it's used within the effect for the error message
-  }, [t]);
+  }, [t]); // Add 't' as dependency
 
   // --- Event Handlers ---
 
   // Handler for submitting the search form
   const handleSearchSubmit = useCallback(async (params: SearchParamsUI) => {
     console.log("UI: Starting search with params:", params);
-    // Reset state before starting a new search
+    // Reset state before search
     setIsLoading(true);
     setResults(null);
+    setStructuredResults(null);
     setSearchSummary(null);
     setPathErrors([]);
     setFileReadErrors([]);
-    setProgress({ processed: 0, total: 0, message: "Starting search..." }); // Initial progress state
+    setItemDisplayStates(new Map()); // Reset item display states
+    setProgress({ processed: 0, total: 0, message: "Starting search..." });
     setGeneralError(null);
 
     try {
-      // Check if the search API function is available
-      if (!window.electronAPI?.invokeSearch) {
-        throw new Error(t('errors:searchFunctionNA')); // Use translated error
-      }
-      // Call the backend search function via IPC invoke
+      if (!window.electronAPI?.invokeSearch) throw new Error(t('errors:searchFunctionNA'));
       const searchResult: SearchResult = await window.electronAPI.invokeSearch(params);
       console.log("UI: Search completed.");
 
-      // Update state with the results received from the backend
+      // Update state with results
       setResults(searchResult.output);
+      setStructuredResults(searchResult.structuredItems);
       setSearchSummary({
         filesFound: searchResult.filesFound,
         filesProcessed: searchResult.filesProcessed,
         errorsEncountered: searchResult.errorsEncountered,
       });
 
-      // Translate path errors before storing them for display
+      // Translate path errors
       const translatedPathErrors = searchResult.pathErrors.map(err => {
-          // Attempt to match known error patterns and translate them
           if (err.startsWith('Search path not found:')) {
               return t('errors:pathNotFound', { path: err.substring('Search path not found:'.length).trim() });
           }
@@ -133,98 +144,101 @@ function App() {
           if (err.startsWith('Permission denied for search path:')) {
               return t('errors:pathPermissionDenied', { path: err.substring('Permission denied for search path:'.length).trim() });
           }
-          // Fallback: return the original error string if no pattern matches
           return err;
       });
       setPathErrors(translatedPathErrors);
+      setFileReadErrors(searchResult.fileReadErrors); // Store structured errors
 
-      // Store the structured file read errors (translation happens during rendering)
-      setFileReadErrors(searchResult.fileReadErrors);
-
-      // Update final progress state message
+      // Update final progress
       setProgress((prev) => ({
-          ...(prev ?? { processed: 0, total: 0 }), // Keep previous progress data if available
+          ...(prev ?? { processed: 0, total: 0 }),
           processed: searchResult.filesProcessed,
-          // Ensure total isn't 0 if processed is > 0, use previous total as fallback
           total: searchResult.filesProcessed > 0 ? searchResult.filesProcessed : (prev?.total ?? 0),
-          message: `Search complete. Processed ${searchResult.filesProcessed} files.`, // Keep this simple, ProgressBar handles its own default translation
+          message: `Search complete. Processed ${searchResult.filesProcessed} files.`,
       }));
 
     } catch (err: any) {
-      // Handle errors during the search process itself
       console.error("UI: Search failed:", err);
-      setGeneralError(t('errors:generalSearchFailed', { detail: err.message || "Unknown error" })); // Translate error
-      setProgress(null); // Clear progress on error
+      setGeneralError(t('errors:generalSearchFailed', { detail: err.message || "Unknown error" }));
+      setProgress(null);
     } finally {
-      setIsLoading(false); // Ensure loading state is always reset
+      setIsLoading(false);
     }
-  }, [t]); // Add t to dependency array as it's used within the callback
+  }, [t]); // Add t dependency
 
-  // Handler for copying results to clipboard
+  // Handler for copying results (always copies full text block)
   const handleCopyResults = useCallback(async (): Promise<{ success: boolean; potentiallyTruncated: boolean }> => {
     let potentiallyTruncated = false;
     if (results) {
-        // Check if results are large based on line count
         const lineCount = results.split('\n').length;
         if (lineCount > LARGE_RESULT_LINE_THRESHOLD_APP) {
             potentiallyTruncated = true;
-            console.warn("UI: Attempting to copy large results, may be truncated.");
         }
-
-        // Check if copy API is available
         if (window.electronAPI?.copyToClipboard) {
-            console.log("UI: Requesting copy to clipboard");
             try {
-                // Call backend copy function
                 const success = await window.electronAPI.copyToClipboard(results);
-                console.log("UI: Copy request status:", success);
-                return { success, potentiallyTruncated }; // Return status object
+                return { success, potentiallyTruncated };
             } catch (err: any) {
-                console.error("UI: Copy to clipboard failed:", err);
-                setGeneralError(t('errors:copyFailed', { detail: err.message })); // Translate error
+                setGeneralError(t('errors:copyFailed', { detail: err.message }));
                 return { success: false, potentiallyTruncated };
             }
         }
     }
-    // Return default failure if no results or API unavailable
     return { success: false, potentiallyTruncated: false };
-  }, [results, t]); // Add results and t to dependency array
+  }, [results, t]); // Add results, t dependencies
 
-  // Handler for saving results to a file
+  // Handler for saving results (always saves full text block)
   const handleSaveResults = useCallback(async (): Promise<void> => {
-     // Check if results exist and save APIs are available
      if (results && window.electronAPI?.showSaveDialog && window.electronAPI?.writeFile) {
-        setGeneralError(null); // Clear previous errors
+        setGeneralError(null);
         try {
-            // Show save dialog via IPC
             const filePath = await window.electronAPI.showSaveDialog();
-            // If user selected a path (didn't cancel)
             if (filePath) {
-                console.log(`UI: File path selected: ${filePath}. Requesting write.`);
-                // Write file via IPC
                 const success = await window.electronAPI.writeFile(filePath, results);
                 if (!success) {
-                    // Handle backend write failure
-                    console.error("UI: File write failed (backend reported failure).");
-                    setGeneralError(t('errors:saveFailedBackend')); // Translate error
-                } else {
-                    console.log("UI: File write successful.");
-                    // Optionally show a temporary success message here
+                    setGeneralError(t('errors:saveFailedBackend'));
                 }
-            } else {
-                console.log("UI: Save file dialog cancelled.");
             }
         } catch (err: any) {
-            // Handle errors during the save process (e.g., dialog error)
-            console.error("UI: Save process failed:", err);
-            setGeneralError(t('errors:saveFailed', { detail: err.message })); // Translate error
+            setGeneralError(t('errors:saveFailed', { detail: err.message }));
         }
      }
-  }, [results, t]); // Add results and t to dependency array
+  }, [results, t]); // Add results, t dependencies
 
   // --- Settings Modal Toggle Handlers ---
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
+
+  // --- Tree View Toggle Handlers ---
+  // Toggles the 'expanded' state for a given file path
+  const handleToggleExpand = useCallback((filePath: string) => {
+    setItemDisplayStates(prevMap => {
+      const newMap = new Map(prevMap);
+      const currentState = newMap.get(filePath);
+      if (currentState?.expanded) {
+         // Collapse: Remove entry or set expanded: false
+         newMap.delete(filePath);
+      } else {
+        // Expand: Add entry, default showFull to false
+        newMap.set(filePath, { expanded: true, showFull: false });
+      }
+      return newMap;
+    });
+  }, []); // No dependencies needed
+
+  // Sets the 'showFull' state to true for a given file path
+  const handleShowFullContent = useCallback((filePath: string) => {
+      setItemDisplayStates(prevMap => {
+          const newMap = new Map(prevMap);
+          const currentState = newMap.get(filePath);
+          // Only update if item exists, is expanded, and full content isn't already shown
+          if (currentState?.expanded && !currentState.showFull) {
+              newMap.set(filePath, { ...currentState, showFull: true });
+              return newMap; // Return the updated map
+          }
+          return prevMap; // Return previous map if no change needed
+      });
+  }, []); // No dependencies needed
 
   // --- Render Logic ---
   return (
@@ -232,9 +246,7 @@ function App() {
       {/* Header Section */}
       <div className="app-header">
         <h1>{t('common:appName')}</h1>
-        {/* Settings Button */}
         <button onClick={openSettings} className="settings-button" aria-label={t('common:settings')}>
-          {/* Placeholder Gear Icon - Consider replacing with an SVG or icon font */}
           ⚙️
         </button>
       </div>
@@ -251,7 +263,6 @@ function App() {
           <h4>{t('errors:pathErrorsHeading')}</h4>
           <ul>
             {pathErrors.map((err, index) => (
-              // Path errors are already translated in handleSearchSubmit
               <li key={`path-err-${index}`}>{err}</li>
             ))}
           </ul>
@@ -262,11 +273,8 @@ function App() {
       {fileReadErrors.length > 0 && (
         <div className="file-read-errors-container error-message">
           <h4>{t('errors:fileReadErrorsHeading', { count: fileReadErrors.length })}</h4>
-          {/* Iterate through grouped errors using the reasonKey */}
           {Object.entries(groupedFileReadErrors).map(([reasonKey, paths]) => (
             <div key={reasonKey} className="error-group">
-              {/* Translate the heading using the reasonKey directly */}
-              {/* Provide the key itself as fallback if translation missing */}
               <h5>{t(`errors:${reasonKey}`, { defaultValue: reasonKey, count: paths.length })}:</h5>
               <ul>
                 {paths.map((filePath, index) => (
@@ -284,18 +292,51 @@ function App() {
           processed={progress.processed}
           total={progress.total}
           message={progress.message}
-          error={progress.error} // Shows simplified error key during progress
+          error={progress.error}
         />
       )}
 
-      {/* Display Results Component */}
-      {results !== null && searchSummary && (
-        <ResultsDisplay
-          results={results}
-          summary={searchSummary}
-          onCopy={handleCopyResults} // Pass down the modified handler
-          onSave={handleSaveResults}
-        />
+      {/* Results Area: Only render if not loading and results are available */}
+      {!isLoading && results !== null && searchSummary && (
+        <div className="results-area">
+            {/* View Mode Switcher */}
+            <div className="view-mode-switcher">
+                <label>
+                    <input
+                        type="radio"
+                        name="viewMode"
+                        value="text"
+                        checked={viewMode === 'text'}
+                        onChange={() => setViewMode('text')}
+                    />
+                    {t('results:viewModeText')}
+                </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="viewMode"
+                        value="tree"
+                        checked={viewMode === 'tree'}
+                        onChange={() => setViewMode('tree')}
+                        disabled={!structuredResults} // Disable tree view if no structured data
+                    />
+                    {t('results:viewModeTree')}
+                </label>
+            </div>
+
+            {/* Results Display Component (passes down necessary props) */}
+            <ResultsDisplay
+                results={results} // Full text for text view, copy, save
+                structuredResults={structuredResults} // Data for tree view
+                summary={searchSummary}
+                viewMode={viewMode} // Current view mode
+                itemDisplayStates={itemDisplayStates} // Pass map of item states
+                onCopy={handleCopyResults} // Callback for copy button
+                onSave={handleSaveResults} // Callback for save button
+                onToggleExpand={handleToggleExpand} // Callback to toggle tree items
+                onShowFullContent={handleShowFullContent} // Callback to show full content
+            />
+        </div>
       )}
 
       {/* Settings Modal (Conditionally Rendered) */}

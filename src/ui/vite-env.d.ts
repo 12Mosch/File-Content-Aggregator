@@ -10,14 +10,17 @@ interface ProgressData {
   error?: string;
 }
 
-interface FileReadError {
+// New interface for structured result items (mirrored from backend)
+interface StructuredItem {
   filePath: string;
-  reason: string; // Translation key
-  detail?: string; // Original error message
+  content: string | null; // Content if read successfully, null otherwise
+  readError?: string; // Translation key for the error, if any
 }
 
+// Updated SearchResult interface (mirrored from backend)
 interface SearchResult {
-  output: string;
+  output: string; // Combined text output
+  structuredItems: StructuredItem[]; // New: Array of structured items
   filesProcessed: number;
   filesFound: number;
   errorsEncountered: number;
@@ -25,10 +28,9 @@ interface SearchResult {
   fileReadErrors: FileReadError[];
 }
 
-// Define allowed folder exclusion modes
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
-// Updated SearchParams to include folder exclusion mode
+// SearchParams interface remains the same as the previous step
 interface SearchParams {
   searchPaths: string[];
   extensions: string[];
@@ -47,6 +49,7 @@ interface SearchParams {
 // --- Electron API Definition ---
 
 export interface IElectronAPI {
+  // invokeSearch now returns the updated SearchResult type
   invokeSearch: (params: SearchParams) => Promise<SearchResult>;
 
   showSaveDialog: () => Promise<string | undefined>;
@@ -69,4 +72,4 @@ declare global {
 
 // --- Exports ---
 
-export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode };
+export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode, StructuredItem }; // Export new type
