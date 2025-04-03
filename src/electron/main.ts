@@ -1,3 +1,5 @@
+// D:/Code/Electron/src/electron/main.ts
+
 import {
   app,
   BrowserWindow,
@@ -15,9 +17,10 @@ import i18next from "i18next"; // For main process translations
 import Backend from "i18next-fs-backend"; // To load translations from files
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
+// Import interfaces and the search function from the service
 import {
   searchFiles,
-  SearchParams,
+  SearchParams, // Import the updated SearchParams interface
   ProgressData,
   SearchResult,
   FileReadError,
@@ -272,28 +275,50 @@ function validateSender(senderFrame: Electron.WebFrameMain | null): boolean {
 // Search Files Handler
 ipcMain.handle(
   "search-files",
+  // Use the updated SearchParams interface for type safety
   async (event, params: SearchParams): Promise<SearchResult> => {
     if (!validateSender(event.senderFrame)) {
+      // Return an error structure matching SearchResult
       return {
-        output: "Error: Invalid IPC sender", filesFound: 0, filesProcessed: 0,
-        errorsEncountered: 1, pathErrors: ["Invalid IPC sender"], fileReadErrors: [],
+        output: "Error: Invalid IPC sender",
+        filesFound: 0,
+        filesProcessed: 0,
+        errorsEncountered: 1,
+        pathErrors: ["Invalid IPC sender"],
+        fileReadErrors: [],
       };
     }
-    console.log("IPC: Received search-files request");
+    // Log received parameters, including new ones if present
+    console.log("IPC: Received search-files request with params:", params);
+
+    // Define the progress callback function to send updates to the renderer
     const progressCallback = (data: ProgressData) => {
       if (mainWindow) mainWindow.webContents.send("search-progress", data);
     };
+
     try {
+      // Call the backend search function, passing the received params directly
       const results = await searchFiles(params, progressCallback);
       console.log(`IPC: search-files completed.`);
-      return results;
+      return results; // Return the results to the renderer
     } catch (error: any) {
       console.error("IPC: Error during searchFiles execution:", error);
       const errorMsg = `Search failed: ${error.message || "Unknown error"}`;
-      progressCallback({ processed: 0, total: 0, message: errorMsg, error: error.message });
+      // Send error progress update
+      progressCallback({
+        processed: 0,
+        total: 0,
+        message: errorMsg,
+        error: error.message,
+      });
+      // Return an error structure matching SearchResult
       return {
-        output: errorMsg, filesFound: 0, filesProcessed: 0,
-        errorsEncountered: 1, pathErrors: [errorMsg], fileReadErrors: [],
+        output: errorMsg,
+        filesFound: 0,
+        filesProcessed: 0,
+        errorsEncountered: 1,
+        pathErrors: [errorMsg],
+        fileReadErrors: [],
       };
     }
   },

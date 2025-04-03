@@ -1,13 +1,15 @@
 {
-    "searchPathLabel": "Search Paths (one per line or comma-separated):",
-    "searchPathPlaceholder": "e.g., C:\\Users\\Me\\Documents, /home/user/projects",
-    "extensionsLabel": "File Extensions (comma-separated):",
-    "extensionsPlaceholder": "e.g., txt, log, cs, tsx",
-    "excludeFilesLabel": "Exclude Files (comma-separated, supports wildcards like *):",
-    "excludeFilesPlaceholder": "e.g., temp*.log, *.tmp",
-    "excludeFoldersLabel": "Exclude Folders (comma-separated, substring match):",
-    "excludeFoldersPlaceholder": "e.g., node_modules, .git, bin",
-    "searchButton": "Search Files",
-    "searchButtonLoading": "Searching..."
-  }
-  
+  "searchPathLabel": "Search Paths (one per line or comma-separated):",
+  "searchPathPlaceholder": "e.g., C:\\Users\\Me\\Documents, /home/user/projects",
+  "extensionsLabel": "File Extensions (comma-separated):",
+  "extensionsPlaceholder": "e.g., txt, log, cs, tsx",
+  "excludeFilesLabel": "Exclude Files (comma-separated, supports wildcards like *):",
+  "excludeFilesPlaceholder": "e.g., temp*.log, *.tmp",
+  "excludeFoldersLabel": "Exclude Folders (comma-separated, substring match):",
+  "excludeFoldersPlaceholder": "e.g., node_modules, .git, bin",
+  "contentSearchLabel": "Content Search Term (Optional):",
+  "contentSearchPlaceholder": "e.g., specific error code, function name",
+  "caseSensitiveLabel": "Case-Sensitive",
+  "searchButton": "Search Files",
+  "searchButtonLoading": "Searching..."
+}

@@ -4,6 +4,7 @@ import SearchForm from "./SearchForm"; // Input form component
 import ResultsDisplay from "./ResultsDisplay"; // Results display component (virtualized)
 import ProgressBar from "./ProgressBar"; // Progress bar component
 import SettingsModal from "./SettingsModal"; // Settings modal component
+
 // Import types defined in vite-env.d.ts for API and data structures
 import type {
   ProgressData,
