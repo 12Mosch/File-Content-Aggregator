@@ -13,6 +13,7 @@ dist-react
 dist-electron
 dist-ssr
 *.local
+release
 
 # Editor directories and files
 .vscode/*

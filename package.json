@@ -3,6 +3,8 @@
   "productName": "File Content Aggregator",
   "private": true,
   "version": "1.0.0",
+  "description": "Aggregates content from multiple files based on search criteria.",
+  "author": {"name": "Mosch"},
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
