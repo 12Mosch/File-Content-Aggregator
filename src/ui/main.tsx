@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import i18n from "./i18n"; // Import your i18n configuration
 import "./index.css";
+import 'highlight.js/styles/github-dark.css'; // Import highlight.js CSS theme
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");
