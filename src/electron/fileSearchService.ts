@@ -2,14 +2,19 @@
 import path from "path";
 import fs from "fs/promises";
 import fg from "fast-glob";
-import picomatch from "picomatch"; // Import picomatch
+import picomatch from "picomatch"; // Ensure picomatch is imported
 
-// --- Interfaces (SearchParams structure remains the same) ---
+// --- Interfaces ---
+// Define allowed folder exclusion modes
+type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
+
+// Updated SearchParams interface
 export interface SearchParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[]; // Contains Regex/Glob patterns
-  excludeFolders: string[]; // Contains Regex/Glob patterns
+  excludeFolders: string[]; // Contains Glob patterns
+  folderExclusionMode?: FolderExclusionMode; // New: Mode for folder exclusion
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
@@ -18,6 +23,7 @@ export interface SearchParams {
   maxSizeBytes?: number;
 }
 
+// Other interfaces (ProgressData, FileReadError, SearchResult) remain the same
 export interface ProgressData {
   processed: number;
   total: number;
@@ -25,13 +31,11 @@ export interface ProgressData {
   message?: string;
   error?: string;
 }
-
 export interface FileReadError {
   filePath: string;
   reason: string;
   detail?: string;
 }
-
 export interface SearchResult {
   output: string;
   filesProcessed: number;
@@ -40,24 +44,43 @@ export interface SearchResult {
   pathErrors: string[];
   fileReadErrors: FileReadError[];
 }
-
 export type ProgressCallback = (data: ProgressData) => void;
 
 // --- Helper Functions ---
-// Date parsing helpers (remain the same)
+
+/**
+ * Parses a "YYYY-MM-DD" string into a Date object representing the START of that day (00:00:00).
+ * Returns null if the input is empty or invalid.
+ */
 function parseDateStartOfDay(dateString: string | undefined): Date | null {
   if (!dateString) return null;
   try {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) { return null; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        console.warn(`Invalid date format for parsing: ${dateString}. Expected YYYY-MM-DD.`);
+        return null;
+    }
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) { return null; }
+    if (isNaN(date.getTime())) {
+        console.warn(`Invalid date value resulted from parsing: ${dateString}`);
+        return null;
+    }
     date.setHours(0, 0, 0, 0);
     return date;
-  } catch (e) { console.error(`Error parsing date string "${dateString}":`, e); return null; }
+  } catch (e) {
+    console.error(`Error parsing date string "${dateString}":`, e);
+    return null;
+  }
 }
+
+/**
+ * Parses a "YYYY-MM-DD" string into a Date object representing the END of that day (23:59:59.999).
+ * Returns null if the input is empty or invalid.
+ */
 function parseDateEndOfDay(dateString: string | undefined): Date | null {
   const date = parseDateStartOfDay(dateString);
-  if (date) { date.setHours(23, 59, 59, 999); }
+  if (date) {
+    date.setHours(23, 59, 59, 999);
+  }
   return date;
 }
 
@@ -87,8 +110,10 @@ export async function searchFiles(
   const {
     searchPaths,
     extensions,
-    excludeFiles, // Array of patterns
-    excludeFolders, // Array of patterns
+    excludeFiles,
+    excludeFolders,
+    // Default folderExclusionMode to 'contains' if not provided
+    folderExclusionMode = 'contains',
     contentSearchTerm,
     caseSensitive = false,
     modifiedAfter,
@@ -101,7 +126,6 @@ export async function searchFiles(
   const fileReadErrors: FileReadError[] = [];
 
   // --- 1. Initial File Discovery (fast-glob) ---
-  // NOTE: We REMOVE the 'ignore' option here, as we'll handle file exclusions manually later.
   progressCallback({ processed: 0, total: 0, message: "Scanning directories..." });
   const includePatterns = extensions.map((ext) => `**/*.${ext.replace(/^\./, "")}`);
   const allFoundFiles = new Set<string>();
@@ -110,12 +134,26 @@ export async function searchFiles(
   try {
     for (const searchPath of searchPaths) {
       const normalizedPath = searchPath.replace(/\\/g, "/");
-      try { /* Path validation logic... */ }
-      catch (statError: any) { /* Path error handling... */ continue; }
-
+      try {
+          const stats = await fs.stat(searchPath);
+          if (!stats.isDirectory()) {
+              const errorMsg = `Search path is not a directory: ${searchPath}`;
+              console.warn(errorMsg); pathErrors.push(errorMsg);
+              progressCallback({ processed: 0, total: 0, message: `Skipping non-directory: ${searchPath}` });
+              continue;
+          }
+      } catch (statError: any) {
+          let errorMsg = `Error accessing search path: ${searchPath}`; let reason = "Access Error";
+          if (statError.code === 'ENOENT') { reason = "Path Not Found"; errorMsg = `Search path not found: ${searchPath}`; }
+          else if (statError.code === 'EACCES' || statError.code === 'EPERM') { reason = "Permission Denied"; errorMsg = `Permission denied for search path: ${searchPath}`; }
+          else { errorMsg = `Error accessing search path: ${searchPath} - ${statError.message}`; }
+          console.warn(`Path Error (${reason}): ${errorMsg}`, statError); pathErrors.push(errorMsg);
+          progressCallback({ processed: 0, total: 0, message: `Cannot access path: ${searchPath}`, error: statError.message });
+          continue;
+      }
       const found = await fg(includePatterns, {
         cwd: normalizedPath,
-        // ignore: ignoreFilePatterns, // REMOVED - Handled later
+        // ignore: is handled manually later
         absolute: true,
         onlyFiles: true,
         dot: true, // Important for matching hidden files/folders if needed by patterns
@@ -137,7 +175,7 @@ export async function searchFiles(
   let filesToProcess: string[] = initialFiles;
   let currentTotal = initialFileCount;
 
-  // --- 2. File Exclusion Filter (New: Regex/Glob on Basename) ---
+  // --- 2. File Exclusion Filter (Regex/Glob on Basename) ---
   if (excludeFiles && excludeFiles.length > 0 && filesToProcess.length > 0) {
     progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded file patterns...` });
     filesToProcess = filesToProcess.filter((filePath) => {
@@ -150,7 +188,6 @@ export async function searchFiles(
           return regex.test(filename);
         } else {
           // Glob Match (using picomatch)
-          // { dot: true } allows matching hidden files like .DS_Store if pattern allows
           return picomatch.isMatch(filename, pattern, { dot: true });
         }
       });
@@ -160,28 +197,50 @@ export async function searchFiles(
     progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after file exclusion.` });
   }
 
-  // --- 3. Folder Exclusion Filter (New: Regex/Glob on Segments) ---
-  // NOTE: This replaces the previous substring-based folder exclusion.
+  // --- 3. Folder Exclusion Filter (Precise Mode Matching with Picomatch) ---
   if (excludeFolders && excludeFolders.length > 0 && filesToProcess.length > 0) {
-    progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded folder patterns...` });
+    progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded folder patterns (${folderExclusionMode})...` });
+
+    // Pre-compile matchers based on the selected mode
+    const folderMatchers = excludeFolders.map(pattern => {
+        const picoOptions = { dot: true, nocase: true }; // Case-insensitive matching for paths
+        let matchPattern = pattern;
+
+        // Adjust pattern based on mode for picomatch usage
+        switch (folderExclusionMode) {
+            case 'startsWith':
+                matchPattern = pattern + '*'; // Append wildcard for startsWith
+                break;
+            case 'endsWith':
+                matchPattern = '*' + pattern; // Prepend wildcard for endsWith
+                break;
+            case 'contains':
+                // Add wildcards only if pattern doesn't already contain them
+                // This prevents '**pattern**' if user enters '*pattern*'
+                if (!pattern.includes('*') && !pattern.includes('?')) {
+                   matchPattern = '*' + pattern + '*';
+                }
+                break;
+            case 'exact':
+            default:
+                // Use the pattern as is for exact matching
+                break;
+        }
+        // Return the compiled matcher function
+        return picomatch(matchPattern, picoOptions);
+    });
+
+
     filesToProcess = filesToProcess.filter((filePath) => {
       const dirPath = path.dirname(filePath);
       // Split path into segments, handling both Windows and Unix separators
-      const segments = dirPath.split(/[\\/]/).filter(Boolean); // Filter out empty strings from leading/trailing slashes
+      const segments = dirPath.split(/[\\/]/).filter(Boolean);
 
-      // Check if ANY directory segment matches ANY exclusion pattern
-      const isExcluded = excludeFolders.some((pattern) => {
-        const regex = parseRegexLiteral(pattern);
-        return segments.some((segment) => {
-          if (regex) {
-            // Regex Match on segment
-            return regex.test(segment);
-          } else {
-            // Glob Match on segment
-            return picomatch.isMatch(segment, pattern, { dot: true });
-          }
-        });
-      });
+      // Check if ANY directory segment matches ANY of the compiled exclusion matchers
+      const isExcluded = folderMatchers.some(isMatch =>
+        segments.some(segment => isMatch(segment))
+      );
+
       return !isExcluded; // Keep the file if no segment matched any pattern
     });
     currentTotal = filesToProcess.length;
@@ -206,16 +265,32 @@ export async function searchFiles(
         const fileSize = stats.size;
         const mtime = stats.mtime;
 
-        const passSizeCheck = (!hasSizeFilter) || ((minSizeBytes === undefined || fileSize >= minSizeBytes) && (maxSizeBytes === undefined || fileSize <= maxSizeBytes));
-        const passDateCheck = (!hasDateFilter) || ((!afterDate || mtime.getTime() >= afterDate.getTime()) && (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
+        // Perform Size Check
+        const passSizeCheck =
+          (!hasSizeFilter) ||
+          (
+            (minSizeBytes === undefined || fileSize >= minSizeBytes) &&
+            (maxSizeBytes === undefined || fileSize <= maxSizeBytes)
+          );
 
+        // Perform Date Check
+        const passDateCheck =
+          (!hasDateFilter) ||
+          (
+            (!afterDate || mtime.getTime() >= afterDate.getTime()) &&
+            (!beforeDate || mtime.getTime() <= beforeDate.getTime())
+          );
+
+        // Keep the file only if it passes both checks (if applicable)
         if (passSizeCheck && passDateCheck) {
           statFilteredFiles.push(filePath);
         }
       } catch (statError: any) {
         console.warn(`Could not get stats for file during size/date filter: ${filePath}`, statError);
+        // Optionally add to a specific error list if needed
       }
       processedForStatFilter++;
+      // Optional: More granular progress for stat filtering
     }
     filesToProcess = statFilteredFiles;
     currentTotal = filesToProcess.length;
@@ -266,8 +341,8 @@ export async function searchFiles(
 
   return {
     output: finalOutput,
-    filesFound: initialFileCount,
-    filesProcessed: filesProcessed,
+    filesFound: initialFileCount, // Total files found before *any* filtering
+    filesProcessed: filesProcessed, // Files actually attempted to read (after all filters)
     errorsEncountered: fileReadErrors.length,
     pathErrors: pathErrors,
     fileReadErrors: fileReadErrors,

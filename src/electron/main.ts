@@ -1,5 +1,3 @@
-// D:/Code/Electron/src/electron/main.ts
-
 import {
   app,
   BrowserWindow,
@@ -17,10 +15,10 @@ import i18next from "i18next";
 import Backend from "i18next-fs-backend";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
-// Import the updated SearchParams interface and other necessary types/functions
+
 import {
   searchFiles,
-  SearchParams, // Ensure this is the updated interface
+  SearchParams,
   ProgressData,
   SearchResult,
   FileReadError,
@@ -170,7 +168,7 @@ function validateSender(senderFrame: Electron.WebFrameMain | null): boolean {
 // Search Files Handler - Updated to use the SearchParams type
 ipcMain.handle(
   "search-files",
-  async (event, params: SearchParams): Promise<SearchResult> => { // Use updated SearchParams type
+  async (event, params: SearchParams): Promise<SearchResult> => {
     if (!validateSender(event.senderFrame)) {
       return { output: "Error: Invalid IPC sender", filesFound: 0, filesProcessed: 0, errorsEncountered: 1, pathErrors: ["Invalid IPC sender"], fileReadErrors: [] };
     }

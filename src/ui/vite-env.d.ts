@@ -1,5 +1,3 @@
-// D:/Code/Electron/src/ui/vite-env.d.ts
-
 /// <reference types="vite/client" />
 
 // --- Data Structures ---
@@ -27,24 +25,28 @@ interface SearchResult {
   fileReadErrors: FileReadError[];
 }
 
-// Updated SearchParams to include optional size numbers (in bytes)
+// Define allowed folder exclusion modes
+type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
+
+// Updated SearchParams to include folder exclusion mode
 interface SearchParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
+  folderExclusionMode?: FolderExclusionMode; // New: Mode for folder exclusion
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
-  minSizeBytes?: number; // New: Optional min size in bytes
-  maxSizeBytes?: number; // New: Optional max size in bytes
+  minSizeBytes?: number;
+  maxSizeBytes?: number;
 }
 
 // --- Electron API Definition ---
 
 export interface IElectronAPI {
-  // Updated to accept the new SearchParams interface with size fields
+  // Updated to accept the new SearchParams interface
   invokeSearch: (params: SearchParams) => Promise<SearchResult>;
 
   showSaveDialog: () => Promise<string | undefined>;
@@ -67,4 +69,4 @@ declare global {
 
 // --- Exports ---
 
-export type { ProgressData, SearchResult, FileReadError, SearchParams };
+export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode };

@@ -12,12 +12,16 @@ const SIZE_UNITS = {
 };
 type SizeUnit = keyof typeof SIZE_UNITS;
 
+// Define allowed folder exclusion modes
+type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
+
 // Define the shape of the data managed by the form's state
 interface SearchFormData {
   searchPaths: string;
   extensions: string;
-  excludeFiles: string; // Will contain Regex/Glob patterns
-  excludeFolders: string; // Will contain Regex/Glob patterns
+  excludeFiles: string;
+  excludeFolders: string;
+  folderExclusionMode: FolderExclusionMode; // New: Mode for folder exclusion
   contentSearchTerm: string;
   caseSensitive: boolean;
   modifiedAfter: string;
@@ -32,8 +36,9 @@ interface SearchFormData {
 interface SubmitParams {
   searchPaths: string[];
   extensions: string[];
-  excludeFiles: string[]; // Pass patterns as strings
-  excludeFolders: string[]; // Pass patterns as strings
+  excludeFiles: string[];
+  excludeFolders: string[];
+  folderExclusionMode?: FolderExclusionMode; // New: Pass selected mode
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
@@ -53,8 +58,9 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   const [formData, setFormData] = useState<SearchFormData>({
     searchPaths: "",
     extensions: "",
-    excludeFiles: "", // Initialize empty
-    excludeFolders: ".git, node_modules, bin, obj, dist", // Keep defaults or clear
+    excludeFiles: "",
+    excludeFolders: ".git, node_modules, bin, obj, dist",
+    folderExclusionMode: "contains", // Default mode
     contentSearchTerm: "",
     caseSensitive: false,
     modifiedAfter: "",
@@ -89,16 +95,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     e.preventDefault();
     const splitAndClean = (str: string) =>
       str
-        .split(/[\n,]+/) // Split by newline or comma
-        .map((s) => s.trim()) // Trim whitespace
-        .filter(Boolean); // Remove empty strings
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
     const submitParams: SubmitParams = {
       searchPaths: splitAndClean(formData.searchPaths),
       extensions: splitAndClean(formData.extensions),
-      // Pass the raw, cleaned exclusion strings directly
       excludeFiles: splitAndClean(formData.excludeFiles),
       excludeFolders: splitAndClean(formData.excludeFolders),
+      folderExclusionMode: formData.folderExclusionMode, // Pass the selected mode
     };
 
     if (formData.contentSearchTerm.trim()) {
@@ -156,32 +162,43 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         <input type="text" id="extensions" name="extensions" value={formData.extensions} onChange={handleChange} required placeholder={t("extensionsPlaceholder")} disabled={isLoading} />
       </div>
 
-      {/* Exclude Files - Updated Label/Placeholder */}
+      {/* Exclude Files */}
       <div className="form-group">
         <label htmlFor="excludeFiles">{t("excludeFilesLabelRegex")}</label>
-        <textarea // Use textarea for potentially longer/multiple patterns
-          id="excludeFiles"
-          name="excludeFiles"
-          value={formData.excludeFiles}
-          onChange={handleChange}
-          rows={2} // Adjust rows as needed
-          placeholder={t("excludeFilesPlaceholderRegex")}
-          disabled={isLoading}
-        />
+        <textarea id="excludeFiles" name="excludeFiles" value={formData.excludeFiles} onChange={handleChange} rows={2} placeholder={t("excludeFilesPlaceholderRegex")} disabled={isLoading} />
       </div>
 
-      {/* Exclude Folders - Updated Label/Placeholder */}
+      {/* Exclude Folders & Mode Selector */}
       <div className="form-group">
         <label htmlFor="excludeFolders">{t("excludeFoldersLabelRegex")}</label>
-        <textarea // Use textarea for potentially longer/multiple patterns
-          id="excludeFolders"
-          name="excludeFolders"
-          value={formData.excludeFolders}
-          onChange={handleChange}
-          rows={2} // Adjust rows as needed
-          placeholder={t("excludeFoldersPlaceholderRegex")}
-          disabled={isLoading}
-        />
+        <div className="folder-exclusion-group"> {/* Wrapper for textarea and select */}
+          <textarea
+            id="excludeFolders"
+            name="excludeFolders"
+            value={formData.excludeFolders}
+            onChange={handleChange}
+            rows={2}
+            placeholder={t("excludeFoldersPlaceholderRegex")}
+            disabled={isLoading}
+            className="folder-exclusion-input"
+          />
+          <div className="folder-exclusion-mode-group">
+             <label htmlFor="folderExclusionMode" className="folder-exclusion-mode-label">{t("folderExclusionModeLabel")}</label>
+             <select
+                id="folderExclusionMode"
+                name="folderExclusionMode"
+                value={formData.folderExclusionMode}
+                onChange={handleChange}
+                disabled={isLoading}
+                className="folder-exclusion-mode-select"
+             >
+                <option value="contains">{t("folderExclusionModeContains")}</option>
+                <option value="exact">{t("folderExclusionModeExact")}</option>
+                <option value="startsWith">{t("folderExclusionModeStartsWith")}</option>
+                <option value="endsWith">{t("folderExclusionModeEndsWith")}</option>
+             </select>
+          </div>
+        </div>
       </div>
 
       {/* Content Search Term */}
@@ -190,7 +207,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         <input type="text" id="contentSearchTerm" name="contentSearchTerm" value={formData.contentSearchTerm} onChange={handleChange} placeholder={t("contentSearchPlaceholder")} disabled={isLoading} />
       </div>
 
-      {/* Case Sensitive Checkbox - Conditionally Rendered */}
+      {/* Case Sensitive Checkbox */}
       {hasContentSearchTerm && (
         <div className="form-group form-group-checkbox">
           <input type="checkbox" id="caseSensitive" name="caseSensitive" checked={formData.caseSensitive} onChange={handleCheckboxChange} disabled={isLoading || !hasContentSearchTerm} className="form-checkbox" />
@@ -239,5 +256,11 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     </form>
   );
 };
+
+// Add styling for folder exclusion group if needed in SearchForm.css
+/*
+
+
+*/
 
 export default SearchForm;

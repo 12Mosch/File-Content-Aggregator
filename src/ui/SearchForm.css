@@ -114,3 +114,40 @@
     flex-shrink: 0;
     min-width: 70px;
   }
+
+  .folder-exclusion-group {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  
+  .folder-exclusion-input {
+    flex-grow: 1;
+    min-width: 200px;
+  }
+  
+  .folder-exclusion-mode-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+  
+  .folder-exclusion-mode-label {
+     font-size: 0.9em;
+     color: var(--color-text-secondary);
+     margin-bottom: 0;
+     font-weight: normal;
+  }
+  
+  .folder-exclusion-mode-select {
+    padding: 0.6em 1em;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #eee;
+    font-family: inherit;
+    font-size: 1em;
+    min-width: 150px;
+  }
