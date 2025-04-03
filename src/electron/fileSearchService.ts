@@ -5,14 +5,18 @@ import fg from "fast-glob"; // Import fast-glob
 
 // --- Interfaces ---
 
-// Updated SearchParams interface to include content search options
+// Updated SearchParams interface to include size filtering options
 export interface SearchParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
-  contentSearchTerm?: string; // Optional: Term to search for within file content
-  caseSensitive?: boolean; // Optional: Whether content search is case-sensitive (defaults to false)
+  contentSearchTerm?: string;
+  caseSensitive?: boolean;
+  modifiedAfter?: string;
+  modifiedBefore?: string;
+  minSizeBytes?: number; // Optional: Min size in bytes
+  maxSizeBytes?: number; // Optional: Max size in bytes
 }
 
 export interface ProgressData {
@@ -20,298 +24,240 @@ export interface ProgressData {
   total: number;
   currentFile?: string;
   message?: string;
-  error?: string; // For file read errors or general search errors
+  error?: string;
 }
 
-// Interface for structured file read errors
 export interface FileReadError {
   filePath: string;
-  reason: string; // This will now hold the translation KEY (e.g., "readPermissionDenied")
-  detail?: string; // Optional: Original error message for logging/debugging
+  reason: string;
+  detail?: string;
 }
 
-// Interface for the result returned by the search service
 export interface SearchResult {
   output: string;
   filesProcessed: number;
   filesFound: number;
-  errorsEncountered: number; // Count of file read errors
-  pathErrors: string[]; // Array to hold path access/validation errors
-  fileReadErrors: FileReadError[]; // Array for structured read errors
+  errorsEncountered: number;
+  pathErrors: string[];
+  fileReadErrors: FileReadError[];
 }
 
-// Callback function type for reporting progress
 export type ProgressCallback = (data: ProgressData) => void;
 
+// --- Helper Functions for Date Parsing ---
+function parseDateStartOfDay(dateString: string | undefined): Date | null {
+  if (!dateString) return null;
+  try {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) { return null; }
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) { return null; }
+    date.setHours(0, 0, 0, 0);
+    return date;
+  } catch (e) { console.error(`Error parsing date string "${dateString}":`, e); return null; }
+}
+function parseDateEndOfDay(dateString: string | undefined): Date | null {
+  const date = parseDateStartOfDay(dateString);
+  if (date) { date.setHours(23, 59, 59, 999); }
+  return date;
+}
+
+// --- Main Search Function ---
+
 /**
- * Recursively searches for files based on specified criteria, reads their content,
- * optionally filters by content, and formats the output.
+ * Searches files based on criteria, including optional size, date, and content filters.
  *
- * @param params - The search parameters, including optional content search terms.
- * @param progressCallback - Function to call for reporting progress updates.
- * @returns A promise resolving to an object containing the formatted output and summary.
+ * @param params - The search parameters.
+ * @param progressCallback - Function for reporting progress.
+ * @returns A promise resolving to the search results.
  */
 export async function searchFiles(
   params: SearchParams,
   progressCallback: ProgressCallback,
 ): Promise<SearchResult> {
-  // Destructure all parameters, including the new ones
+  // Destructure all parameters
   const {
     searchPaths,
     extensions,
     excludeFiles,
     excludeFolders,
-    contentSearchTerm, // New: Get the content search term
-    caseSensitive = false, // New: Get case sensitivity, default to false
+    contentSearchTerm,
+    caseSensitive = false,
+    modifiedAfter,
+    modifiedBefore,
+    minSizeBytes, // New: Size parameter
+    maxSizeBytes, // New: Size parameter
   } = params;
 
-  const pathErrors: string[] = []; // Initialize array for path errors
-  const fileReadErrors: FileReadError[] = []; // Initialize array for structured read errors
+  const pathErrors: string[] = [];
+  const fileReadErrors: FileReadError[] = [];
 
-  // --- 1. Initial File Discovery using fast-glob ---
-  progressCallback({
-    processed: 0,
-    total: 0,
-    message: "Scanning directories...",
-  });
-
-  // Create glob patterns for included extensions
+  // --- 1. Initial File Discovery (fast-glob) ---
+  progressCallback({ processed: 0, total: 0, message: "Scanning directories..." });
   const includePatterns = extensions.map((ext) => `**/*.${ext.replace(/^\./, "")}`);
-  // Prepare ignore patterns for files
   const ignoreFilePatterns = excludeFiles.map((f) => `**/${f}`);
-  // Use a Set to avoid duplicates if search paths overlap
   const allFoundFiles = new Set<string>();
   let initialFileCount = 0;
 
   try {
-    // Loop through each provided search path
+    // (Error handling and globbing logic remains the same as before)
     for (const searchPath of searchPaths) {
-      const normalizedPath = searchPath.replace(/\\/g, "/"); // Normalize slashes
-
-      // Validate the search path before using fast-glob
-      try {
-        const stats = await fs.stat(searchPath);
-        if (!stats.isDirectory()) {
-          // Handle case where path is a file, not a directory
-          const errorMsg = `Search path is not a directory: ${searchPath}`;
-          console.warn(errorMsg);
-          pathErrors.push(errorMsg); // Collect user-facing error message
-          progressCallback({
-            processed: 0,
-            total: 0,
-            message: `Skipping non-directory: ${searchPath}`,
-          });
-          continue; // Skip to the next search path
+        const normalizedPath = searchPath.replace(/\\/g, "/");
+        try {
+            const stats = await fs.stat(searchPath);
+            if (!stats.isDirectory()) {
+                const errorMsg = `Search path is not a directory: ${searchPath}`;
+                console.warn(errorMsg); pathErrors.push(errorMsg);
+                progressCallback({ processed: 0, total: 0, message: `Skipping non-directory: ${searchPath}` });
+                continue;
+            }
+        } catch (statError: any) {
+            let errorMsg = `Error accessing search path: ${searchPath}`; let reason = "Access Error";
+            if (statError.code === 'ENOENT') { reason = "Path Not Found"; errorMsg = `Search path not found: ${searchPath}`; }
+            else if (statError.code === 'EACCES' || statError.code === 'EPERM') { reason = "Permission Denied"; errorMsg = `Permission denied for search path: ${searchPath}`; }
+            else { errorMsg = `Error accessing search path: ${searchPath} - ${statError.message}`; }
+            console.warn(`Path Error (${reason}): ${errorMsg}`, statError); pathErrors.push(errorMsg);
+            progressCallback({ processed: 0, total: 0, message: `Cannot access path: ${searchPath}`, error: statError.message });
+            continue;
         }
-      } catch (statError: any) {
-        // Handle errors accessing the path (not found, permissions)
-        let errorMsg = `Error accessing search path: ${searchPath}`;
-        let reason = "Access Error"; // Keep track of reason for logging/internal use if needed
-        if (statError.code === "ENOENT") {
-          reason = "Path Not Found";
-          errorMsg = `Search path not found: ${searchPath}`; // User-facing message
-        } else if (statError.code === "EACCES" || statError.code === "EPERM") {
-          reason = "Permission Denied";
-          errorMsg = `Permission denied for search path: ${searchPath}`; // User-facing message
-        } else {
-          errorMsg = `Error accessing search path: ${searchPath} - ${statError.message}`;
-        }
-        console.warn(`Path Error (${reason}): ${errorMsg}`, statError); // Log technical details
-        pathErrors.push(errorMsg); // Collect user-facing error message
-        progressCallback({
-          processed: 0,
-          total: 0,
-          message: `Cannot access path: ${searchPath}`,
-          error: statError.message,
-        });
-        continue; // Skip to the next search path
-      }
-
-      // Perform the glob search within the validated directory
-      const found = await fg(includePatterns, {
-        cwd: normalizedPath, // Search within this directory
-        ignore: ignoreFilePatterns, // Exclude specific file patterns
-        absolute: true, // Get absolute paths
-        onlyFiles: true, // We only want files
-        dot: true, // Include hidden files/folders if not excluded later
-        stats: false, // Don't need file stats here
-        suppressErrors: true, // Suppress OS errors like EPERM during globbing
-      });
-      // Add found files to the Set, normalizing slashes
-      found.forEach((file) => allFoundFiles.add(file.replace(/\\/g, "/")));
+        const found = await fg(includePatterns, { cwd: normalizedPath, ignore: ignoreFilePatterns, absolute: true, onlyFiles: true, dot: true, stats: false, suppressErrors: true });
+        found.forEach((file) => allFoundFiles.add(file.replace(/\\/g, "/")));
     }
-
-    initialFileCount = allFoundFiles.size; // Get count from Set size
-    progressCallback({
-      processed: 0,
-      total: initialFileCount,
-      message: `Found ${initialFileCount} potential files. Filtering...`,
-    });
+    initialFileCount = allFoundFiles.size;
+    progressCallback({ processed: 0, total: initialFileCount, message: `Found ${initialFileCount} potential files. Filtering...` });
   } catch (error: any) {
-    // Catch unexpected errors during the search loop itself
     console.error("Error during file discovery loop:", error);
-    const errorMsg = `Unexpected error during file search: ${error.message}`;
-    pathErrors.push(errorMsg); // Add to path errors for user visibility
-    progressCallback({
-      processed: 0,
-      total: 0,
-      message: errorMsg,
-      error: error.message,
-    });
-    // Return early on major search failure, including collected errors
-    return {
-      output: "",
-      filesFound: 0,
-      filesProcessed: 0,
-      errorsEncountered: 0,
-      pathErrors,
-      fileReadErrors,
-    };
+    const errorMsg = `Unexpected error during file search: ${error.message}`; pathErrors.push(errorMsg);
+    progressCallback({ processed: 0, total: 0, message: errorMsg, error: error.message });
+    return { output: "", filesFound: 0, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
   }
 
-  // Convert Set to Array for filtering and processing
   const initialFiles = Array.from(allFoundFiles);
+  let filesToProcess: string[] = initialFiles;
+  let currentTotal = initialFileCount;
 
   // --- 2. Folder Exclusion Filter ---
-  let filesToProcess: string[] = initialFiles;
-  if (excludeFolders && excludeFolders.length > 0 && initialFiles.length > 0) {
-    filesToProcess = initialFiles.filter((filePath) => {
-      const dirPath = path.dirname(filePath).replace(/\\/g, "/"); // Ensure forward slashes
-      // Check if any part of the directory path contains an excluded folder name (case-insensitive substring match)
+  if (excludeFolders && excludeFolders.length > 0 && filesToProcess.length > 0) {
+    filesToProcess = filesToProcess.filter((filePath) => {
+      const dirPath = path.dirname(filePath).replace(/\\/g, "/");
       const isExcluded = excludeFolders.some((exFolder) => {
         const normalizedExFolder = exFolder.replace(/\\/g, "/").toLowerCase();
-        if (!normalizedExFolder) return false; // Skip empty exclusion strings
+        if (!normalizedExFolder) return false;
         const dirPathLower = dirPath.toLowerCase();
-        // Check for matches surrounded by slashes or at start/end
-        return (
-          dirPathLower.includes(`/${normalizedExFolder}/`) ||
-          dirPathLower.endsWith(`/${normalizedExFolder}`) ||
-          dirPathLower.startsWith(`${normalizedExFolder}/`)
-        );
+        return ( dirPathLower.includes(`/${normalizedExFolder}/`) || dirPathLower.endsWith(`/${normalizedExFolder}`) || dirPathLower.startsWith(`${normalizedExFolder}/`) );
       });
-      return !isExcluded; // Keep the file if it's NOT excluded
+      return !isExcluded;
     });
-    progressCallback({
-      processed: 0, // Reset processed count for the next stage
-      total: filesToProcess.length,
-      message: `Filtered down to ${filesToProcess.length} files after folder exclusion.`,
-    });
+    currentTotal = filesToProcess.length;
+    progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after folder exclusion.` });
   }
 
-  // --- 3. Read Content, Filter by Content (New), and Format Output ---
-  const outputLines: string[] = []; // Holds the successfully read and filtered file content + paths
+  // --- 3. Stat-Based Filtering (Size and Date) ---
+  const afterDate = parseDateStartOfDay(modifiedAfter);
+  const beforeDate = parseDateEndOfDay(modifiedBefore);
+  const hasSizeFilter = minSizeBytes !== undefined || maxSizeBytes !== undefined;
+  const hasDateFilter = !!afterDate || !!beforeDate;
+
+  if ((hasSizeFilter || hasDateFilter) && filesToProcess.length > 0) {
+    progressCallback({ processed: 0, total: currentTotal, message: `Filtering by size/date...` });
+    const statFilteredFiles: string[] = [];
+    let processedForStatFilter = 0;
+
+    for (const filePath of filesToProcess) {
+      try {
+        const stats = await fs.stat(filePath);
+        const fileSize = stats.size;
+        const mtime = stats.mtime;
+
+        // Perform Size Check
+        const passSizeCheck =
+          (!hasSizeFilter) || // Skip check if no size filter applied
+          (
+            (minSizeBytes === undefined || fileSize >= minSizeBytes) &&
+            (maxSizeBytes === undefined || fileSize <= maxSizeBytes)
+          );
+
+        // Perform Date Check
+        const passDateCheck =
+          (!hasDateFilter) || // Skip check if no date filter applied
+          (
+            (!afterDate || mtime.getTime() >= afterDate.getTime()) &&
+            (!beforeDate || mtime.getTime() <= beforeDate.getTime())
+          );
+
+        // Keep the file only if it passes both checks (if applicable)
+        if (passSizeCheck && passDateCheck) {
+          statFilteredFiles.push(filePath);
+        }
+      } catch (statError: any) {
+        console.warn(`Could not get stats for file during size/date filter: ${filePath}`, statError);
+        // Log specific stat errors if needed, maybe add to a separate error list?
+        // fileReadErrors.push({ filePath, reason: 'statError', detail: statError.message });
+      }
+      processedForStatFilter++;
+      // Optional: More granular progress for stat filtering
+      // if (processedForStatFilter % 100 === 0) {
+      //   progressCallback({ processed: processedForStatFilter, total: currentTotal, message: `Filtering by size/date: ${processedForStatFilter}/${currentTotal}` });
+      // }
+    }
+    filesToProcess = statFilteredFiles; // Update the list with stat-filtered files
+    currentTotal = filesToProcess.length;
+    progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after size/date check.` });
+  }
+
+  // --- 4. Read Content, Filter by Content, and Format Output ---
+  const outputLines: string[] = [];
   let filesProcessed = 0;
-  const totalFilesToProcess = filesToProcess.length;
+  const totalFilesToProcess = filesToProcess.length; // Use the count *after* all filtering
+  const searchTermLower = contentSearchTerm && !caseSensitive ? contentSearchTerm.toLowerCase() : undefined;
 
-  // Prepare content search term for efficient checking (lowercase if needed)
-  const searchTermLower =
-    contentSearchTerm && !caseSensitive
-      ? contentSearchTerm.toLowerCase()
-      : undefined;
-
-  // Initial progress message before starting the read loop
   if (totalFilesToProcess > 0) {
-    progressCallback({
-      processed: 0,
-      total: totalFilesToProcess,
-      message: `Processing ${totalFilesToProcess} files...`,
-    });
+    progressCallback({ processed: 0, total: totalFilesToProcess, message: `Processing ${totalFilesToProcess} files...` });
   } else if (pathErrors.length === 0) {
-    // Only show if no path errors occurred
-    progressCallback({
-      processed: 0,
-      total: 0,
-      message: `No files to process after filtering.`,
-    });
+    progressCallback({ processed: 0, total: 0, message: `No files to process after filtering.` });
   }
 
-  // Loop through files remaining after filtering
   for (const file of filesToProcess) {
     const currentFileName = path.basename(file);
-    const displayFilePath = file.replace(/\\/g, "/"); // Use forward slashes for display/error reporting
+    const displayFilePath = file.replace(/\\/g, "/");
 
-    // Report progress before attempting to read
-    progressCallback({
-      processed: filesProcessed,
-      total: totalFilesToProcess,
-      currentFile: currentFileName,
-      message: `Reading: ${currentFileName}`,
-    });
+    progressCallback({ processed: filesProcessed, total: totalFilesToProcess, currentFile: currentFileName, message: `Reading: ${currentFileName}` });
 
     try {
-      // Attempt to read the file content
       const content = await fs.readFile(file, { encoding: "utf8" });
 
-      // --- New: Content Filtering Logic ---
-      let contentMatches = true; // Assume match if no search term provided
+      // Content Filtering Logic
+      let contentMatches = true;
       if (contentSearchTerm) {
-        if (caseSensitive) {
-          // Case-sensitive search
-          contentMatches = content.includes(contentSearchTerm);
-        } else {
-          // Case-insensitive search (use pre-calculated lowercase term)
-          contentMatches = content.toLowerCase().includes(searchTermLower!);
-        }
+        if (caseSensitive) { contentMatches = content.includes(contentSearchTerm); }
+        else { contentMatches = content.toLowerCase().includes(searchTermLower!); }
       }
-      // ------------------------------------
 
-      // Add successfully read content to the output lines ONLY if content matches (or no search term)
       if (contentMatches) {
         outputLines.push(`${displayFilePath}\n\n${content}\n`);
       }
     } catch (error: any) {
-      // Handle errors during file reading
-      console.error(`Error reading file '${file}':`, error); // Log the technical error
-
-      // --- Assign REASON KEY based on error code ---
-      let reasonKey = "readError"; // Default translation key
-      if (error.code === "EPERM" || error.code === "EACCES") {
-        reasonKey = "readPermissionDenied";
-      } else if (error.code === "ENOENT") {
-        reasonKey = "fileNotFoundDuringRead";
-      } else if (error.code === "EISDIR") {
-        reasonKey = "pathIsDir";
-      }
-      // ---------------------------------------------
-
-      // Add structured error to the list
-      fileReadErrors.push({
-        filePath: displayFilePath,
-        reason: reasonKey,
-        detail: error.message || String(error),
-      });
-
-      // Update progress bar, indicating an error occurred for this file
-      progressCallback({
-        processed: filesProcessed + 1, // Increment processed count even on error
-        total: totalFilesToProcess,
-        currentFile: currentFileName,
-        message: `Error reading: ${currentFileName}`,
-        error: reasonKey,
-      });
+      console.error(`Error reading file '${file}':`, error);
+      let reasonKey = "readError";
+      if (error.code === 'EPERM' || error.code === 'EACCES') { reasonKey = "readPermissionDenied"; }
+      else if (error.code === 'ENOENT') { reasonKey = "fileNotFoundDuringRead"; }
+      else if (error.code === 'EISDIR') { reasonKey = "pathIsDir"; }
+      fileReadErrors.push({ filePath: displayFilePath, reason: reasonKey, detail: error.message || String(error) });
+      progressCallback({ processed: filesProcessed + 1, total: totalFilesToProcess, currentFile: currentFileName, message: `Error reading: ${currentFileName}`, error: reasonKey });
     } finally {
-      // Increment processed count regardless of success or failure
       filesProcessed++;
     }
   }
 
-  // Final progress update after the loop finishes
-  progressCallback({
-    processed: filesProcessed,
-    total: totalFilesToProcess,
-    message: `Finished processing ${filesProcessed} files.`,
-  });
+  progressCallback({ processed: filesProcessed, total: totalFilesToProcess, message: `Finished processing ${filesProcessed} files.` });
 
-  // Join all successfully read and filtered file contents
   const finalOutput = outputLines.join("\n");
 
-  // Return the final result object
   return {
     output: finalOutput,
-    filesFound: initialFileCount, // Total files found before folder exclusion
-    filesProcessed: filesProcessed, // Files actually attempted to read
-    errorsEncountered: fileReadErrors.length, // Count based on structured errors collected
-    pathErrors: pathErrors, // Array of user-facing path access error messages
-    fileReadErrors: fileReadErrors, // Array of structured file read errors (with reason keys)
+    filesFound: initialFileCount, // Total files found before *any* filtering
+    filesProcessed: filesProcessed, // Files actually attempted to read (after all filters)
+    errorsEncountered: fileReadErrors.length,
+    pathErrors: pathErrors,
+    fileReadErrors: fileReadErrors,
   };
 }

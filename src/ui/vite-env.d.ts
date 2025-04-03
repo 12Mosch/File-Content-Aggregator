@@ -12,59 +12,53 @@ interface ProgressData {
   error?: string;
 }
 
-// Define structure for specific file read errors
 interface FileReadError {
   filePath: string;
   reason: string; // Translation key
   detail?: string; // Original error message
 }
 
-// Define the structure of the search result object returned by the backend
 interface SearchResult {
   output: string;
   filesProcessed: number;
   filesFound: number;
-  errorsEncountered: number; // Count of file read errors
-  pathErrors: string[]; // User-facing path access errors
-  fileReadErrors: FileReadError[]; // Structured file read errors
+  errorsEncountered: number;
+  pathErrors: string[];
+  fileReadErrors: FileReadError[];
 }
 
-// Define the structure of the parameters passed TO the backend search function
+// Updated SearchParams to include optional size numbers (in bytes)
 interface SearchParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
-  contentSearchTerm?: string; // New: Optional content search term
-  caseSensitive?: boolean; // New: Optional case sensitivity flag
+  contentSearchTerm?: string;
+  caseSensitive?: boolean;
+  modifiedAfter?: string;
+  modifiedBefore?: string;
+  minSizeBytes?: number; // New: Optional min size in bytes
+  maxSizeBytes?: number; // New: Optional max size in bytes
 }
 
 // --- Electron API Definition ---
 
-// Define the interface for the API exposed on the window object via contextBridge
 export interface IElectronAPI {
-  // --- Search Function ---
-  // Updated to accept the new SearchParams interface
+  // Updated to accept the new SearchParams interface with size fields
   invokeSearch: (params: SearchParams) => Promise<SearchResult>;
 
-  // --- File Operations ---
   showSaveDialog: () => Promise<string | undefined>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
   copyToClipboard: (content: string) => Promise<boolean>;
+  onSearchProgress: (callback: (data: ProgressData) => void) => () => void;
 
-  // --- Event Listeners ---
-  onSearchProgress: (callback: (data: ProgressData) => void) => () => void; // Returns unsubscribe function
-
-  // --- i18n Methods ---
-  getInitialLanguage: () => Promise<string>; // Returns detected/stored language code (e.g., 'en')
-  setLanguagePreference: (lng: string) => Promise<void>; // Saves user choice
-  notifyLanguageChanged: (lng: string) => void; // Informs main process of change (fire-and-forget)
-  // Optional: onLanguageChangeRequest: (callback: (lng: string) => void) => () => void;
+  getInitialLanguage: () => Promise<string>;
+  setLanguagePreference: (lng: string) => Promise<void>;
+  notifyLanguageChanged: (lng: string) => void;
 }
 
 // --- Global Window Augmentation ---
 
-// Make the electronAPI available globally on the Window object for TypeScript
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
@@ -73,5 +67,4 @@ declare global {
 
 // --- Exports ---
 
-// Export types used by both UI and potentially preload/main if needed elsewhere
 export type { ProgressData, SearchResult, FileReadError, SearchParams };

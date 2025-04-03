@@ -1,3 +1,28 @@
+.form-group-checkbox {
+  flex-direction: row; /* Override the default 'column' */
+  align-items: center; /* Vertically align checkbox and label */
+  gap: 0.5rem; /* Add space between checkbox and label */
+  /* Optional: Adjust margin if needed */
+  /* margin-top: 0.5rem; */
+}
+
+/* Target the label specifically within the checkbox group */
+.form-group-checkbox .form-checkbox-label {
+  margin-bottom: 0; /* Remove the default bottom margin from the generic label style */
+  font-weight: normal; /* Make label less bold than main group labels */
+  /* Ensure clicks pass through if needed, though htmlFor should handle it */
+  /* cursor: pointer; */
+}
+
+/* Target the checkbox input itself */
+.form-group-checkbox .form-checkbox {
+  /* Reset any potentially conflicting width/height styles */
+  width: auto;
+  height: auto;
+  /* Ensure it's clickable */
+  cursor: pointer;
+}
+
 .search-form {
     display: flex;
     flex-direction: column;
@@ -55,3 +80,37 @@
     cursor: not-allowed;
   }
   
+  .form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .form-row .form-group {
+    flex: 1;
+    min-width: 150px;
+  }
+  
+  .form-group-size label {
+    margin-bottom: 0.3rem;
+  }
+  
+  .size-input-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .form-input-size-value {
+    flex-grow: 1;
+  }
+
+  .form-input-size-value::-webkit-outer-spin-button,
+  .form-input-size-value::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  .form-input-size-unit {
+    flex-shrink: 0;
+    min-width: 70px;
+  }

@@ -14,7 +14,7 @@ const electronAPI = {
    * @param params - An object containing search parameters (structure matches SearchParams).
    * @returns A Promise resolving to the search results (structure matches SearchResult).
    */
-  invokeSearch: (params: any): Promise<any> => // Use 'any' for params and return type
+  invokeSearch: (params: any): Promise<any> => // Pass the full params object
     ipcRenderer.invoke("search-files", params),
 
   /**

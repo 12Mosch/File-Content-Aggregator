@@ -10,6 +10,14 @@
   "contentSearchLabel": "Content Search Term (Optional):",
   "contentSearchPlaceholder": "e.g., specific error code, function name",
   "caseSensitiveLabel": "Case-Sensitive",
+  "modifiedAfterLabel": "Modified After (Optional):",
+  "modifiedBeforeLabel": "Modified Before (Optional):",
+  "minSizeLabel": "Min Size (Optional):",
+  "maxSizeLabel": "Max Size (Optional):",
+  "sizeUnitBytes": "Bytes",
+  "sizeUnitKB": "KB",
+  "sizeUnitMB": "MB",
+  "sizeUnitGB": "GB",
   "searchButton": "Search Files",
   "searchButtonLoading": "Searching..."
 }
