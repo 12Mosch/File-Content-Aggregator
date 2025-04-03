@@ -1,21 +1,25 @@
+// D:/Code/Electron/src/ui/App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
 import ProgressBar from "./ProgressBar";
 import SettingsModal from "./SettingsModal";
+import useDebounce from "./hooks/useDebounce"; // Import the debounce hook
 // Import types defined in vite-env.d.ts for API and data structures
 import type {
   ProgressData,
   SearchResult,
   FileReadError,
   IElectronAPI,
+  StructuredItem,
 } from "./vite-env.d";
 
 // Import CSS files
-import "./App.css"; // App specific styles (including settings button, view switcher)
-import "./index.css"; // Global styles
-import "./SettingsModal.css"; // Modal styles (ensure this is created)
+import "./App.css";
+import "./index.css";
+import "./SettingsModal.css";
+import "./ResultsFilter.css"; // CSS for the filter section
 
 // Define the shape of the search parameters used in the UI state
 interface SearchParamsUI {
@@ -35,96 +39,86 @@ interface SearchParamsUI {
 const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 
 // Helper type for grouping errors
-type GroupedErrors = { [reasonKey: string]: string[] }; // e.g., { "readPermissionDenied": ["path1", "path2"] }
+type GroupedErrors = { [reasonKey: string]: string[] };
 
-// Define type for structured items used in UI state
-type StructuredResultItem = { filePath: string; content: string | null; readError?: string };
-
-// --- New State Structure for Tree Items ---
+// --- Tree Item State ---
 interface ItemDisplayState {
     expanded: boolean;
-    showFull: boolean; // Track if full content is shown for this item
+    showFull: boolean;
 }
-// Use a Map for efficient lookups: filePath -> ItemDisplayState
 type ItemDisplayStates = Map<string, ItemDisplayState>;
-// -----------------------------------------
+// ---------------------
 
+// Debounce delay in milliseconds
+const FILTER_DEBOUNCE_DELAY = 300;
 
 function App() {
-  // --- i18n Hook ---
-  const { t, i18n } = useTranslation(['common', 'errors', 'results']);
+  const { t, i18n } = useTranslation(['common', 'errors', 'results', 'form']);
 
   // --- State Management ---
-  const [results, setResults] = useState<string | null>(null); // Stores the aggregated file content (for text view, copy, save)
-  const [structuredResults, setStructuredResults] = useState<StructuredResultItem[] | null>(null); // Stores structured data for tree view
+  const [results, setResults] = useState<string | null>(null);
+  const [structuredResults, setStructuredResults] = useState<StructuredItem[] | null>(null);
   const [searchSummary, setSearchSummary] = useState<{
     filesFound: number;
     filesProcessed: number;
-    errorsEncountered: number; // Count of file read errors
-  } | null>(null); // Stores summary statistics of the search
-  const [pathErrors, setPathErrors] = useState<string[]>([]); // Stores user-facing path access errors
-  const [fileReadErrors, setFileReadErrors] = useState<FileReadError[]>([]); // Stores structured file read errors
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Tracks if a search is in progress
-  const [progress, setProgress] = useState<ProgressData | null>(null); // Stores progress updates from backend
-  const [generalError, setGeneralError] = useState<string | null>(null); // Stores general app/process errors
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false); // Controls visibility of the settings modal
-  const [viewMode, setViewMode] = useState<'text' | 'tree'>('text'); // State for results view mode ('text' or 'tree')
-  // --- Updated State for Tree View ---
-  const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(new Map()); // State for expanded/showFull tree items
+    errorsEncountered: number;
+  } | null>(null);
+  const [pathErrors, setPathErrors] = useState<string[]>([]);
+  const [fileReadErrors, setFileReadErrors] = useState<FileReadError[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<ProgressData | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'text' | 'tree'>('text');
+  const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(new Map());
+
+  // --- Client-Side Results Filtering State ---
+  const [resultsFilterTerm, setResultsFilterTerm] = useState<string>(""); // Raw input value
+  const [resultsFilterCaseSensitive, setResultsFilterCaseSensitive] = useState<boolean>(false);
+  // --- Debounced value for filtering ---
+  const debouncedFilterTerm = useDebounce(resultsFilterTerm, FILTER_DEBOUNCE_DELAY);
+  // -----------------------------------------
 
   // --- Memoized Grouping for File Read Errors ---
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
-      const reasonKey = error.reason || "unknownError"; // Use key, provide fallback key
+      const reasonKey = error.reason || "unknownError";
       if (!acc[reasonKey]) {
-        acc[reasonKey] = []; // Initialize array for this reason if it's the first time
+        acc[reasonKey] = [];
       }
-      acc[reasonKey].push(error.filePath); // Add the file path to the group
+      acc[reasonKey].push(error.filePath);
       return acc;
-    }, {} as GroupedErrors); // Start with an empty object
-  }, [fileReadErrors]); // Recalculate only when fileReadErrors changes
+    }, {} as GroupedErrors);
+  }, [fileReadErrors]);
 
   // --- Effect for Progress Updates ---
   useEffect(() => {
     if (window.electronAPI?.onSearchProgress) {
-      console.log("UI: Subscribing to search progress");
-      const unsubscribe = window.electronAPI.onSearchProgress(
-        (progressData) => {
-          setProgress(progressData);
-        },
-      );
-      return () => { // Cleanup function
-        console.log("UI: Unsubscribing from search progress");
-        unsubscribe();
-      };
+      const unsubscribe = window.electronAPI.onSearchProgress(setProgress);
+      return unsubscribe;
     } else {
       console.warn("UI: electronAPI.onSearchProgress not found on window.");
       setGeneralError(t('errors:connectError'));
     }
-  }, [t]); // Add 't' as dependency
+  }, [t]);
 
   // --- Event Handlers ---
-
-  // Handler for submitting the search form
   const handleSearchSubmit = useCallback(async (params: SearchParamsUI) => {
-    console.log("UI: Starting search with params:", params);
-    // Reset state before search
     setIsLoading(true);
     setResults(null);
     setStructuredResults(null);
     setSearchSummary(null);
     setPathErrors([]);
     setFileReadErrors([]);
-    setItemDisplayStates(new Map()); // Reset item display states
+    setItemDisplayStates(new Map());
     setProgress({ processed: 0, total: 0, message: "Starting search..." });
     setGeneralError(null);
+    setResultsFilterTerm(""); // Clear results filter on new search
 
     try {
       if (!window.electronAPI?.invokeSearch) throw new Error(t('errors:searchFunctionNA'));
       const searchResult: SearchResult = await window.electronAPI.invokeSearch(params);
-      console.log("UI: Search completed.");
 
-      // Update state with results
       setResults(searchResult.output);
       setStructuredResults(searchResult.structuredItems);
       setSearchSummary({
@@ -133,23 +127,15 @@ function App() {
         errorsEncountered: searchResult.errorsEncountered,
       });
 
-      // Translate path errors
       const translatedPathErrors = searchResult.pathErrors.map(err => {
-          if (err.startsWith('Search path not found:')) {
-              return t('errors:pathNotFound', { path: err.substring('Search path not found:'.length).trim() });
-          }
-          if (err.startsWith('Search path is not a directory:')) {
-              return t('errors:pathNotDir', { path: err.substring('Search path is not a directory:'.length).trim() });
-          }
-          if (err.startsWith('Permission denied for search path:')) {
-              return t('errors:pathPermissionDenied', { path: err.substring('Permission denied for search path:'.length).trim() });
-          }
+          if (err.startsWith('Search path not found:')) return t('errors:pathNotFound', { path: err.substring('Search path not found:'.length).trim() });
+          if (err.startsWith('Search path is not a directory:')) return t('errors:pathNotDir', { path: err.substring('Search path is not a directory:'.length).trim() });
+          if (err.startsWith('Permission denied for search path:')) return t('errors:pathPermissionDenied', { path: err.substring('Permission denied for search path:'.length).trim() });
           return err;
       });
       setPathErrors(translatedPathErrors);
-      setFileReadErrors(searchResult.fileReadErrors); // Store structured errors
+      setFileReadErrors(searchResult.fileReadErrors);
 
-      // Update final progress
       setProgress((prev) => ({
           ...(prev ?? { processed: 0, total: 0 }),
           processed: searchResult.filesProcessed,
@@ -164,9 +150,8 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]); // Add t dependency
+  }, [t]);
 
-  // Handler for copying results (always copies full text block)
   const handleCopyResults = useCallback(async (): Promise<{ success: boolean; potentiallyTruncated: boolean }> => {
     let potentiallyTruncated = false;
     if (results) {
@@ -185,9 +170,8 @@ function App() {
         }
     }
     return { success: false, potentiallyTruncated: false };
-  }, [results, t]); // Add results, t dependencies
+  }, [results, t]);
 
-  // Handler for saving results (always saves full text block)
   const handleSaveResults = useCallback(async (): Promise<void> => {
      if (results && window.electronAPI?.showSaveDialog && window.electronAPI?.writeFile) {
         setGeneralError(null);
@@ -203,47 +187,85 @@ function App() {
             setGeneralError(t('errors:saveFailed', { detail: err.message }));
         }
      }
-  }, [results, t]); // Add results, t dependencies
+  }, [results, t]);
 
-  // --- Settings Modal Toggle Handlers ---
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
 
-  // --- Tree View Toggle Handlers ---
-  // Toggles the 'expanded' state for a given file path
   const handleToggleExpand = useCallback((filePath: string) => {
     setItemDisplayStates(prevMap => {
       const newMap = new Map(prevMap);
       const currentState = newMap.get(filePath);
+      // If collapsing, remove the entry. If expanding, add/update it.
       if (currentState?.expanded) {
-         // Collapse: Remove entry or set expanded: false
-         newMap.delete(filePath);
+          newMap.delete(filePath);
       } else {
-        // Expand: Add entry, default showFull to false
-        newMap.set(filePath, { expanded: true, showFull: false });
+          newMap.set(filePath, { expanded: true, showFull: false }); // Always reset showFull on expand
       }
       return newMap;
     });
-  }, []); // No dependencies needed
+  }, []);
 
-  // Sets the 'showFull' state to true for a given file path
+
   const handleShowFullContent = useCallback((filePath: string) => {
       setItemDisplayStates(prevMap => {
           const newMap = new Map(prevMap);
           const currentState = newMap.get(filePath);
-          // Only update if item exists, is expanded, and full content isn't already shown
           if (currentState?.expanded && !currentState.showFull) {
               newMap.set(filePath, { ...currentState, showFull: true });
-              return newMap; // Return the updated map
+              return newMap;
           }
-          return prevMap; // Return previous map if no change needed
+          return prevMap;
       });
-  }, []); // No dependencies needed
+  }, []);
 
-  // --- Render Logic ---
+  // --- Client-Side Filtering Logic (using debounced term) ---
+  const isFilterActive = debouncedFilterTerm.trim().length > 0; // Use debounced term
+
+  const filteredTextLines = useMemo(() => {
+    if (!results) return [];
+    const lines = results.split('\n');
+    if (!isFilterActive) return lines; // Use debounced active check
+
+    const term = debouncedFilterTerm; // Use debounced term
+    const caseSensitive = resultsFilterCaseSensitive;
+
+    return lines.filter(line => {
+      if (caseSensitive) {
+        return line.includes(term);
+      } else {
+        return line.toLowerCase().includes(term.toLowerCase());
+      }
+    });
+    // Depend on debounced term
+  }, [results, debouncedFilterTerm, resultsFilterCaseSensitive, isFilterActive]);
+
+  const filteredStructuredResults = useMemo(() => {
+    if (!structuredResults) return null;
+    if (!isFilterActive) return structuredResults; // Use debounced active check
+
+    const term = debouncedFilterTerm; // Use debounced term
+    const caseSensitive = resultsFilterCaseSensitive;
+
+    return structuredResults.filter(item => {
+      const filePathMatch = caseSensitive
+        ? item.filePath.includes(term)
+        : item.filePath.toLowerCase().includes(term.toLowerCase());
+
+      const contentMatch = item.content !== null && (
+        caseSensitive
+          ? item.content.includes(term)
+          : item.content.toLowerCase().includes(term.toLowerCase())
+      );
+
+      return filePathMatch || contentMatch;
+    });
+    // Depend on debounced term
+  }, [structuredResults, debouncedFilterTerm, resultsFilterCaseSensitive, isFilterActive]);
+  // -----------------------------------------
+
   return (
     <div className="app-container">
-      {/* Header Section */}
       <div className="app-header">
         <h1>{t('common:appName')}</h1>
         <button onClick={openSettings} className="settings-button" aria-label={t('common:settings')}>
@@ -251,95 +273,90 @@ function App() {
         </button>
       </div>
 
-      {/* Search Form Component */}
       <SearchForm onSubmit={handleSearchSubmit} isLoading={isLoading} />
 
-      {/* Display General Errors */}
       {generalError && <p className="error-message">{t('errors:generalErrorPrefix')} {generalError}</p>}
 
-      {/* Display Path Access Errors (styled as warnings) */}
       {pathErrors.length > 0 && (
         <div className="path-errors-container warning-message">
           <h4>{t('errors:pathErrorsHeading')}</h4>
-          <ul>
-            {pathErrors.map((err, index) => (
-              <li key={`path-err-${index}`}>{err}</li>
-            ))}
-          </ul>
+          <ul>{pathErrors.map((err, i) => <li key={`path-err-${i}`}>{err}</li>)}</ul>
         </div>
       )}
 
-      {/* Display Grouped File Read Errors (styled as errors) */}
       {fileReadErrors.length > 0 && (
         <div className="file-read-errors-container error-message">
           <h4>{t('errors:fileReadErrorsHeading', { count: fileReadErrors.length })}</h4>
-          {Object.entries(groupedFileReadErrors).map(([reasonKey, paths]) => (
-            <div key={reasonKey} className="error-group">
-              <h5>{t(`errors:${reasonKey}`, { defaultValue: reasonKey, count: paths.length })}:</h5>
-              <ul>
-                {paths.map((filePath, index) => (
-                  <li key={`${reasonKey}-${index}`}>{filePath}</li>
-                ))}
-              </ul>
+          {Object.entries(groupedFileReadErrors).map(([key, paths]) => (
+            <div key={key} className="error-group">
+              <h5>{t(`errors:${key}`, { defaultValue: key, count: paths.length })}:</h5>
+              <ul>{paths.map((p, i) => <li key={`${key}-${i}`}>{p}</li>)}</ul>
             </div>
           ))}
         </div>
       )}
 
-      {/* Display Progress Bar */}
-      {isLoading && progress && (
-        <ProgressBar
-          processed={progress.processed}
-          total={progress.total}
-          message={progress.message}
-          error={progress.error}
-        />
-      )}
+      {isLoading && progress && <ProgressBar {...progress} />}
 
-      {/* Results Area: Only render if not loading and results are available */}
       {!isLoading && results !== null && searchSummary && (
         <div className="results-area">
-            {/* View Mode Switcher */}
+            {/* Results Filter Section (Input uses raw term, filtering uses debounced) */}
+            <div className="results-filter-section">
+                <label htmlFor="resultsFilterInput" className="results-filter-label">
+                    {t('results:filterResultsLabel')}
+                </label>
+                <input
+                    type="text"
+                    id="resultsFilterInput"
+                    className="results-filter-input"
+                    value={resultsFilterTerm} // Bind to raw term for responsiveness
+                    onChange={(e) => setResultsFilterTerm(e.target.value)}
+                    placeholder={t('results:filterResultsPlaceholder')}
+                />
+                <div className="results-filter-checkbox-group">
+                    <input
+                        type="checkbox"
+                        id="resultsFilterCaseSensitive"
+                        className="results-filter-checkbox"
+                        checked={resultsFilterCaseSensitive}
+                        onChange={(e) => setResultsFilterCaseSensitive(e.target.checked)}
+                    />
+                    <label htmlFor="resultsFilterCaseSensitive" className="results-filter-checkbox-label">
+                        {t('results:filterCaseSensitiveLabel')}
+                    </label>
+                </div>
+            </div>
+
             <div className="view-mode-switcher">
                 <label>
-                    <input
-                        type="radio"
-                        name="viewMode"
-                        value="text"
-                        checked={viewMode === 'text'}
-                        onChange={() => setViewMode('text')}
-                    />
+                    <input type="radio" name="viewMode" value="text" checked={viewMode === 'text'} onChange={() => setViewMode('text')} />
                     {t('results:viewModeText')}
                 </label>
                 <label>
-                    <input
-                        type="radio"
-                        name="viewMode"
-                        value="tree"
-                        checked={viewMode === 'tree'}
-                        onChange={() => setViewMode('tree')}
-                        disabled={!structuredResults} // Disable tree view if no structured data
-                    />
+                    <input type="radio" name="viewMode" value="tree" checked={viewMode === 'tree'} onChange={() => setViewMode('tree')} disabled={!structuredResults} />
                     {t('results:viewModeTree')}
                 </label>
             </div>
 
-            {/* Results Display Component (passes down necessary props) */}
+            {/* Pass debounced term and case sensitivity to ResultsDisplay for highlighting */}
             <ResultsDisplay
-                results={results} // Full text for text view, copy, save
-                structuredResults={structuredResults} // Data for tree view
+                results={results}
+                filteredTextLines={filteredTextLines}
+                filteredStructuredItems={filteredStructuredResults}
                 summary={searchSummary}
-                viewMode={viewMode} // Current view mode
-                itemDisplayStates={itemDisplayStates} // Pass map of item states
-                onCopy={handleCopyResults} // Callback for copy button
-                onSave={handleSaveResults} // Callback for save button
-                onToggleExpand={handleToggleExpand} // Callback to toggle tree items
-                onShowFullContent={handleShowFullContent} // Callback to show full content
+                viewMode={viewMode}
+                itemDisplayStates={itemDisplayStates}
+                onCopy={handleCopyResults}
+                onSave={handleSaveResults}
+                onToggleExpand={handleToggleExpand}
+                onShowFullContent={handleShowFullContent}
+                isFilterActive={isFilterActive}
+                filterTerm={debouncedFilterTerm} // Pass debounced term for highlighting
+                filterCaseSensitive={resultsFilterCaseSensitive} // Pass case sensitivity
             />
         </div>
       )}
 
-      {/* Settings Modal (Conditionally Rendered) */}
       <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
     </div>
   );

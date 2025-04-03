@@ -1,0 +1,8 @@
+.highlight {
+    background-color: #7b68ee; /* Use accent color */
+    color: #ffffff; /* White text */
+    font-weight: bold;
+    padding: 0.1em 0; /* Small vertical padding */
+    border-radius: 2px;
+  }
+  

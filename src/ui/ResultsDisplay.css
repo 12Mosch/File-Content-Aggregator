@@ -217,3 +217,60 @@
   color: var(--color-text-primary);
   border-color: var(--color-accent-primary);
 }
+
+.results-filter-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* Space between label, input, and checkbox group */
+  margin-bottom: 0.8rem; /* Space below the filter section */
+  padding: 0.5rem 0; /* Optional padding */
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.results-filter-label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  flex-shrink: 0; /* Prevent label from shrinking */
+}
+
+.results-filter-input {
+  flex-grow: 1; /* Allow input to take available space */
+  min-width: 200px; /* Minimum width for the input */
+  /* Inherit base input styles from index.css */
+  padding: 0.6em 1em;
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-light);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.9em;
+  transition: border-color var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease;
+}
+
+.results-filter-input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 2px var(--color-accent-primary-focus);
+}
+
+.results-filter-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem; /* Space between checkbox and its label */
+  flex-shrink: 0; /* Prevent checkbox group from shrinking */
+}
+
+.results-filter-checkbox {
+  cursor: pointer;
+  accent-color: var(--color-accent-primary); /* Style checkbox color */
+  width: 16px; /* Explicit size */
+  height: 16px;
+}
+
+.results-filter-checkbox-label {
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none; /* Prevent text selection on label click */
+}

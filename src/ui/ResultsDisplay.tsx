@@ -1,110 +1,149 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"; // Import useRef, useEffect, useCallback
+// D:/Code/Electron/src/ui/ResultsDisplay.tsx
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { FixedSizeList as List, VariableSizeList } from "react-window"; // Import VariableSizeList
+import { FixedSizeList as List, VariableSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
+import HighlightMatches from "./HighlightMatches"; // Import the highlighting component
 import "./ResultsDisplay.css";
-import type { FileReadError } from "./vite-env.d"; // Import type if needed
+import "./Highlight.css"; // Import the new highlight CSS file
+import type { StructuredItem } from "./vite-env.d";
 
 // --- Constants ---
-const TEXT_BLOCK_LINE_HEIGHT = 21; // Height for simple text lines in Text View
-const TREE_ITEM_HEADER_HEIGHT = 30; // Estimated height of the file path header row in Tree View
-const TREE_ITEM_CONTENT_LINE_HEIGHT = 18; // Estimated height for content lines in Tree View (adjust based on CSS)
-const TREE_ITEM_PADDING = 10; // Top/Bottom padding for expanded content area
-const MAX_PREVIEW_LINES = 50; // Max lines to show in preview before "Show More"
-const SHOW_MORE_BUTTON_HEIGHT = 35; // Estimated height of the "Show More" button
-const LARGE_RESULT_LINE_THRESHOLD = 100000; // Threshold for clipboard warning (re-added)
+const TEXT_BLOCK_LINE_HEIGHT = 21;
+const TREE_ITEM_HEADER_HEIGHT = 30;
+const TREE_ITEM_CONTENT_LINE_HEIGHT = 18;
+const TREE_ITEM_PADDING = 10;
+const MAX_PREVIEW_LINES = 50;
+const SHOW_MORE_BUTTON_HEIGHT = 35;
+const LARGE_RESULT_LINE_THRESHOLD = 100000;
 
-// --- New State Structure Type (from App.tsx) ---
+// --- Item Display State Type ---
 interface ItemDisplayState {
     expanded: boolean;
     showFull: boolean;
 }
 type ItemDisplayStates = Map<string, ItemDisplayState>;
-// -----------------------------------------
 
 // --- Prop Types ---
 interface ResultsDisplayProps {
-  results: string; // Full text output (for Text View, Copy, Save)
-  structuredResults: Array<{ filePath: string; content: string | null; readError?: string }> | null; // Data for Tree View
+  results: string;
+  filteredTextLines: string[];
+  filteredStructuredItems: StructuredItem[] | null;
   summary: {
     filesFound: number;
     filesProcessed: number;
     errorsEncountered: number;
   };
-  viewMode: 'text' | 'tree'; // Current view mode
-  itemDisplayStates: ItemDisplayStates; // Map tracking expanded/showFull state for tree items
-  onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>; // Callback for copy button
-  onSave: () => Promise<void>; // Callback for save button
-  onToggleExpand: (filePath: string) => void; // Callback to toggle tree item expansion
-  onShowFullContent: (filePath: string) => void; // Callback to show full content for a tree item
+  viewMode: 'text' | 'tree';
+  itemDisplayStates: ItemDisplayStates;
+  onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>;
+  onSave: () => Promise<void>;
+  onToggleExpand: (filePath: string) => void;
+  onShowFullContent: (filePath: string) => void;
+  isFilterActive: boolean;
+  filterTerm: string; // Receive debounced filter term
+  filterCaseSensitive: boolean; // Receive case sensitivity setting
 }
 
 // --- Row Component for Text View ---
-const TextRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: string[] }) => (
-  <div style={style} className="results-line">
-    <pre className="results-line-content">
-      {data[index] === "" ? "\u00A0" : data[index]}
-    </pre>
-  </div>
-);
+interface TextRowData {
+    lines: string[];
+    filterTerm: string;
+    filterCaseSensitive: boolean;
+}
+const TextRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: TextRowData }) => {
+    const { lines, filterTerm, filterCaseSensitive } = data;
+    const lineContent = lines[index];
+    return (
+        <div style={style} className="results-line">
+            <pre className="results-line-content">
+                {lineContent === "" ? (
+                    "\u00A0"
+                ) : (
+                    // Use HighlightMatches component
+                    <HighlightMatches
+                        text={lineContent}
+                        term={filterTerm}
+                        caseSensitive={filterCaseSensitive}
+                    />
+                )}
+            </pre>
+        </div>
+    );
+};
+
 
 // --- Row Component for Tree View ---
-// Defines the data structure passed to each TreeRow instance
 interface TreeRowData {
-  items: Array<{ filePath: string; content: string | null; readError?: string }>;
-  itemDisplayStates: ItemDisplayStates; // Map of display states
-  toggleExpand: (filePath: string) => void; // Function to toggle expansion
-  showFullContentHandler: (filePath: string) => void; // Function to show full content
-  t: (key: string, options?: any) => string; // Translation function
+  items: StructuredItem[];
+  itemDisplayStates: ItemDisplayStates;
+  toggleExpand: (filePath: string) => void;
+  showFullContentHandler: (filePath: string) => void;
+  t: (key: string, options?: any) => string;
+  filterTerm: string; // Pass down for highlighting
+  filterCaseSensitive: boolean; // Pass down for highlighting
 }
 
 const TreeRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: TreeRowData }) => {
-  const { items, itemDisplayStates, toggleExpand, showFullContentHandler, t } = data;
-  const item = items[index]; // Get the specific item data for this row
-  const displayState = itemDisplayStates.get(item.filePath); // Get display state from map
-  const isExpanded = displayState?.expanded ?? false; // Default to collapsed
-  const showFull = displayState?.showFull ?? false; // Default to not showing full content
+  const {
+      items,
+      itemDisplayStates,
+      toggleExpand,
+      showFullContentHandler,
+      t,
+      filterTerm, // Get filter props
+      filterCaseSensitive, // Get filter props
+  } = data;
+  const item = items[index];
+  const displayState = itemDisplayStates.get(item.filePath);
+  const isExpanded = displayState?.expanded ?? false;
+  const showFull = displayState?.showFull ?? false;
 
-  // Memoize calculation of content lines and preview
   const { contentLines, totalContentLines, isContentLarge, contentPreview } = useMemo(() => {
       const lines = item.content?.split('\n') ?? [];
       const totalLines = lines.length;
       const large = item.content ? totalLines > MAX_PREVIEW_LINES : false;
       const preview = (large && !showFull) ? lines.slice(0, MAX_PREVIEW_LINES).join('\n') : item.content;
       return { contentLines: lines, totalContentLines: totalLines, isContentLarge: large, contentPreview: preview };
-  }, [item.content, showFull]); // Dependencies: recalculate if content or showFull changes
+  }, [item.content, showFull]);
 
-  // Determine if the "Show More" button should be visible
   const showShowMoreButton = isExpanded && isContentLarge && !showFull;
 
-  // Handlers specific to this row
   const handleToggle = () => toggleExpand(item.filePath);
   const handleShowMore = (e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevent the header click/toggle when clicking the button
-      showFullContentHandler(item.filePath); // Trigger showing full content
+      e.stopPropagation();
+      showFullContentHandler(item.filePath);
   };
 
   return (
-    // Apply style from react-window for positioning and size
     <div style={style} className="tree-item">
-      {/* Clickable header to toggle expansion */}
+      {/* Highlight file path */}
       <div className="tree-item-header" onClick={handleToggle} title={item.filePath}>
         <span className="tree-item-toggle">{isExpanded ? '▼' : '▶'}</span>
-        <span className="tree-item-path">{item.filePath}</span>
+        <span className="tree-item-path">
+            <HighlightMatches
+                text={item.filePath}
+                term={filterTerm}
+                caseSensitive={filterCaseSensitive}
+            />
+        </span>
       </div>
-      {/* Conditional rendering of content area when expanded */}
       {isExpanded && (
         <div className="tree-item-content">
           {item.readError ? (
-            // Display translated read error if present
             <span className="tree-item-error">
               {t(`errors:${item.readError}`, { defaultValue: item.readError })}
             </span>
-          ) : item.content !== null ? ( // Check if content exists (could be empty string)
+          ) : item.content !== null ? (
             <>
-              {/* Display preview or full content */}
-              <pre>{contentPreview}</pre>
-              {/* Display "Show More" button if needed */}
+              {/* Highlight content preview */}
+              <pre>
+                <HighlightMatches
+                    text={contentPreview}
+                    term={filterTerm}
+                    caseSensitive={filterCaseSensitive}
+                />
+              </pre>
               {showShowMoreButton && (
                 <button onClick={handleShowMore} className="show-more-button">
                   {t('results:showMore', { remaining: totalContentLines - MAX_PREVIEW_LINES })}
@@ -112,7 +151,6 @@ const TreeRow = ({ index, style, data }: { index: number; style: React.CSSProper
               )}
             </>
           ) : (
-            // Placeholder if content is null and no error (should be rare)
             <span className="tree-item-error">{/* No content available */}</span>
           )}
         </div>
@@ -125,86 +163,80 @@ const TreeRow = ({ index, style, data }: { index: number; style: React.CSSProper
 // --- Main ResultsDisplay Component ---
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   results,
-  structuredResults,
+  filteredTextLines,
+  filteredStructuredItems,
   summary,
   viewMode,
-  itemDisplayStates, // Use the map of item states
+  itemDisplayStates,
   onCopy,
   onSave,
   onToggleExpand,
-  onShowFullContent, // Use the handler for showing full content
+  onShowFullContent,
+  isFilterActive,
+  filterTerm, // Use received filter term
+  filterCaseSensitive, // Use received case sensitivity
 }) => {
   const { t } = useTranslation(['results', 'errors']);
 
-  // State for button feedback
   const [copyStatus, setCopyStatus] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<string>("");
 
-  // Refs for the virtualized list components
   const textListRef = useRef<List>(null);
-  const treeListRef = useRef<VariableSizeList>(null); // Ref for VariableSizeList
+  const treeListRef = useRef<VariableSizeList>(null);
 
-  // Memoize splitting the results string for text view line count
-  const textLines = useMemo(() => results.split('\n'), [results]);
-  // Memoize check if results are large (for clipboard warning)
-  const isResultLarge = useMemo(() => textLines.length > LARGE_RESULT_LINE_THRESHOLD, [textLines]); // Use constant here
+  // Check original result size for large warning
+  const isOriginalResultLarge = useMemo(() => results.split('\n').length > LARGE_RESULT_LINE_THRESHOLD, [results]);
 
-  // --- Effect to reset Tree List cache when item states change ---
-  // This is crucial for VariableSizeList when item heights change dynamically
   useEffect(() => {
     if (viewMode === 'tree' && treeListRef.current) {
-      // Reset cached sizes when the display states change (expand/collapse/showMore)
-      // 'false' for shouldForceUpdate might provide a smoother visual update
       treeListRef.current.resetAfterIndex(0, false);
     }
-    // Also reset if switching TO tree view (viewMode changes)
-  }, [itemDisplayStates, viewMode]); // Dependencies: item states map and view mode
+    // Reset text list scroll on filter change? Optional.
+    // if (viewMode === 'text' && textListRef.current) {
+    //   textListRef.current.scrollToItem(0);
+    // }
+  }, [itemDisplayStates, viewMode, filteredStructuredItems, filterTerm]); // Add filterTerm dependency
 
-  // --- Calculate Tree Item Size for VariableSizeList ---
-  // Use useCallback to memoize the function itself, preventing unnecessary recalculations if props haven't changed
   const getTreeItemSize = useCallback((index: number): number => {
-    if (!structuredResults) return TREE_ITEM_HEADER_HEIGHT; // Default height if no data
+    if (!filteredStructuredItems) return TREE_ITEM_HEADER_HEIGHT;
 
-    const item = structuredResults[index];
+    const item = filteredStructuredItems[index];
     const displayState = itemDisplayStates.get(item.filePath);
     const isExpanded = displayState?.expanded ?? false;
     const showFull = displayState?.showFull ?? false;
 
     if (!isExpanded) {
-      return TREE_ITEM_HEADER_HEIGHT; // Height of collapsed item (header only)
+      return TREE_ITEM_HEADER_HEIGHT;
     } else {
-      // Calculate expanded height
       let contentLineCount = 0;
       if (item.readError) {
-        contentLineCount = 2; // Estimate ~2 lines for error message display
+        contentLineCount = 2;
       } else if (item.content) {
         const lines = item.content.split('\n').length;
-        // Use preview line count if applicable and full content isn't shown
         if (lines > MAX_PREVIEW_LINES && !showFull) {
             contentLineCount = MAX_PREVIEW_LINES;
         } else {
-            contentLineCount = lines; // Use actual line count for full content
+            contentLineCount = lines;
         }
       } else {
-        contentLineCount = 1; // Minimum 1 line height if expanded but no content/error
+        contentLineCount = 1;
       }
 
-      // Check if the "Show More" button will be visible for this item
       const showShowMoreButton = (item.content && item.content.split('\n').length > MAX_PREVIEW_LINES && !showFull);
       const showMoreButtonHeight = showShowMoreButton ? SHOW_MORE_BUTTON_HEIGHT : 0;
 
-      // Calculate total height: Header + (Lines * Line Height) + Button Height + Padding
       const contentHeight = contentLineCount * TREE_ITEM_CONTENT_LINE_HEIGHT;
       return TREE_ITEM_HEADER_HEIGHT + contentHeight + showMoreButtonHeight + TREE_ITEM_PADDING;
     }
-  }, [structuredResults, itemDisplayStates]); // Dependencies for the size calculation function
+  }, [filteredStructuredItems, itemDisplayStates]);
 
-  // --- Event Handlers for Copy/Save --- (Operate on the full 'results' text)
   const handleCopy = async () => {
     setCopyStatus(t('copyButtonCopying'));
-    const { success, potentiallyTruncated } = await onCopy();
+    const { success, potentiallyTruncated } = await onCopy(); // Uses original results via callback
     let statusKey = success ? 'copyButtonSuccess' : 'copyButtonFailed';
-    if (success && potentiallyTruncated) statusKey = 'copyButtonTruncated';
+    if (success && isOriginalResultLarge) { // Check original size
+        statusKey = 'copyButtonTruncated';
+    }
     setCopyStatus(t(statusKey));
     setTimeout(() => setCopyStatus(""), 5000);
   };
@@ -212,7 +244,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const handleSave = async () => {
     setSaveStatus(t('saveButtonSaving'));
     try {
-      await onSave();
+      await onSave(); // Uses original results via callback
       setSaveStatus(t('saveButtonInitiated'));
       setTimeout(() => setSaveStatus(""), 5000);
     } catch (error) {
@@ -221,26 +253,40 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
   };
 
-  // --- Prepare itemData for the Tree List ---
-  // Memoize this object to prevent unnecessary re-renders of TreeRow
+  // Prepare itemData for the Text List
+  const textItemData: TextRowData = useMemo(() => ({
+      lines: filteredTextLines,
+      filterTerm,
+      filterCaseSensitive,
+  }), [filteredTextLines, filterTerm, filterCaseSensitive]);
+
+  // Prepare itemData for the Tree List
   const treeItemData: TreeRowData | null = useMemo(() => {
-      if (!structuredResults) return null;
-      // Pass all necessary data and callbacks down to TreeRow
+      if (!filteredStructuredItems) return null;
       return {
-          items: structuredResults,
+          items: filteredStructuredItems,
           itemDisplayStates: itemDisplayStates,
           toggleExpand: onToggleExpand,
           showFullContentHandler: onShowFullContent,
-          t: t // Pass translation function
+          t: t,
+          filterTerm, // Pass filter props
+          filterCaseSensitive, // Pass filter props
       };
-  }, [structuredResults, itemDisplayStates, onToggleExpand, onShowFullContent, t]);
+  }, [filteredStructuredItems, itemDisplayStates, onToggleExpand, onShowFullContent, t, filterTerm, filterCaseSensitive]);
 
 
-  // --- Render Logic ---
+  const getSummaryLabelKey = () => {
+      if (viewMode === 'text') {
+          return isFilterActive ? 'summaryTotalLinesFiltered' : 'summaryTotalLines';
+      } else {
+          return isFilterActive ? 'summaryTotalFilesFiltered' : 'summaryTotalFiles';
+      }
+  };
+  const summaryCount = viewMode === 'text' ? filteredTextLines.length : (filteredStructuredItems?.length ?? 0);
+
   return (
     <div className="results-display">
       <h3>{t('heading')}</h3>
-      {/* Summary Section */}
       <div className="results-summary">
         <span>{t('summaryFound', { count: summary.filesFound })}</span>
         <span>{t('summaryProcessed', { count: summary.filesProcessed })}</span>
@@ -249,61 +295,48 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             {t('summaryReadErrors', { count: summary.errorsEncountered })}
           </span>
         )}
-        {/* Show different summary label based on view mode */}
-        <span>
-            {viewMode === 'text'
-                ? t('summaryTotalLines', { count: textLines.length })
-                : t('results:summaryTotalFiles', { count: structuredResults?.length ?? 0 })
-            }
-        </span>
+        <span>{t(getSummaryLabelKey(), { count: summaryCount })}</span>
       </div>
-      {/* Clipboard Warning (only for text view) */}
-      {isResultLarge && viewMode === 'text' && (
+      {isOriginalResultLarge && ( // Show warning based on original size
          <p className="clipboard-warning">{t('clipboardWarning')}</p>
       )}
 
-      {/* Virtualized List Container */}
       <div className="results-virtualized-container">
         <AutoSizer>
           {({ height, width }) => (
             viewMode === 'text' ? (
-              // Render Text Block View using FixedSizeList
               <List
                 ref={textListRef}
                 className="results-list-scrollbar"
                 height={height}
-                itemCount={textLines.length}
+                itemCount={filteredTextLines.length}
                 itemSize={TEXT_BLOCK_LINE_HEIGHT}
                 width={width}
-                itemData={textLines}
+                itemData={textItemData} // Pass combined data object
                 overscanCount={10}
               >
                 {TextRow}
               </List>
             ) : treeItemData ? (
-              // Render Tree View using VariableSizeList
               <VariableSizeList
-                ref={treeListRef} // Assign ref
+                ref={treeListRef}
                 className="results-list-scrollbar"
                 height={height}
-                itemCount={structuredResults?.length ?? 0}
-                itemSize={getTreeItemSize} // Use function to get item size
+                itemCount={filteredStructuredItems?.length ?? 0}
+                itemSize={getTreeItemSize}
                 width={width}
                 itemData={treeItemData} // Pass combined data object
-                overscanCount={5} // Lower overscan might be ok for variable size
-                // Provide an estimated size for initial render optimization
+                overscanCount={5}
                 estimatedItemSize={TREE_ITEM_HEADER_HEIGHT + (TREE_ITEM_CONTENT_LINE_HEIGHT * 5)}
               >
                 {TreeRow}
               </VariableSizeList>
-            ) : null // Render nothing if structuredResults aren't ready for tree view
+            ) : null
           )}
         </AutoSizer>
       </div>
 
-      {/* Action Buttons */}
       <div className="results-actions">
-        {/* Copy/Save always operate on the full text block 'results' */}
         <button onClick={handleCopy} disabled={!results || !!copyStatus}>
           {copyStatus || t('copyButton')}
         </button>

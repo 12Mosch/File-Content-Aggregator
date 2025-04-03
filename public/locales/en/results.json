@@ -5,6 +5,8 @@
   "summaryReadErrors": "File Read Errors: {{count}}",
   "summaryTotalLines": "Total Lines: {{count}}",
   "summaryTotalFiles": "Total Files: {{count}}",
+  "summaryTotalLinesFiltered": "Total Lines (filtered): {{count}}",
+  "summaryTotalFilesFiltered": "Total Files (filtered): {{count}}",
   "clipboardWarning": "Note: Results are very large. Copying to clipboard may be truncated by system limits. Use \"Save to File\" for guaranteed full content.",
   "copyButton": "Copy to Clipboard",
   "copyButtonCopying": "Copying...",
@@ -17,5 +19,8 @@
   "saveButtonFailed": "Save Failed/Cancelled!",
   "viewModeText": "Text Block",
   "viewModeTree": "Tree View",
-  "showMore": "Show More ({{remaining}} lines)"
+  "showMore": "Show More ({{remaining}} lines)",
+  "filterResultsLabel": "Filter Results:",
+  "filterResultsPlaceholder": "Enter text to filter...",
+  "filterCaseSensitiveLabel": "Case-Sensitive"
 }
