@@ -112,3 +112,21 @@
     text-align: right;
   }
   
+  .form-input-depth {
+    padding: 0.6em 1em;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #eee;
+    font-family: inherit;
+    font-size: 1em;
+    width: 100%;
+  }
+  .form-input-depth::-webkit-outer-spin-button,
+  .form-input-depth::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .form-input-depth {
+    -moz-appearance: textfield;
+  }

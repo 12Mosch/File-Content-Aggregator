@@ -12,6 +12,8 @@
   "folderExclusionModeExact": "Segment Exactly Matches Pattern",
   "folderExclusionModeStartsWith": "Segment Starts With Pattern",
   "folderExclusionModeEndsWith": "Segment Ends With Pattern",
+  "maxDepthLabel": "Max Search Depth:",
+  "maxDepthPlaceholder": "Blank = unlimited",
   "contentSearchLabel": "Content Search Term (Optional):",
   "contentSearchPlaceholder": "e.g., specific error code, function name",
   "caseSensitiveLabel": "Case-Sensitive",

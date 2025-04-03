@@ -21,7 +21,7 @@ interface SearchFormData {
   extensions: string;
   excludeFiles: string;
   excludeFolders: string;
-  folderExclusionMode: FolderExclusionMode; // New: Mode for folder exclusion
+  folderExclusionMode: FolderExclusionMode;
   contentSearchTerm: string;
   caseSensitive: boolean;
   modifiedAfter: string;
@@ -30,6 +30,7 @@ interface SearchFormData {
   minSizeUnit: SizeUnit;
   maxSizeValue: string;
   maxSizeUnit: SizeUnit;
+  maxDepthValue: string; // New: Max search depth value as string
 }
 
 // Define the shape of the parameters passed to the onSubmit callback
@@ -38,13 +39,14 @@ interface SubmitParams {
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
-  folderExclusionMode?: FolderExclusionMode; // New: Pass selected mode
+  folderExclusionMode?: FolderExclusionMode;
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
   maxSizeBytes?: number;
+  maxDepth?: number; // New: Optional max search depth
 }
 
 interface SearchFormProps {
@@ -60,7 +62,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     extensions: "",
     excludeFiles: "",
     excludeFolders: ".git, node_modules, bin, obj, dist",
-    folderExclusionMode: "contains", // Default mode
+    folderExclusionMode: "contains",
     contentSearchTerm: "",
     caseSensitive: false,
     modifiedAfter: "",
@@ -69,6 +71,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     minSizeUnit: "MB",
     maxSizeValue: "",
     maxSizeUnit: "MB",
+    maxDepthValue: "", // Default to empty (unlimited)
   });
 
   const handleChange = (
@@ -77,7 +80,12 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     >,
   ) => {
     const { name, value } = e.target;
+    // Prevent negative numbers visually for number inputs
     if (e.target.type === "number" && parseFloat(value) < 0) {
+      // Allow clearing the input or setting to 0, but not negative
+      if (value === "" || parseFloat(value) === 0) {
+         setFormData((prev) => ({ ...prev, [name]: value }));
+      }
       return;
     }
     setFormData((prev) => ({
@@ -104,7 +112,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       extensions: splitAndClean(formData.extensions),
       excludeFiles: splitAndClean(formData.excludeFiles),
       excludeFolders: splitAndClean(formData.excludeFolders),
-      folderExclusionMode: formData.folderExclusionMode, // Pass the selected mode
+      folderExclusionMode: formData.folderExclusionMode,
     };
 
     if (formData.contentSearchTerm.trim()) {
@@ -143,6 +151,13 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       return;
     }
 
+    // --- New: Parse and add maxDepth ---
+    const maxDepthNum = parseInt(formData.maxDepthValue, 10);
+    if (!isNaN(maxDepthNum) && maxDepthNum > 0) {
+      submitParams.maxDepth = maxDepthNum;
+    } // Otherwise, leave submitParams.maxDepth as undefined (interpreted as unlimited)
+    // ------------------------------------
+
     onSubmit(submitParams);
   };
 
@@ -150,19 +165,15 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
 
   return (
     <form onSubmit={handleSubmit} className="search-form">
-      {/* Search Paths */}
+      {/* Search Paths, Extensions, Exclude Files */}
       <div className="form-group">
         <label htmlFor="searchPaths">{t("searchPathLabel")}</label>
         <textarea id="searchPaths" name="searchPaths" value={formData.searchPaths} onChange={handleChange} rows={3} required placeholder={t("searchPathPlaceholder")} disabled={isLoading} />
       </div>
-
-      {/* Extensions */}
       <div className="form-group">
         <label htmlFor="extensions">{t("extensionsLabel")}</label>
         <input type="text" id="extensions" name="extensions" value={formData.extensions} onChange={handleChange} required placeholder={t("extensionsPlaceholder")} disabled={isLoading} />
       </div>
-
-      {/* Exclude Files */}
       <div className="form-group">
         <label htmlFor="excludeFiles">{t("excludeFilesLabelRegex")}</label>
         <textarea id="excludeFiles" name="excludeFiles" value={formData.excludeFiles} onChange={handleChange} rows={2} placeholder={t("excludeFilesPlaceholderRegex")} disabled={isLoading} />
@@ -171,27 +182,11 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       {/* Exclude Folders & Mode Selector */}
       <div className="form-group">
         <label htmlFor="excludeFolders">{t("excludeFoldersLabelRegex")}</label>
-        <div className="folder-exclusion-group"> {/* Wrapper for textarea and select */}
-          <textarea
-            id="excludeFolders"
-            name="excludeFolders"
-            value={formData.excludeFolders}
-            onChange={handleChange}
-            rows={2}
-            placeholder={t("excludeFoldersPlaceholderRegex")}
-            disabled={isLoading}
-            className="folder-exclusion-input"
-          />
+        <div className="folder-exclusion-group">
+          <textarea id="excludeFolders" name="excludeFolders" value={formData.excludeFolders} onChange={handleChange} rows={2} placeholder={t("excludeFoldersPlaceholderRegex")} disabled={isLoading} className="folder-exclusion-input" />
           <div className="folder-exclusion-mode-group">
              <label htmlFor="folderExclusionMode" className="folder-exclusion-mode-label">{t("folderExclusionModeLabel")}</label>
-             <select
-                id="folderExclusionMode"
-                name="folderExclusionMode"
-                value={formData.folderExclusionMode}
-                onChange={handleChange}
-                disabled={isLoading}
-                className="folder-exclusion-mode-select"
-             >
+             <select id="folderExclusionMode" name="folderExclusionMode" value={formData.folderExclusionMode} onChange={handleChange} disabled={isLoading} className="folder-exclusion-mode-select">
                 <option value="contains">{t("folderExclusionModeContains")}</option>
                 <option value="exact">{t("folderExclusionModeExact")}</option>
                 <option value="startsWith">{t("folderExclusionModeStartsWith")}</option>
@@ -201,13 +196,28 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         </div>
       </div>
 
-      {/* Content Search Term */}
+      {/* Max Depth (New) */}
+      <div className="form-group form-group-depth">
+        <label htmlFor="maxDepthValue">{t("maxDepthLabel")}</label>
+        <input
+          type="number"
+          id="maxDepthValue"
+          name="maxDepthValue"
+          value={formData.maxDepthValue}
+          onChange={handleChange}
+          disabled={isLoading}
+          className="form-input-depth"
+          placeholder={t("maxDepthPlaceholder")}
+          min="1" // HTML5 validation for minimum depth
+          step="1" // Only allow whole numbers
+        />
+      </div>
+
+      {/* Content Search Term & Case Sensitive */}
       <div className="form-group">
         <label htmlFor="contentSearchTerm">{t("contentSearchLabel")}</label>
         <input type="text" id="contentSearchTerm" name="contentSearchTerm" value={formData.contentSearchTerm} onChange={handleChange} placeholder={t("contentSearchPlaceholder")} disabled={isLoading} />
       </div>
-
-      {/* Case Sensitive Checkbox */}
       {hasContentSearchTerm && (
         <div className="form-group form-group-checkbox">
           <input type="checkbox" id="caseSensitive" name="caseSensitive" checked={formData.caseSensitive} onChange={handleCheckboxChange} disabled={isLoading || !hasContentSearchTerm} className="form-checkbox" />
@@ -257,10 +267,30 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   );
 };
 
-// Add styling for folder exclusion group if needed in SearchForm.css
+// Add styling for depth input if needed in SearchForm.css
 /*
+.form-group-depth {
+  max-width: 250px; // Limit width of depth input group
+}
 
-
+.form-input-depth {
+  padding: 0.6em 1em;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background-color: #333;
+  color: #eee;
+  font-family: inherit;
+  font-size: 1em;
+  width: 100%; // Take full width of its container
+}
+.form-input-depth::-webkit-outer-spin-button,
+.form-input-depth::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.form-input-depth {
+  -moz-appearance: textfield; // Firefox
+}
 */
 
 export default SearchForm;

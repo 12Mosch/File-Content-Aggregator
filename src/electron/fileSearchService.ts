@@ -2,10 +2,9 @@
 import path from "path";
 import fs from "fs/promises";
 import fg from "fast-glob";
-import picomatch from "picomatch"; // Ensure picomatch is imported
+import picomatch from "picomatch";
 
 // --- Interfaces ---
-// Define allowed folder exclusion modes
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
 // Updated SearchParams interface
@@ -14,13 +13,14 @@ export interface SearchParams {
   extensions: string[];
   excludeFiles: string[]; // Contains Regex/Glob patterns
   excludeFolders: string[]; // Contains Glob patterns
-  folderExclusionMode?: FolderExclusionMode; // New: Mode for folder exclusion
+  folderExclusionMode?: FolderExclusionMode; // Mode for folder exclusion
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
   maxSizeBytes?: number;
+  maxDepth?: number; // New: Optional max search depth
 }
 
 // Other interfaces (ProgressData, FileReadError, SearchResult) remain the same
@@ -112,7 +112,6 @@ export async function searchFiles(
     extensions,
     excludeFiles,
     excludeFolders,
-    // Default folderExclusionMode to 'contains' if not provided
     folderExclusionMode = 'contains',
     contentSearchTerm,
     caseSensitive = false,
@@ -120,6 +119,7 @@ export async function searchFiles(
     modifiedBefore,
     minSizeBytes,
     maxSizeBytes,
+    maxDepth, // New: Max depth parameter
   } = params;
 
   const pathErrors: string[] = [];
@@ -130,6 +130,11 @@ export async function searchFiles(
   const includePatterns = extensions.map((ext) => `**/*.${ext.replace(/^\./, "")}`);
   const allFoundFiles = new Set<string>();
   let initialFileCount = 0;
+
+  // Determine the depth for fast-glob
+  // If maxDepth is provided and > 0, use it. Otherwise, use Infinity for unlimited depth.
+  const globDepth = (maxDepth && maxDepth > 0) ? maxDepth : Infinity;
+  console.log(`Using glob depth: ${globDepth}`); // Log the depth being used
 
   try {
     for (const searchPath of searchPaths) {
@@ -151,19 +156,22 @@ export async function searchFiles(
           progressCallback({ processed: 0, total: 0, message: `Cannot access path: ${searchPath}`, error: statError.message });
           continue;
       }
+
+      // Add the 'deep' option to the fast-glob call
       const found = await fg(includePatterns, {
         cwd: normalizedPath,
         // ignore: is handled manually later
         absolute: true,
         onlyFiles: true,
-        dot: true, // Important for matching hidden files/folders if needed by patterns
+        dot: true,
         stats: false,
         suppressErrors: true,
+        deep: globDepth, // Apply the calculated depth limit
       });
       found.forEach((file) => allFoundFiles.add(file.replace(/\\/g, "/")));
     }
     initialFileCount = allFoundFiles.size;
-    progressCallback({ processed: 0, total: initialFileCount, message: `Found ${initialFileCount} potential files. Filtering...` });
+    progressCallback({ processed: 0, total: initialFileCount, message: `Found ${initialFileCount} potential files (depth limit: ${globDepth === Infinity ? 'none' : globDepth}). Filtering...` });
   } catch (error: any) {
     console.error("Error during file discovery loop:", error);
     const errorMsg = `Unexpected error during file search: ${error.message}`; pathErrors.push(errorMsg);
@@ -180,18 +188,12 @@ export async function searchFiles(
     progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded file patterns...` });
     filesToProcess = filesToProcess.filter((filePath) => {
       const filename = path.basename(filePath);
-      // Check if the filename matches ANY of the exclusion patterns
       const isExcluded = excludeFiles.some((pattern) => {
         const regex = parseRegexLiteral(pattern);
-        if (regex) {
-          // Regex Match
-          return regex.test(filename);
-        } else {
-          // Glob Match (using picomatch)
-          return picomatch.isMatch(filename, pattern, { dot: true });
-        }
+        if (regex) { return regex.test(filename); }
+        else { return picomatch.isMatch(filename, pattern, { dot: true }); }
       });
-      return !isExcluded; // Keep the file if it's NOT excluded
+      return !isExcluded;
     });
     currentTotal = filesToProcess.length;
     progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after file exclusion.` });
@@ -201,47 +203,25 @@ export async function searchFiles(
   if (excludeFolders && excludeFolders.length > 0 && filesToProcess.length > 0) {
     progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded folder patterns (${folderExclusionMode})...` });
 
-    // Pre-compile matchers based on the selected mode
     const folderMatchers = excludeFolders.map(pattern => {
-        const picoOptions = { dot: true, nocase: true }; // Case-insensitive matching for paths
+        const picoOptions = { dot: true, nocase: true };
         let matchPattern = pattern;
-
-        // Adjust pattern based on mode for picomatch usage
         switch (folderExclusionMode) {
-            case 'startsWith':
-                matchPattern = pattern + '*'; // Append wildcard for startsWith
-                break;
-            case 'endsWith':
-                matchPattern = '*' + pattern; // Prepend wildcard for endsWith
-                break;
-            case 'contains':
-                // Add wildcards only if pattern doesn't already contain them
-                // This prevents '**pattern**' if user enters '*pattern*'
-                if (!pattern.includes('*') && !pattern.includes('?')) {
-                   matchPattern = '*' + pattern + '*';
-                }
-                break;
-            case 'exact':
-            default:
-                // Use the pattern as is for exact matching
-                break;
+            case 'startsWith': matchPattern = pattern + '*'; break;
+            case 'endsWith': matchPattern = '*' + pattern; break;
+            case 'contains': if (!pattern.includes('*') && !pattern.includes('?')) { matchPattern = '*' + pattern + '*'; } break;
+            case 'exact': default: break;
         }
-        // Return the compiled matcher function
         return picomatch(matchPattern, picoOptions);
     });
 
-
     filesToProcess = filesToProcess.filter((filePath) => {
       const dirPath = path.dirname(filePath);
-      // Split path into segments, handling both Windows and Unix separators
       const segments = dirPath.split(/[\\/]/).filter(Boolean);
-
-      // Check if ANY directory segment matches ANY of the compiled exclusion matchers
       const isExcluded = folderMatchers.some(isMatch =>
         segments.some(segment => isMatch(segment))
       );
-
-      return !isExcluded; // Keep the file if no segment matched any pattern
+      return !isExcluded;
     });
     currentTotal = filesToProcess.length;
     progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after folder exclusion.` });
@@ -265,32 +245,16 @@ export async function searchFiles(
         const fileSize = stats.size;
         const mtime = stats.mtime;
 
-        // Perform Size Check
-        const passSizeCheck =
-          (!hasSizeFilter) ||
-          (
-            (minSizeBytes === undefined || fileSize >= minSizeBytes) &&
-            (maxSizeBytes === undefined || fileSize <= maxSizeBytes)
-          );
+        const passSizeCheck = (!hasSizeFilter) || ((minSizeBytes === undefined || fileSize >= minSizeBytes) && (maxSizeBytes === undefined || fileSize <= maxSizeBytes));
+        const passDateCheck = (!hasDateFilter) || ((!afterDate || mtime.getTime() >= afterDate.getTime()) && (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
 
-        // Perform Date Check
-        const passDateCheck =
-          (!hasDateFilter) ||
-          (
-            (!afterDate || mtime.getTime() >= afterDate.getTime()) &&
-            (!beforeDate || mtime.getTime() <= beforeDate.getTime())
-          );
-
-        // Keep the file only if it passes both checks (if applicable)
         if (passSizeCheck && passDateCheck) {
           statFilteredFiles.push(filePath);
         }
       } catch (statError: any) {
         console.warn(`Could not get stats for file during size/date filter: ${filePath}`, statError);
-        // Optionally add to a specific error list if needed
       }
       processedForStatFilter++;
-      // Optional: More granular progress for stat filtering
     }
     filesToProcess = statFilteredFiles;
     currentTotal = filesToProcess.length;

@@ -34,19 +34,19 @@ interface SearchParams {
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
-  folderExclusionMode?: FolderExclusionMode; // New: Mode for folder exclusion
+  folderExclusionMode?: FolderExclusionMode;
   contentSearchTerm?: string;
   caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
   maxSizeBytes?: number;
+  maxDepth?: number;
 }
 
 // --- Electron API Definition ---
 
 export interface IElectronAPI {
-  // Updated to accept the new SearchParams interface
   invokeSearch: (params: SearchParams) => Promise<SearchResult>;
 
   showSaveDialog: () => Promise<string | undefined>;
