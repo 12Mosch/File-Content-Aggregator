@@ -31,8 +31,6 @@ const require = module.createRequire(import.meta.url);
 
 // --- Use the created require function to load mime ---
 const mime = require("mime");
-// --- Type assertion might be needed if TS still complains ---
-// const mime = require("mime") as { getType: (path: string) => string | null };
 
 // --- Constants & Language Configuration ---
 const APP_PROTOCOL = "app";
@@ -54,7 +52,7 @@ i18nMain
     defaultNS: 'common',
     backend: {
       loadPath: isDev()
-        ? path.join(app.getAppPath(), 'public/locales/{{lng}}/{{ns}}.json')
+        ? path.resolve('public/locales/{{lng}}/{{ns}}.json')
         : path.join(app.getAppPath(), 'dist-react/locales/{{lng}}/{{ns}}.json'),
     },
     initImmediate: false,
@@ -77,10 +75,22 @@ async function initializeMainI18nLanguage() {
     console.error("Main i18n: Error getting initial language:", error);
   }
   if (!i18nMain.isInitialized) {
-    await i18nMain.init();
+    try {
+        await i18nMain.init();
+    } catch (initError) {
+        console.error("Main i18n: Failed to initialize:", initError);
+    }
   }
-  await i18nMain.changeLanguage(initialLang);
-  console.log(`Main i18n initialized with language: ${i18nMain.language}`);
+  if (i18nMain.isInitialized) {
+      try {
+          await i18nMain.changeLanguage(initialLang);
+          console.log(`Main i18n initialized with language: ${i18nMain.language}`);
+      } catch (changeLangError) {
+          console.error(`Main i18n: Failed to change language to ${initialLang}:`, changeLangError);
+      }
+  } else {
+      console.error("Main i18n: Initialization failed, cannot set language.");
+  }
 }
 
 // --- Global Window Reference ---
@@ -90,77 +100,105 @@ let mainWindow: BrowserWindow | null = null;
 function registerAppProtocol() {
   protocol.handle(APP_PROTOCOL, async (request) => {
     const originalUrl = request.url;
-    console.log(`[Protocol Handler] Received request: ${originalUrl}`);
+    console.log(`[Protocol Handler] Request URL: ${originalUrl}`);
 
     try {
-      // 1. Get path part after 'app://'
-      let pathPart = decodeURIComponent(
+      // 1. Decode URL and get path part after 'app://'
+      const urlPath = decodeURIComponent(
         originalUrl.substring(`${APP_PROTOCOL}://`.length)
       );
 
-      // 2. Handle potential incorrect base path resolution by browser
-      if (pathPart.startsWith("index.html/")) {
-        pathPart = pathPart.substring("index.html/".length);
+      // 2. Normalize the path: Remove leading slashes and resolve potential relative paths.
+      //    Crucially, handle asset paths requested relative to index.html.
+      //    Example: 'index.html/assets/file.css' -> 'assets/file.css'
+      //    Example: '/' or '' -> 'index.html'
+      let requestedPath = urlPath.startsWith('index.html/')
+          ? urlPath.substring('index.html/'.length)
+          : urlPath;
+      requestedPath = requestedPath.replace(/^\/+/, ''); // Remove leading slashes if any remain
+      if (!requestedPath || requestedPath === '/') {
+          requestedPath = 'index.html';
       }
 
-      // 3. Default to 'index.html' if the path is empty or root
-      let requestedPath = !pathPart || pathPart === "/" ? "index.html" : pathPart;
+      console.log(`[Protocol Handler] Resolved Requested Path: ${requestedPath}`);
 
-      console.log(`[Protocol Handler] Resolved requestedPath: ${requestedPath}`);
+      // 3. Construct absolute file path within the application's 'dist-react' directory
+      const appRootPath = app.getAppPath(); // Points to ASAR root in production
+      const absoluteFilePath = path.join(appRootPath, "dist-react", requestedPath);
 
-      // 4. Construct absolute path relative to the 'dist-react' directory
-      const appBasePath = path.join(app.getAppPath(), "dist-react");
-      const absoluteFilePath = path.normalize(
-        path.join(appBasePath, requestedPath)
-      );
+      console.log(`[Protocol Handler] Trying Absolute Path: ${absoluteFilePath}`);
 
-      console.log(
-        `[Protocol Handler] Trying absoluteFilePath: ${absoluteFilePath}`
-      );
-
-      // 5. Security check: Ensure path stays within the app's directory
-      if (!absoluteFilePath.startsWith(appBasePath)) {
+      // 4. Security check: Ensure path stays within the expected 'dist-react' directory
+      const expectedBase = path.normalize(path.join(appRootPath, "dist-react"));
+      // Use path.normalize to handle potential separator differences
+      if (!path.normalize(absoluteFilePath).startsWith(expectedBase)) {
         console.error(
           `[Protocol Handler] Blocked potentially malicious path traversal: ${requestedPath} resolved to ${absoluteFilePath}`
         );
-        return new Response("Not Found", { status: 404 });
+        return new Response("Forbidden", { status: 403 }); // Use 403 Forbidden
       }
 
-      // 6. Read the file
-      const data = await fs.readFile(absoluteFilePath);
+      // 5. Read the file
+      let data: Buffer;
+      try {
+        console.log(`[Protocol Handler] Attempting fs.readFile for: ${absoluteFilePath}`);
+        data = await fs.readFile(absoluteFilePath);
+        console.log(`[Protocol Handler] Successfully read: ${absoluteFilePath} (Size: ${data.length})`);
+      } catch (readError: any) {
+        console.error(`[Protocol Handler] *** fs.readFile Error for ${absoluteFilePath}:`, readError);
+        if (readError.code === 'ENOENT') {
+            // If file not found, return 404
+            return new Response("Not Found", { status: 404 });
+        }
+        // For other read errors (permissions, etc.), re-throw to return 500
+        throw readError;
+      }
 
-      // 7. Determine MIME type (explicitly for critical types)
+      // 6. Determine MIME type
       let resolvedMimeType: string;
       const fileExtension = path.extname(absoluteFilePath).toLowerCase();
 
+      // --- Explicit MIME type checks (prioritize common/critical types) ---
       if (requestedPath === "index.html" || fileExtension === ".html") {
         resolvedMimeType = "text/html";
+      } else if (fileExtension === ".css") { // *** Ensure CSS is correctly identified ***
+        resolvedMimeType = "text/css";
       } else if (fileExtension === ".js") {
         resolvedMimeType = "application/javascript";
-      } else if (fileExtension === ".css") {
-        resolvedMimeType = "text/css";
+      } else if (fileExtension === ".json") {
+        resolvedMimeType = "application/json";
+      } else if (fileExtension === ".svg") {
+        resolvedMimeType = "image/svg+xml";
+      } else if (fileExtension === ".png") {
+        resolvedMimeType = "image/png";
+      } else if (fileExtension === ".jpg" || fileExtension === ".jpeg") {
+        resolvedMimeType = "image/jpeg";
+      } else if (fileExtension === ".woff2") {
+        resolvedMimeType = "font/woff2";
+      } else if (fileExtension === ".woff") {
+        resolvedMimeType = "font/woff";
       } else {
-        // --- Use mime.getType from the required module ---
+        // Fallback using the mime library for other types
         resolvedMimeType =
-          mime.getType(absoluteFilePath) || "application/octet-stream";
+          mime.getType(absoluteFilePath) || "application/octet-stream"; // Default fallback
       }
+      // --------------------------------------------------------------------
+
       console.log(
         `[Protocol Handler] Serving ${absoluteFilePath} with MIME type: ${resolvedMimeType}`
       );
 
-      // 8. Return the response
+      // 7. Return the response
       return new Response(data, {
         status: 200,
         headers: { "Content-Type": resolvedMimeType },
       });
     } catch (error: any) {
-      console.error(`[Protocol Handler] Error handling ${originalUrl}:`, error);
-      if (error.code === "ENOENT") {
-        console.error(`[Protocol Handler] File not found: ${error.path}`);
-        return new Response("Not Found", { status: 404 });
-      } else {
-        return new Response("Internal Server Error", { status: 500 });
+      console.error(`[Protocol Handler] *** Outer Catch Error for ${originalUrl}:`, error);
+      if (error.code) {
+          console.error(`[Protocol Handler] Error Code: ${error.code}`);
       }
+      return new Response("Internal Server Error", { status: 500 });
     }
   });
   console.log(`Custom protocol "${APP_PROTOCOL}://" registered.`);
@@ -174,25 +212,32 @@ function setupCSP() {
     const appProtoSrc = `${APP_PROTOCOL}:`;
 
     if (isDev()) {
+      // Development CSP
       const viteServer = "http://localhost:5123";
       const viteWs = "ws://localhost:5123";
       csp = [
-        `default-src ${selfSrc}`,
-        `script-src ${selfSrc} 'unsafe-inline' 'unsafe-eval' ${viteServer}`,
+        `default-src ${selfSrc} ${viteServer}`,
+        // Allow worker blob URLs in dev for highlight.worker.ts
+        `script-src ${selfSrc} 'unsafe-inline' 'unsafe-eval' ${viteServer} blob:`,
         `style-src ${selfSrc} 'unsafe-inline'`,
-        `connect-src ${selfSrc} ${viteWs}`,
+        `connect-src ${selfSrc} ${viteWs} ${viteServer}`,
         `img-src ${selfSrc} data:`,
         `font-src ${selfSrc}`,
+        `worker-src ${selfSrc} blob:`, // Allow blob URLs for workers
         `object-src 'none'`,
+        `frame-ancestors 'none'`,
       ].join("; ");
     } else {
+      // Production CSP
       csp = [
         `default-src ${appProtoSrc}`,
-        `script-src ${appProtoSrc}`,
-        `style-src ${appProtoSrc} 'unsafe-inline'`,
+        // Allow worker blob URLs in production as well
+        `script-src ${appProtoSrc} blob:`,
+        `style-src ${appProtoSrc} 'unsafe-inline'`, // Keep unsafe-inline if needed by UI libraries, otherwise remove
         `connect-src ${appProtoSrc}`,
         `img-src ${appProtoSrc} data:`,
         `font-src ${appProtoSrc}`,
+        `worker-src ${appProtoSrc} blob:`, // Allow blob URLs for workers
         `object-src 'none'`,
         `frame-ancestors 'none'`,
       ].join("; ");
@@ -227,6 +272,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadURL(`${APP_PROTOCOL}://index.html`);
+    // mainWindow.webContents.openDevTools(); // Uncomment for debugging production builds
   }
 
   mainWindow.on("closed", () => {
@@ -242,7 +288,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      corsEnabled: true,
+      corsEnabled: true, // Important for renderer fetching resources
       stream: true,
     },
   },
@@ -266,7 +312,8 @@ app.on("window-all-closed", () => {
 app.on("web-contents-created", (event, contents) => {
   contents.on("will-navigate", (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
-    if (!parsedUrl.protocol.startsWith(APP_PROTOCOL) && !isDev()) {
+    const allowedOrigin = isDev() ? 'http://localhost:5123' : `${APP_PROTOCOL}://`;
+    if (!navigationUrl.startsWith(allowedOrigin)) {
       console.warn(`Security: Blocked navigation attempt to ${navigationUrl}`);
       event.preventDefault();
     }
@@ -286,29 +333,23 @@ function validateSender(senderFrame: Electron.WebFrameMain | null): boolean {
   return false;
 }
 
-// --- IPC Handlers ---
+// --- IPC Handlers (remain unchanged) ---
 ipcMain.handle(
   "search-files",
   async (event, params: SearchParams): Promise<SearchResult> => {
     if (!validateSender(event.senderFrame)) {
       return {
-        output: "Error: Invalid IPC sender",
-        structuredItems: [],
-        filesFound: 0,
-        filesProcessed: 0,
-        errorsEncountered: 1,
-        pathErrors: ["Invalid IPC sender"],
+        output: "Error: Invalid IPC sender", structuredItems: [], filesFound: 0,
+        filesProcessed: 0, errorsEncountered: 1, pathErrors: ["Invalid IPC sender"],
         fileReadErrors: [],
       };
     }
     console.log("IPC: Received search-files request with params:", params);
-
     const progressCallback = (data: ProgressData) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("search-progress", data);
       }
     };
-
     try {
       const results = await searchFiles(params, progressCallback);
       console.log(`IPC: search-files completed.`);
@@ -316,20 +357,10 @@ ipcMain.handle(
     } catch (error: any) {
       console.error("IPC: Error during searchFiles execution:", error);
       const errorMsg = `Search failed: ${error.message || "Unknown error"}`;
-      progressCallback({
-        processed: 0,
-        total: 0,
-        message: errorMsg,
-        error: error.message,
-      });
+      progressCallback({ processed: 0, total: 0, message: errorMsg, error: error.message });
       return {
-        output: errorMsg,
-        structuredItems: [],
-        filesFound: 0,
-        filesProcessed: 0,
-        errorsEncountered: 1,
-        pathErrors: [errorMsg],
-        fileReadErrors: [],
+        output: errorMsg, structuredItems: [], filesFound: 0, filesProcessed: 0,
+        errorsEncountered: 1, pathErrors: [errorMsg], fileReadErrors: [],
       };
     }
   }
@@ -345,19 +376,15 @@ ipcMain.handle("save-file-dialog", async (event): Promise<string | undefined> =>
       buttonLabel: i18nMain.t("dialogs:saveDialogButtonLabel"),
       defaultPath: `file-content-aggregator-results.txt`,
       filters: [
-        {
-          name: i18nMain.t("dialogs:saveDialogFilterText"),
-          extensions: ["txt"],
-        },
-        {
-          name: i18nMain.t("dialogs:saveDialogFilterAll"),
-          extensions: ["*"],
-        },
+        { name: i18nMain.t("dialogs:saveDialogFilterText"), extensions: ["txt"] },
+        { name: i18nMain.t("dialogs:saveDialogFilterAll"), extensions: ["*"] },
       ],
     });
     return canceled || !filePath ? undefined : filePath;
   } catch (error: any) {
     console.error("IPC: Error showing save file dialog:", error);
+    const errorMsg = i18nMain.isInitialized ? i18nMain.t('dialogs:showError', { detail: error.message }) : `Error showing save dialog: ${error.message}`;
+    dialog.showErrorBox(i18nMain.isInitialized ? i18nMain.t('dialogs:errorTitle') : 'Dialog Error', errorMsg);
     return undefined;
   }
 });
@@ -372,6 +399,7 @@ ipcMain.handle(
       return true;
     } catch (error: any) {
       console.error(`IPC: Error writing file '${filePath}':`, error);
+      dialog.showErrorBox('File Write Error', `Failed to write file: ${filePath}\nError: ${error.message}`);
       return false;
     }
   }
@@ -393,7 +421,7 @@ ipcMain.handle("get-initial-language", async (event): Promise<string> => {
     const storedLang = store.get("userLanguage") as string | undefined;
     if (storedLang && supportedLngsMain.includes(storedLang)) return storedLang;
     const osLocale = app.getLocale() || app.getSystemLocale();
-    const baseLang = osLocale.split("-")[0];
+    const baseLang = osLocale.split('-')[0];
     if (supportedLngsMain.includes(baseLang)) return baseLang;
     return fallbackLngMain;
   } catch (error) {
@@ -423,6 +451,10 @@ ipcMain.handle(
 );
 
 ipcMain.on("language-changed", (event, lng: string) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+      console.warn("Ignoring language-changed from unexpected sender.");
+      return;
+  }
   if (supportedLngsMain.includes(lng)) {
     i18nMain
       .changeLanguage(lng)
