@@ -1,16 +1,37 @@
 {
-    "compilerOptions": {
-      // require strict types (null-save)
-      "strict": true,
-      // tell TypeScript to generate ESM Syntax
-      "target": "ESNext",
-      // tell TypeScript to require ESM Syntax as input (including .js file imports)
-      "module": "NodeNext",
-      // define where to put generated JS
-      "outDir": "../../dist-electron",
-      // ignore errors from dependencies
-      "skipLibCheck": true,
-      // add global types
-      //"types": ["../../types"]
-    }
-  }
+  "compilerOptions": {
+    // No rootDir needed here if include is specific
+    // No baseUrl needed
+
+    // require strict types (null-save)
+    "strict": true,
+    // tell TypeScript to generate ESM Syntax
+    "target": "ESNext",
+    // tell TypeScript to require ESM Syntax as input (including .js file imports)
+    "module": "NodeNext",
+    // Module resolution strategy for Node.js environment
+    "moduleResolution": "NodeNext",
+    // define where to put generated JS
+    "outDir": "../../dist-electron",
+    // ignore errors from dependencies
+    "skipLibCheck": true,
+    // Allow importing JSON files
+    "resolveJsonModule": true,
+    // Ensure ES module interoperability
+    "esModuleInterop": true,
+    // Allow default imports from modules with no default export
+    "allowSyntheticDefaultImports": true
+    // No JSX needed for main process code
+    // "jsx": "react-jsx"
+  },
+  // Include only files within the current directory (src/electron) and its subdirectories
+  "include": [
+    "./**/*"
+  ],
+  // Exclude node_modules and build outputs
+  "exclude": [
+      "../../node_modules",
+      "../../dist-electron",
+      "../../dist-react"
+  ]
+}

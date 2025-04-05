@@ -10,17 +10,22 @@ interface ProgressData {
   error?: string;
 }
 
-// New interface for structured result items (mirrored from backend)
 interface StructuredItem {
   filePath: string;
-  content: string | null; // Content if read successfully, null otherwise
-  readError?: string; // Translation key for the error, if any
+  content: string | null;
+  readError?: string;
 }
 
-// Updated SearchResult interface (mirrored from backend)
+// Mirrored from backend
+interface FileReadError {
+  filePath: string;
+  reason: string;
+  detail?: string;
+}
+
 interface SearchResult {
-  output: string; // Combined text output
-  structuredItems: StructuredItem[]; // New: Array of structured items
+  output: string;
+  structuredItems: StructuredItem[];
   filesProcessed: number;
   filesFound: number;
   errorsEncountered: number;
@@ -30,7 +35,11 @@ interface SearchResult {
 
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
-// SearchParams interface remains the same as the previous step
+// --- NEW: Define Content Search Mode ---
+export type ContentSearchMode = "term" | "regex" | "boolean";
+// --------------------------------------
+
+// Updated SearchParams interface
 interface SearchParams {
   searchPaths: string[];
   extensions: string[];
@@ -38,7 +47,10 @@ interface SearchParams {
   excludeFolders: string[];
   folderExclusionMode?: FolderExclusionMode;
   contentSearchTerm?: string;
-  caseSensitive?: boolean;
+  // --- NEW: Add content search mode ---
+  contentSearchMode?: ContentSearchMode;
+  // ------------------------------------
+  caseSensitive?: boolean; // Still used for 'term' mode and potentially 'regex' flags
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
@@ -49,14 +61,11 @@ interface SearchParams {
 // --- Electron API Definition ---
 
 export interface IElectronAPI {
-  // invokeSearch now returns the updated SearchResult type
-  invokeSearch: (params: SearchParams) => Promise<SearchResult>;
-
+  invokeSearch: (params: SearchParams) => Promise<SearchResult>; // Params type updated
   showSaveDialog: () => Promise<string | undefined>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
   copyToClipboard: (content: string) => Promise<boolean>;
   onSearchProgress: (callback: (data: ProgressData) => void) => () => void;
-
   getInitialLanguage: () => Promise<string>;
   setLanguagePreference: (lng: string) => Promise<void>;
   notifyLanguageChanged: (lng: string) => void;
@@ -72,4 +81,4 @@ declare global {
 
 // --- Exports ---
 
-export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode, StructuredItem }; // Export new type
+export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode, StructuredItem };

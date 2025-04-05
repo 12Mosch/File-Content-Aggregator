@@ -14,8 +14,14 @@
   "folderExclusionModeEndsWith": "Segment Ends With Pattern",
   "maxDepthLabel": "Max Search Depth:",
   "maxDepthPlaceholder": "Blank = unlimited",
-  "contentSearchLabel": "Content Search Term (Optional):",
-  "contentSearchPlaceholder": "e.g., specific error code, function name",
+
+  "contentSearchModeLabel": "Content Search:",
+  "contentSearchModeTerm": "Simple Term",
+  "contentSearchModeRegex": "Regular Expression",
+  "contentSearchModeBoolean": "Boolean Query",
+  "contentSearchPlaceholder": "Enter text to find in file content...",
+  "contentSearchPlaceholderRegex": "Enter regex pattern (e.g., Error\\d+)",
+
   "caseSensitiveLabel": "Case-Sensitive",
   "modifiedAfterLabel": "Modified After (Optional):",
   "modifiedBeforeLabel": "Modified Before (Optional):",
@@ -26,5 +32,7 @@
   "sizeUnitMB": "MB",
   "sizeUnitGB": "GB",
   "searchButton": "Search Files",
-  "searchButtonLoading": "Searching..."
+  "searchButtonLoading": "Searching...",
+  "errorMinMax": "Error: Minimum size cannot be greater than maximum size.",
+  "comingSoon": "Coming Soon"
 }

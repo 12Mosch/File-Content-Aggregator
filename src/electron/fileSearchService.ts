@@ -9,19 +9,18 @@ const require = module.createRequire(import.meta.url);
 
 // --- Use the created require function to load CJS modules ---
 const fg = require("fast-glob") as typeof import("fast-glob");
-
-// --- Import p-limit for concurrency control ---
-// Adjust how p-limit is required. Often, the function is the 'default' export.
 const pLimitModule = require("p-limit");
-// Access the 'default' property if it exists, otherwise assume the module itself is the function
 const pLimit: typeof import("p-limit").default = pLimitModule.default || pLimitModule;
 
+// --- Define ContentSearchMode directly in this file ---
+// This avoids the cross-directory type resolution issue during main process compilation
+type ContentSearchMode = "term" | "regex" | "boolean";
+// -----------------------------------------------------
 
 // --- Interfaces ---
-// Define allowed folder exclusion modes
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
-// SearchParams interface including all options
+// Updated SearchParams interface (uses the locally defined ContentSearchMode)
 export interface SearchParams {
   searchPaths: string[];
   extensions: string[];
@@ -29,7 +28,8 @@ export interface SearchParams {
   excludeFolders: string[]; // Contains Glob patterns
   folderExclusionMode?: FolderExclusionMode; // Mode for folder exclusion
   contentSearchTerm?: string;
-  caseSensitive?: boolean;
+  contentSearchMode?: ContentSearchMode; // Uses local type
+  caseSensitive?: boolean; // Still used for 'term' mode and potentially 'regex' flags
   modifiedAfter?: string; // Date string "YYYY-MM-DD"
   modifiedBefore?: string; // Date string "YYYY-MM-DD"
   minSizeBytes?: number; // Optional: Min size in bytes
@@ -60,7 +60,7 @@ export interface StructuredItem {
   readError?: string; // Translation key for the error, if any
 }
 
-// Final search result structure including both output formats
+// Final search result structure
 export interface SearchResult {
   output: string; // Combined text output
   structuredItems: StructuredItem[]; // Array of structured items
@@ -75,8 +75,6 @@ export interface SearchResult {
 export type ProgressCallback = (data: ProgressData) => void;
 
 // --- Concurrency Limit ---
-// Set a reasonable limit for concurrent file operations (stat, read)
-// Adjust based on testing and typical system resources
 const FILE_OPERATION_CONCURRENCY_LIMIT = 20;
 
 // --- Helper Functions ---
@@ -122,20 +120,42 @@ function parseDateEndOfDay(dateString: string | undefined): Date | null {
  * into a RegExp object. Returns null if not a valid RegExp literal.
  */
 function parseRegexLiteral(pattern: string): RegExp | null {
+  // Match pattern like /content/flags
   const regexMatch = pattern.match(/^\/(.+)\/([gimyus]*)$/);
   if (regexMatch) {
     try {
+      // Create RegExp from matched parts
       return new RegExp(regexMatch[1], regexMatch[2]);
     } catch (e) {
+      // Log error if RegExp creation fails (e.g., invalid pattern/flags)
       console.warn(`Invalid RegExp pattern: ${pattern}`, e);
       return null;
     }
   }
+  // Return null if the string doesn't match the /pattern/flags format
   return null;
 }
 
-// --- Main Search Function ---
+/**
+ * Safely creates a RegExp object from a pattern string and flags.
+ * Returns null if the pattern is invalid.
+ */
+function createSafeRegex(pattern: string, flags: string): RegExp | null {
+    try {
+        // Basic check for empty pattern which is invalid
+        if (!pattern) {
+            console.warn(`Attempted to create RegExp with empty pattern.`);
+            return null;
+        }
+        return new RegExp(pattern, flags);
+    } catch (e) {
+        console.warn(`Invalid RegExp pattern created: "${pattern}" with flags "${flags}"`, e);
+        return null; // Indicate regex creation failed
+    }
+}
 
+
+// --- Main Search Function ---
 export async function searchFiles(
   params: SearchParams,
   progressCallback: ProgressCallback,
@@ -147,7 +167,8 @@ export async function searchFiles(
     excludeFolders,
     folderExclusionMode = 'contains',
     contentSearchTerm,
-    caseSensitive = false,
+    contentSearchMode = 'term', // Uses local type default
+    caseSensitive = false, // Default case sensitivity
     modifiedAfter,
     modifiedBefore,
     minSizeBytes,
@@ -161,10 +182,8 @@ export async function searchFiles(
   const outputLines: string[] = [];
 
   // --- Initialize p-limit for controlling concurrency ---
-  // Ensure pLimit is correctly assigned before use
   if (typeof pLimit !== 'function') {
       console.error("pLimit was not loaded correctly. Type:", typeof pLimit, "Value:", pLimit);
-      // Handle the error appropriately, maybe return an error result
       pathErrors.push("Internal error: Concurrency limiter failed to load.");
       return { output: "", structuredItems: [], filesFound: 0, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
   }
@@ -179,7 +198,6 @@ export async function searchFiles(
   console.log(`Using glob depth: ${globDepth}`);
 
   try {
-    // Use Promise.all to run glob searches for multiple paths concurrently
     await Promise.all(searchPaths.map(async (searchPath) => {
       const normalizedPath = searchPath.replace(/\\/g, "/");
       try {
@@ -188,7 +206,7 @@ export async function searchFiles(
               const errorMsg = `Search path is not a directory: ${searchPath}`;
               console.warn(errorMsg); pathErrors.push(errorMsg);
               progressCallback({ processed: 0, total: 0, message: `Skipping non-directory: ${searchPath}` });
-              return; // Skip this path
+              return;
           }
       } catch (statError: any) {
           let errorMsg = `Error accessing search path: ${searchPath}`; let reason = "Access Error";
@@ -197,23 +215,14 @@ export async function searchFiles(
           else { errorMsg = `Error accessing search path: ${searchPath} - ${statError.message}`; }
           console.warn(`Path Error (${reason}): ${errorMsg}`, statError); pathErrors.push(errorMsg);
           progressCallback({ processed: 0, total: 0, message: `Cannot access path: ${searchPath}`, error: statError.message });
-          return; // Skip this path
+          return;
       }
-
-      // Perform the glob search
       const found = await fg(includePatterns, {
-        cwd: normalizedPath,
-        absolute: true,
-        onlyFiles: true,
-        dot: true,
-        stats: false,
-        suppressErrors: true,
-        deep: globDepth,
+        cwd: normalizedPath, absolute: true, onlyFiles: true, dot: true,
+        stats: false, suppressErrors: true, deep: globDepth,
       });
-      // Add found files to the Set (thread-safe addition)
       found.forEach((file) => allFoundFiles.add(file.replace(/\\/g, "/")));
     }));
-
     initialFileCount = allFoundFiles.size;
     progressCallback({ processed: 0, total: initialFileCount, message: `Found ${initialFileCount} potential files (depth limit: ${globDepth === Infinity ? 'none' : globDepth}). Filtering...` });
   } catch (error: any) {
@@ -226,9 +235,9 @@ export async function searchFiles(
   const initialFiles = Array.from(allFoundFiles);
   let filesToProcess: string[] = initialFiles;
   let currentTotal = initialFileCount;
+  // ---------------------------------------------
 
-  // --- 2. File Exclusion Filter (Regex/Glob on Basename) ---
-  // This filter is synchronous and fast, no parallelization needed here.
+  // --- 2. File Exclusion Filter ---
   if (excludeFiles && excludeFiles.length > 0 && filesToProcess.length > 0) {
     progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded file patterns...` });
     filesToProcess = filesToProcess.filter((filePath) => {
@@ -243,9 +252,9 @@ export async function searchFiles(
     currentTotal = filesToProcess.length;
     progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after file exclusion.` });
   }
+  // -----------------------------
 
-  // --- 3. Folder Exclusion Filter (Precise Mode Matching with Picomatch) ---
-  // This filter is also synchronous and relatively fast.
+  // --- 3. Folder Exclusion Filter ---
   if (excludeFolders && excludeFolders.length > 0 && filesToProcess.length > 0) {
     progressCallback({ processed: 0, total: currentTotal, message: `Filtering by excluded folder patterns (${folderExclusionMode})...` });
     const picoOptions = { dot: true, nocase: true };
@@ -259,7 +268,6 @@ export async function searchFiles(
         }
         return picomatch(matchPattern, picoOptions);
     });
-
     filesToProcess = filesToProcess.filter((filePath) => {
       const dirPath = path.dirname(filePath);
       const segments = dirPath.split(/[\\/]/).filter(Boolean);
@@ -269,8 +277,9 @@ export async function searchFiles(
     currentTotal = filesToProcess.length;
     progressCallback({ processed: 0, total: currentTotal, message: `Filtered ${currentTotal} files after folder exclusion.` });
   }
+  // -------------------------------
 
-  // --- 4. Stat-Based Filtering (Size and Date) - PARALLELIZED ---
+  // --- 4. Stat-Based Filtering (Parallelized) ---
   const afterDate = parseDateStartOfDay(modifiedAfter);
   const beforeDate = parseDateEndOfDay(modifiedBefore);
   const hasSizeFilter = minSizeBytes !== undefined || maxSizeBytes !== undefined;
@@ -279,132 +288,152 @@ export async function searchFiles(
   if ((hasSizeFilter || hasDateFilter) && filesToProcess.length > 0) {
     const initialCountForStatFilter = filesToProcess.length;
     progressCallback({ processed: 0, total: initialCountForStatFilter, message: `Filtering ${initialCountForStatFilter} files by size/date (parallel)...` });
-
-    // Map each file path to a promise that performs the stat check
     const statCheckPromises = filesToProcess.map((filePath) =>
-      limit(async () => { // Use p-limit to control concurrency
+      limit(async () => {
         try {
           const stats = await fs.stat(filePath);
           const fileSize = stats.size;
           const mtime = stats.mtime;
-
           const passSizeCheck = !hasSizeFilter || (
             (minSizeBytes === undefined || fileSize >= minSizeBytes) &&
             (maxSizeBytes === undefined || fileSize <= maxSizeBytes)
           );
-
           const passDateCheck = !hasDateFilter || (
             (!afterDate || mtime.getTime() >= afterDate.getTime()) &&
             (!beforeDate || mtime.getTime() <= beforeDate.getTime())
           );
-
-          // Return the filePath if it passes, otherwise null
           return passSizeCheck && passDateCheck ? filePath : null;
         } catch (statError: any) {
           console.warn(`Could not get stats for file during size/date filter: ${filePath}`, statError);
-          // Return null if stat fails, effectively filtering it out
           return null;
         }
       })
     );
-
-    // Wait for all stat checks to complete
     const statResults = await Promise.all(statCheckPromises);
-
-    // Filter out the null results (files that failed the check or errored)
     filesToProcess = statResults.filter((result): result is string => result !== null);
-
-    currentTotal = filesToProcess.length; // Update total count after filtering
+    currentTotal = filesToProcess.length;
     progressCallback({ processed: initialCountForStatFilter, total: initialCountForStatFilter, message: `Filtered ${currentTotal} files after size/date check.` });
   }
+  // ---------------------------------------------
 
-  // --- 5. Read Content, Filter by Content, and Format Output - PARALLELIZED ---
-  let filesProcessedCounter = 0; // Use a separate counter for progress reporting
+  // --- 5. Read Content, Filter by Content, and Format Output (Parallelized) ---
+  let filesProcessedCounter = 0;
   const totalFilesToProcess = filesToProcess.length;
-  const searchTermLower = contentSearchTerm && !caseSensitive ? contentSearchTerm.toLowerCase() : undefined;
 
-  if (totalFilesToProcess > 0) {
+  // --- Prepare search function based on mode ---
+  let contentMatcher: ((content: string) => boolean) | null = null;
+  let regexCreationFailed = false; // Flag for regex errors
+
+  if (contentSearchTerm) {
+    switch (contentSearchMode) { // Uses local type
+      case 'regex':
+        // Determine flags based on case sensitivity. 'g' is often not needed for simple existence checks with test().
+        const flags = caseSensitive ? '' : 'i';
+        const regex = createSafeRegex(contentSearchTerm, flags);
+        if (regex) {
+          contentMatcher = (content) => regex.test(content);
+          // Note: If using 'g' flag and exec/matchAll, reset regex.lastIndex before each file or create new regex per file.
+          // Using test() avoids this issue.
+        } else {
+          // Handle invalid regex input from user
+          regexCreationFailed = true;
+          const errorMsg = `Invalid regular expression pattern provided: ${contentSearchTerm}`;
+          pathErrors.push(errorMsg); // Add to general errors shown to user
+          progressCallback({ processed: 0, total: 0, message: errorMsg, error: "Invalid Regex" });
+          // Stop processing if regex is invalid, as it's a core criterion
+          return { output: "", structuredItems: [], filesFound: initialFileCount, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
+        }
+        break;
+
+      case 'boolean':
+        // Placeholder for future implementation
+        const errorMsg = "Boolean content search is not yet implemented.";
+        pathErrors.push(errorMsg);
+        progressCallback({ processed: 0, total: 0, message: errorMsg, error: "Not Implemented" });
+        return { output: "", structuredItems: [], filesFound: initialFileCount, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
+
+      case 'term':
+      default: // Default to simple term search
+        if (caseSensitive) {
+          contentMatcher = (content) => content.includes(contentSearchTerm);
+        } else {
+          const searchTermLower = contentSearchTerm.toLowerCase();
+          contentMatcher = (content) => content.toLowerCase().includes(searchTermLower);
+        }
+        break;
+    }
+  }
+  // -------------------------------------------
+
+  if (totalFilesToProcess > 0 && !regexCreationFailed) { // Check flag
     progressCallback({ processed: 0, total: totalFilesToProcess, message: `Processing ${totalFilesToProcess} files (parallel)...` });
-  } else if (pathErrors.length === 0) {
+  } else if (pathErrors.length === 0 && !regexCreationFailed) {
     progressCallback({ processed: 0, total: 0, message: `No files to process after filtering.` });
   }
 
-  // Map each file path to a promise that reads, filters, and prepares results
-  const processingPromises = filesToProcess.map((file) =>
-    limit(async () => { // Use p-limit for concurrency
-      const currentFileName = path.basename(file);
-      const displayFilePath = file.replace(/\\/g, "/");
-      let structuredItemResult: StructuredItem | null = null;
-      let outputLineResult: string | null = null;
-      let fileReadErrorResult: FileReadError | null = null;
-      let errorKeyForProgress: string | undefined = undefined;
+  // --- Parallel Processing Loop ---
+  // Only proceed if regex creation didn't fail (or if no content search is active)
+  if (!regexCreationFailed) {
+      const processingPromises = filesToProcess.map((file) =>
+        limit(async () => {
+          const currentFileName = path.basename(file);
+          const displayFilePath = file.replace(/\\/g, "/");
+          let structuredItemResult: StructuredItem | null = null;
+          let outputLineResult: string | null = null;
+          let fileReadErrorResult: FileReadError | null = null;
+          let errorKeyForProgress: string | undefined = undefined;
 
-      try {
-        const content = await fs.readFile(file, { encoding: "utf8" });
-        let contentMatches = true;
-        if (contentSearchTerm) {
-          if (caseSensitive) {
-            contentMatches = content.includes(contentSearchTerm);
-          } else {
-            contentMatches = content.toLowerCase().includes(searchTermLower!);
+          try {
+            const content = await fs.readFile(file, { encoding: "utf8" });
+
+            // --- Use the prepared contentMatcher function ---
+            // If contentMatcher is null (no search term), contentMatches is true
+            let contentMatches = !contentMatcher || contentMatcher(content);
+            // ---------------------------------------------
+
+            if (contentMatches) {
+              outputLineResult = `${displayFilePath}\n\n${content}\n`;
+              structuredItemResult = { filePath: displayFilePath, content: content, readError: undefined };
+            } else {
+              // Still include in structured results if content didn't match, but without content
+              structuredItemResult = { filePath: displayFilePath, content: null, readError: undefined };
+            }
+          } catch (error: any) {
+            console.error(`Error reading file '${file}':`, error);
+            let reasonKey = "readError";
+            if (error.code === 'EPERM' || error.code === 'EACCES') { reasonKey = "readPermissionDenied"; }
+            else if (error.code === 'ENOENT') { reasonKey = "fileNotFoundDuringRead"; }
+            else if (error.code === 'EISDIR') { reasonKey = "pathIsDir"; }
+            structuredItemResult = { filePath: displayFilePath, content: null, readError: reasonKey };
+            fileReadErrorResult = { filePath: displayFilePath, reason: reasonKey, detail: error.message || String(error) };
+            errorKeyForProgress = reasonKey;
+          } finally {
+            filesProcessedCounter++;
+            progressCallback({
+              processed: filesProcessedCounter,
+              total: totalFilesToProcess,
+              currentFile: currentFileName,
+              message: errorKeyForProgress ? `Error: ${currentFileName}` : `Processed: ${currentFileName}`,
+              error: errorKeyForProgress,
+            });
           }
-        }
+          return { structuredItemResult, outputLineResult, fileReadErrorResult };
+        })
+      );
 
-        if (contentMatches) {
-          outputLineResult = `${displayFilePath}\n\n${content}\n`;
-          structuredItemResult = { filePath: displayFilePath, content: content, readError: undefined };
-        } else {
-          structuredItemResult = { filePath: displayFilePath, content: null, readError: undefined };
-        }
-      } catch (error: any) {
-        console.error(`Error reading file '${file}':`, error);
-        let reasonKey = "readError";
-        if (error.code === 'EPERM' || error.code === 'EACCES') { reasonKey = "readPermissionDenied"; }
-        else if (error.code === 'ENOENT') { reasonKey = "fileNotFoundDuringRead"; }
-        else if (error.code === 'EISDIR') { reasonKey = "pathIsDir"; }
+      const resultsFromPromises = await Promise.all(processingPromises);
+      // --- Aggregate results ---
+      resultsFromPromises.forEach(result => {
+        if (result.structuredItemResult) { structuredItems.push(result.structuredItemResult); }
+        if (result.outputLineResult) { outputLines.push(result.outputLineResult); }
+        if (result.fileReadErrorResult) { fileReadErrors.push(result.fileReadErrorResult); }
+      });
+      // -----------------------
+  } // End if (!regexCreationFailed)
+  // -----------------------------
 
-        structuredItemResult = { filePath: displayFilePath, content: null, readError: reasonKey };
-        fileReadErrorResult = { filePath: displayFilePath, reason: reasonKey, detail: error.message || String(error) };
-        errorKeyForProgress = reasonKey; // Store error key for progress update
-      } finally {
-        // --- Progress Update within the loop ---
-        // Increment counter safely
-        filesProcessedCounter++;
-        // Send progress update for each processed file
-        progressCallback({
-          processed: filesProcessedCounter,
-          total: totalFilesToProcess,
-          currentFile: currentFileName,
-          message: errorKeyForProgress ? `Error: ${currentFileName}` : `Processed: ${currentFileName}`,
-          error: errorKeyForProgress, // Send translation key if error occurred
-        });
-        // -----------------------------------------
-      }
-      // Return results for this file
-      return { structuredItemResult, outputLineResult, fileReadErrorResult };
-    })
-  );
-
-  // Wait for all file processing promises to settle
-  const resultsFromPromises = await Promise.all(processingPromises);
-
-  // --- Aggregate results after all promises are done ---
-  resultsFromPromises.forEach(result => {
-    if (result.structuredItemResult) {
-      structuredItems.push(result.structuredItemResult);
-    }
-    if (result.outputLineResult) {
-      outputLines.push(result.outputLineResult);
-    }
-    if (result.fileReadErrorResult) {
-      fileReadErrors.push(result.fileReadErrorResult);
-    }
-  });
-  // ----------------------------------------------------
-
-  // Final progress update after the loop finishes
   progressCallback({
-    processed: filesProcessedCounter, // Use the final counter value
+    processed: filesProcessedCounter,
     total: totalFilesToProcess,
     message: `Finished processing ${filesProcessedCounter} files.`,
   });
@@ -415,10 +444,9 @@ export async function searchFiles(
     output: finalOutput,
     structuredItems: structuredItems,
     filesFound: initialFileCount,
-    // Use the counter which accurately reflects attempts within the parallel loop
     filesProcessed: filesProcessedCounter,
     errorsEncountered: fileReadErrors.length,
-    pathErrors: pathErrors,
+    pathErrors: pathErrors, // Include potential regex error message
     fileReadErrors: fileReadErrors,
   };
 }
