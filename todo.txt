@@ -3,3 +3,4 @@
 3. Structured Query Builder UI: Replace the text input with a visual builder for users less comfortable with boolean syntax.
 
 4. Provide a documentation about the program.
+Add new fresh UI https://ui.shadcn.com/
