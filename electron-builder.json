@@ -13,7 +13,7 @@
     "output": "release",
     "buildResources": "build"
   },
-  "asar": false,
+  "asar": true,
   "icon": "./desktopIcon.png",
   "mac": {
     "target": "dmg"

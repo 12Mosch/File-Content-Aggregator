@@ -4,7 +4,9 @@
   "private": true,
   "version": "1.0.0",
   "description": "Aggregates content from multiple files based on search criteria.",
-  "author": {"name": "Mosch"},
+  "author": {
+    "name": "Mosch"
+  },
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -28,6 +30,7 @@
     "i18next-fs-backend": "^2.6.0",
     "i18next-http-backend": "^3.0.2",
     "mime": "^4.0.3",
+    "p-limit": "^6.2.0",
     "picomatch": "^4.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
