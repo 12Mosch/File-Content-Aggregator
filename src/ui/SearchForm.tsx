@@ -17,7 +17,7 @@ interface SearchFormData {
   excludeFolders: string;
   folderExclusionMode: FolderExclusionMode;
   contentSearchTerm: string;
-  contentSearchMode: ContentSearchMode; // Add state for search mode
+  contentSearchMode: ContentSearchMode;
   caseSensitive: boolean;
   modifiedAfter: string;
   modifiedBefore: string;
@@ -36,7 +36,7 @@ interface SubmitParams {
   excludeFolders: string[];
   folderExclusionMode?: FolderExclusionMode;
   contentSearchTerm?: string;
-  contentSearchMode?: ContentSearchMode; // Add mode to submit params
+  contentSearchMode?: ContentSearchMode;
   caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
@@ -60,7 +60,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     excludeFolders: ".git, node_modules, bin, obj, dist",
     folderExclusionMode: "contains",
     contentSearchTerm: "",
-    contentSearchMode: "term", // Default to simple term search
+    contentSearchMode: "term",
     caseSensitive: false,
     modifiedAfter: "",
     modifiedBefore: "",
@@ -83,10 +83,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       }
       return;
     }
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,21 +103,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       folderExclusionMode: formData.folderExclusionMode,
     };
 
-    // Include content search term and mode if term is provided
     if (formData.contentSearchTerm.trim()) {
       submitParams.contentSearchTerm = formData.contentSearchTerm.trim();
-      submitParams.contentSearchMode = formData.contentSearchMode; // Pass the selected mode
-      // Pass case sensitivity, backend will decide how to use it based on mode
+      submitParams.contentSearchMode = formData.contentSearchMode;
       submitParams.caseSensitive = formData.caseSensitive;
     } else {
-      // If no term, clear mode and case sensitivity
       submitParams.contentSearchMode = undefined;
       submitParams.caseSensitive = undefined;
-      // Also reset UI state if needed (optional)
-      // setFormData(prev => ({ ...prev, caseSensitive: false, contentSearchMode: 'term' }));
     }
 
-    // --- Date, Size, Depth handling (remains the same) ---
+    // --- Date, Size, Depth handling ---
     if (formData.modifiedAfter) submitParams.modifiedAfter = formData.modifiedAfter;
     if (formData.modifiedBefore) submitParams.modifiedBefore = formData.modifiedBefore;
     const minSizeNum = parseFloat(formData.minSizeValue);
@@ -128,19 +120,29 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     const maxSizeNum = parseFloat(formData.maxSizeValue);
     if (!isNaN(maxSizeNum) && maxSizeNum >= 0) submitParams.maxSizeBytes = maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
     if (submitParams.minSizeBytes !== undefined && submitParams.maxSizeBytes !== undefined && submitParams.minSizeBytes > submitParams.maxSizeBytes) {
-      alert(t('errorMinMax')); // Use translation key
+      alert(t('errorMinMax'));
       return;
     }
     const maxDepthNum = parseInt(formData.maxDepthValue, 10);
     if (!isNaN(maxDepthNum) && maxDepthNum > 0) submitParams.maxDepth = maxDepthNum;
-    // ------------------------------------------------------
+    // ---------------------------------
 
     onSubmit(submitParams);
   };
 
   const hasContentSearchTerm = !!formData.contentSearchTerm.trim();
-  // Disable case sensitive checkbox if boolean mode is selected (as it won't apply)
-  const isCaseSensitiveDisabled = isLoading || !hasContentSearchTerm || formData.contentSearchMode === 'boolean';
+  const isCaseSensitiveDisabled = isLoading || !hasContentSearchTerm;
+
+  // --- Determine placeholder based on mode ---
+  const getPlaceholder = () => {
+      switch (formData.contentSearchMode) {
+          case 'regex': return t("contentSearchPlaceholderRegex");
+          case 'boolean': return t("contentSearchPlaceholderBoolean"); // Use updated key
+          case 'term':
+          default: return t("contentSearchPlaceholder");
+      }
+  };
+  // -----------------------------------------
 
   return (
     <form onSubmit={handleSubmit} className="search-form">
@@ -181,7 +183,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         <input type="number" id="maxDepthValue" name="maxDepthValue" value={formData.maxDepthValue} onChange={handleChange} disabled={isLoading} className="form-input-depth" placeholder={t("maxDepthPlaceholder")} min="1" step="1" />
       </div>
 
-      {/* --- Content Search Group (Dropdown + Input) --- */}
+      {/* Content Search Group (Dropdown + Input) */}
       <div className="form-group">
         <label htmlFor="contentSearchMode">{t("contentSearchModeLabel")}</label>
         <div className="content-search-group">
@@ -195,7 +197,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
           >
             <option value="term">{t("contentSearchModeTerm")}</option>
             <option value="regex">{t("contentSearchModeRegex")}</option>
-            <option value="boolean" disabled>{t("contentSearchModeBoolean")} ({t("comingSoon")})</option>
+            <option value="boolean">{t("contentSearchModeBoolean")}</option>
           </select>
           <input
             type="text"
@@ -203,19 +205,14 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
             name="contentSearchTerm"
             value={formData.contentSearchTerm}
             onChange={handleChange}
-            placeholder={
-                formData.contentSearchMode === 'regex'
-                ? t("contentSearchPlaceholderRegex")
-                : t("contentSearchPlaceholder")
-            }
+            placeholder={getPlaceholder()} // Use dynamic placeholder
             disabled={isLoading}
-            className="content-search-input" // Use a specific class if needed
+            className="content-search-input"
           />
         </div>
       </div>
-      {/* --------------------------------------------- */}
 
-      {/* Case Sensitive Checkbox (conditionally disabled) */}
+      {/* Case Sensitive Checkbox */}
       {hasContentSearchTerm && (
         <div className="form-group form-group-checkbox">
           <input
@@ -224,7 +221,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
             name="caseSensitive"
             checked={formData.caseSensitive}
             onChange={handleCheckboxChange}
-            disabled={isCaseSensitiveDisabled} // Use calculated disabled state
+            disabled={isCaseSensitiveDisabled}
             className="form-checkbox"
           />
           <label htmlFor="caseSensitive" className="form-checkbox-label">

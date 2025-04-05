@@ -12,6 +12,11 @@ const fg = require("fast-glob") as typeof import("fast-glob");
 const pLimitModule = require("p-limit");
 const pLimit: typeof import("p-limit").default = pLimitModule.default || pLimitModule;
 
+// --- Require jsep and import its types with a different alias ---
+import type * as Jsep from 'jsep'; // Use alias 'Jsep' for types
+const jsep = require('jsep') as typeof import('jsep');
+// -------------------------------------------------------------
+
 // --- Define ContentSearchMode directly in this file ---
 // This avoids the cross-directory type resolution issue during main process compilation
 type ContentSearchMode = "term" | "regex" | "boolean";
@@ -154,6 +159,108 @@ function createSafeRegex(pattern: string, flags: string): RegExp | null {
     }
 }
 
+// --- Type Guard for Jsep Expression ---
+/**
+ * Checks if a node is a valid Jsep Expression object.
+ * @param node The node to check.
+ * @returns True if the node is a valid Jsep Expression, false otherwise.
+ */
+function isJsepExpression(node: any): node is Jsep.Expression {
+    return node !== null && typeof node === 'object' && typeof node.type === 'string';
+}
+// ------------------------------------
+
+// --- Boolean AST Evaluation Function with Refinements ---
+/**
+ * Recursively evaluates a boolean expression AST against file content.
+ * Expected Syntax:
+ *   - Operators: AND, OR, NOT (case-insensitive during parsing)
+ *   - Grouping: Parentheses ()
+ *   - Terms:
+ *     - Unquoted words (Identifiers): Treated as simple strings (e.g., error, database).
+ *     - Quoted strings (Literals): Treated as simple strings, allows spaces (e.g., "read error", 'database connection').
+ *   - Case Sensitivity: Controlled by the `caseSensitive` parameter for all term matching.
+ *
+ * @param node The current AST node from jsep (or unknown).
+ * @param content The file content string.
+ * @param caseSensitive Whether string comparisons should be case-sensitive.
+ * @returns True if the expression evaluates to true for the content, false otherwise.
+ */
+function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, caseSensitive: boolean): boolean {
+    // Use the type guard at the beginning
+    if (!isJsepExpression(node)) {
+        console.warn("evaluateBooleanAst called with non-Expression node:", node);
+        return false;
+    }
+
+    try {
+        switch (node.type) {
+            case 'LogicalExpression':
+                // Use type guard before recursing
+                if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
+                    console.warn("LogicalExpression node missing valid left or right child", node);
+                    return false;
+                }
+                const leftResult = evaluateBooleanAst(node.left, content, caseSensitive);
+                // Short-circuit evaluation based on custom operators
+                if (node.operator === 'OR' && leftResult) return true;
+                if (node.operator === 'AND' && !leftResult) return false;
+                const rightResult = evaluateBooleanAst(node.right, content, caseSensitive);
+                // Evaluate based on custom operators
+                return node.operator === 'OR' ? (leftResult || rightResult) : (leftResult && rightResult);
+
+            case 'UnaryExpression':
+                // Use type guard before recursing
+                if (!isJsepExpression(node.argument)) {
+                     console.warn("UnaryExpression node missing valid argument", node);
+                     return false;
+                }
+                if (node.operator === 'NOT') { // Check for custom NOT operator
+                    return !evaluateBooleanAst(node.argument, content, caseSensitive);
+                }
+                console.warn(`Unsupported unary operator: ${node.operator}`);
+                return false;
+
+            case 'Identifier': // Unquoted terms
+                const termIdentifier = node.name;
+                // Type check remains valid here as .name is expected to be string
+                if (typeof termIdentifier !== 'string') {
+                    console.warn("Identifier node name is not a string", node);
+                    return false;
+                }
+                // Apply case sensitivity
+                return caseSensitive
+                    ? content.includes(termIdentifier)
+                    : content.toLowerCase().includes(termIdentifier.toLowerCase());
+
+            case 'Literal': // Quoted terms (strings)
+                // Type check remains valid here
+                if (typeof node.value === 'string') {
+                    const termLiteral = node.value;
+                    // Apply case sensitivity
+                    return caseSensitive
+                        ? content.includes(termLiteral)
+                        : content.toLowerCase().includes(termLiteral.toLowerCase());
+                }
+                if (typeof node.value === 'boolean') {
+                    // Allow boolean literals true/false for completeness
+                    return node.value;
+                }
+                console.warn(`Unsupported literal type: ${typeof node.value}`);
+                return false;
+
+            default:
+                // Handle other potential node types jsep might produce if the grammar expands
+                console.warn(`Unsupported AST node type: ${node.type}`);
+                return false;
+        }
+    } catch (evalError) {
+        console.error("Error during boolean AST evaluation:", evalError, "Node:", node);
+        return false; // Return false on evaluation error
+    }
+}
+// ----------------------------------------------------
+
 
 // --- Main Search Function ---
 export async function searchFiles(
@@ -168,7 +275,7 @@ export async function searchFiles(
     folderExclusionMode = 'contains',
     contentSearchTerm,
     contentSearchMode = 'term', // Uses local type default
-    caseSensitive = false, // Default case sensitivity
+    caseSensitive = false, // This flag now applies to boolean term matching too
     modifiedAfter,
     modifiedBefore,
     minSizeBytes,
@@ -322,7 +429,7 @@ export async function searchFiles(
 
   // --- Prepare search function based on mode ---
   let contentMatcher: ((content: string) => boolean) | null = null;
-  let regexCreationFailed = false; // Flag for regex errors
+  let parseOrRegexError = false; // Flag for regex or boolean parse errors
 
   if (contentSearchTerm) {
     switch (contentSearchMode) { // Uses local type
@@ -336,21 +443,54 @@ export async function searchFiles(
           // Using test() avoids this issue.
         } else {
           // Handle invalid regex input from user
-          regexCreationFailed = true;
-          const errorMsg = `Invalid regular expression pattern provided: ${contentSearchTerm}`;
+          parseOrRegexError = true;
+          const errorMsg = `Invalid regular expression pattern: ${contentSearchTerm}`;
           pathErrors.push(errorMsg); // Add to general errors shown to user
           progressCallback({ processed: 0, total: 0, message: errorMsg, error: "Invalid Regex" });
-          // Stop processing if regex is invalid, as it's a core criterion
+          // Return early as search cannot proceed correctly
           return { output: "", structuredItems: [], filesFound: initialFileCount, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
         }
         break;
 
       case 'boolean':
-        // Placeholder for future implementation
-        const errorMsg = "Boolean content search is not yet implemented.";
-        pathErrors.push(errorMsg);
-        progressCallback({ processed: 0, total: 0, message: errorMsg, error: "Not Implemented" });
-        return { output: "", structuredItems: [], filesFound: initialFileCount, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
+        try {
+          // --- Configure jsep custom operators (do this once if possible, but here is safe) ---
+          // Remove default operators that might conflict or be confusing
+          // Check if operators exist before adding/removing to prevent errors on re-runs if jsep state persists
+          if (jsep.binary_ops['||']) jsep.removeBinaryOp('||');
+          if (jsep.binary_ops['&&']) jsep.removeBinaryOp('&&');
+          if (jsep.unary_ops['!']) jsep.removeUnaryOp('!');
+          // Add case-insensitive AND, OR, NOT
+          if (!jsep.binary_ops['AND']) jsep.addBinaryOp('AND', 1); // Lower precedence
+          if (!jsep.binary_ops['OR']) jsep.addBinaryOp('OR', 0);  // Lowest precedence
+          if (!jsep.unary_ops['NOT']) jsep.addUnaryOp('NOT');
+          // ------------------------------------------------------------------------------------
+
+          // --- Parse the boolean query ---
+          const parsedAst = jsep(contentSearchTerm); // jsep should return Expression or throw
+          console.log("Parsed Boolean AST:", JSON.stringify(parsedAst, null, 2));
+          // -----------------------------
+
+          // Create the matcher function that uses the evaluator
+          // Pass the potentially unknown AST type, evaluator handles it
+          contentMatcher = (content) => evaluateBooleanAst(parsedAst, content, caseSensitive);
+
+        } catch (parseError: any) {
+          parseOrRegexError = true;
+          // --- Improved Error Message ---
+          let errorDetail = parseError.message || 'Unknown parsing error';
+          // jsep errors often have an 'index' property
+          if (typeof parseError.index === 'number') {
+              errorDetail += ` near character ${parseError.index + 1}`;
+          }
+          const errorMsg = `Invalid boolean query syntax: ${errorDetail}`;
+          // ------------------------------
+          pathErrors.push(errorMsg);
+          progressCallback({ processed: 0, total: 0, message: errorMsg, error: "Invalid Boolean Query" });
+          // Return early as search cannot proceed correctly
+          return { output: "", structuredItems: [], filesFound: initialFileCount, filesProcessed: 0, errorsEncountered: 0, pathErrors, fileReadErrors };
+        }
+        break;
 
       case 'term':
       default: // Default to simple term search
@@ -365,15 +505,15 @@ export async function searchFiles(
   }
   // -------------------------------------------
 
-  if (totalFilesToProcess > 0 && !regexCreationFailed) { // Check flag
+  if (totalFilesToProcess > 0 && !parseOrRegexError) { // Check flag
     progressCallback({ processed: 0, total: totalFilesToProcess, message: `Processing ${totalFilesToProcess} files (parallel)...` });
-  } else if (pathErrors.length === 0 && !regexCreationFailed) {
+  } else if (pathErrors.length === 0 && !parseOrRegexError) {
     progressCallback({ processed: 0, total: 0, message: `No files to process after filtering.` });
   }
 
   // --- Parallel Processing Loop ---
-  // Only proceed if regex creation didn't fail (or if no content search is active)
-  if (!regexCreationFailed) {
+  // Only proceed if regex/boolean parsing didn't fail (or if no content search is active)
+  if (!parseOrRegexError) {
       const processingPromises = filesToProcess.map((file) =>
         limit(async () => {
           const currentFileName = path.basename(file);
@@ -429,7 +569,7 @@ export async function searchFiles(
         if (result.fileReadErrorResult) { fileReadErrors.push(result.fileReadErrorResult); }
       });
       // -----------------------
-  } // End if (!regexCreationFailed)
+  } // End if (!parseOrRegexError)
   // -----------------------------
 
   progressCallback({
@@ -446,7 +586,7 @@ export async function searchFiles(
     filesFound: initialFileCount,
     filesProcessed: filesProcessedCounter,
     errorsEncountered: fileReadErrors.length,
-    pathErrors: pathErrors, // Include potential regex error message
+    pathErrors: pathErrors, // Include potential parse/regex error message
     fileReadErrors: fileReadErrors,
   };
 }
