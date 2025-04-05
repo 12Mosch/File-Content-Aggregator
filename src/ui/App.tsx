@@ -5,8 +5,7 @@ import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
 import ProgressBar from "./ProgressBar";
 import SettingsModal from "./SettingsModal";
-import useDebounce from "./hooks/useDebounce"; // Import the debounce hook
-// Import types defined in vite-env.d.ts for API and data structures
+import useDebounce from "./hooks/useDebounce";
 import type {
   ProgressData,
   SearchResult,
@@ -15,13 +14,11 @@ import type {
   StructuredItem,
 } from "./vite-env.d";
 
-// Import CSS files
 import "./App.css";
 import "./index.css";
 import "./SettingsModal.css";
-import "./ResultsFilter.css"; // CSS for the filter section
+import "./ResultsFilter.css";
 
-// Define the shape of the search parameters used in the UI state
 interface SearchParamsUI {
   searchPaths: string[];
   extensions: string[];
@@ -35,27 +32,20 @@ interface SearchParamsUI {
   maxDepth?: number;
 }
 
-// Threshold for considering results "large" for clipboard warning
 const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
-
-// Helper type for grouping errors
 type GroupedErrors = { [reasonKey: string]: string[] };
 
-// --- Tree Item State ---
 interface ItemDisplayState {
     expanded: boolean;
     showFull: boolean;
 }
 type ItemDisplayStates = Map<string, ItemDisplayState>;
-// ---------------------
 
-// Debounce delay in milliseconds
 const FILTER_DEBOUNCE_DELAY = 300;
 
 function App() {
   const { t, i18n } = useTranslation(['common', 'errors', 'results', 'form']);
 
-  // --- State Management ---
   const [results, setResults] = useState<string | null>(null);
   const [structuredResults, setStructuredResults] = useState<StructuredItem[] | null>(null);
   const [searchSummary, setSearchSummary] = useState<{
@@ -71,15 +61,14 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'text' | 'tree'>('text');
   const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(new Map());
+  // --- Add a state counter to force updates ---
+  const [itemDisplayVersion, setItemDisplayVersion] = useState(0);
+  // -------------------------------------------
 
-  // --- Client-Side Results Filtering State ---
-  const [resultsFilterTerm, setResultsFilterTerm] = useState<string>(""); // Raw input value
+  const [resultsFilterTerm, setResultsFilterTerm] = useState<string>("");
   const [resultsFilterCaseSensitive, setResultsFilterCaseSensitive] = useState<boolean>(false);
-  // --- Debounced value for filtering ---
   const debouncedFilterTerm = useDebounce(resultsFilterTerm, FILTER_DEBOUNCE_DELAY);
-  // -----------------------------------------
 
-  // --- Memoized Grouping for File Read Errors ---
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
       const reasonKey = error.reason || "unknownError";
@@ -91,7 +80,6 @@ function App() {
     }, {} as GroupedErrors);
   }, [fileReadErrors]);
 
-  // --- Effect for Progress Updates ---
   useEffect(() => {
     if (window.electronAPI?.onSearchProgress) {
       const unsubscribe = window.electronAPI.onSearchProgress(setProgress);
@@ -102,7 +90,6 @@ function App() {
     }
   }, [t]);
 
-  // --- Event Handlers ---
   const handleSearchSubmit = useCallback(async (params: SearchParamsUI) => {
     setIsLoading(true);
     setResults(null);
@@ -110,10 +97,11 @@ function App() {
     setSearchSummary(null);
     setPathErrors([]);
     setFileReadErrors([]);
-    setItemDisplayStates(new Map());
+    setItemDisplayStates(new Map()); // Reset map
+    setItemDisplayVersion(0); // Reset version counter
     setProgress({ processed: 0, total: 0, message: "Starting search..." });
     setGeneralError(null);
-    setResultsFilterTerm(""); // Clear results filter on new search
+    setResultsFilterTerm("");
 
     try {
       if (!window.electronAPI?.invokeSearch) throw new Error(t('errors:searchFunctionNA'));
@@ -192,42 +180,64 @@ function App() {
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
 
-  const handleToggleExpand = useCallback((filePath: string) => {
-    setItemDisplayStates(prevMap => {
-      const newMap = new Map(prevMap);
-      const currentState = newMap.get(filePath);
-      // If collapsing, remove the entry. If expanding, add/update it.
-      if (currentState?.expanded) {
-          newMap.delete(filePath);
-      } else {
-          newMap.set(filePath, { expanded: true, showFull: false }); // Always reset showFull on expand
-      }
-      return newMap;
-    });
-  }, []);
-
-
-  const handleShowFullContent = useCallback((filePath: string) => {
+  // --- Modified state update functions ---
+  const updateItemDisplayState = useCallback((updater: (prevMap: ItemDisplayStates) => ItemDisplayStates) => {
       setItemDisplayStates(prevMap => {
-          const newMap = new Map(prevMap);
-          const currentState = newMap.get(filePath);
-          if (currentState?.expanded && !currentState.showFull) {
-              newMap.set(filePath, { ...currentState, showFull: true });
+          // Always create a new map from the updater function's result
+          const newMap = updater(prevMap);
+          // Only increment version if the map actually changed reference or content
+          // (updater should return prevMap if no change occurred)
+          if (newMap !== prevMap) {
+              setItemDisplayVersion(v => v + 1); // Increment version on change
               return newMap;
           }
-          return prevMap;
+          return prevMap; // Return old map if no change
       });
-  }, []);
+  }, []); // No dependencies needed for the updater function itself
 
-  // --- Client-Side Filtering Logic (using debounced term) ---
-  const isFilterActive = debouncedFilterTerm.trim().length > 0; // Use debounced term
+  const handleToggleExpand = useCallback((filePath: string) => {
+    console.log(`[App] Toggling expand for: ${filePath}`);
+    updateItemDisplayState(prevMap => {
+      const newMap = new Map(prevMap); // Create a new map instance
+      const currentState = newMap.get(filePath);
+      if (currentState?.expanded) {
+          console.log(`[App] Collapsing: ${filePath}`);
+          newMap.delete(filePath);
+      } else {
+          console.log(`[App] Expanding: ${filePath}`);
+          newMap.set(filePath, { expanded: true, showFull: false });
+      }
+      console.log('[App] New itemDisplayStates size:', newMap.size);
+      return newMap; // Return the new map
+    });
+  }, [updateItemDisplayState]); // Depend on the memoized updater
+
+  const handleShowFullContent = useCallback((filePath: string) => {
+    console.log(`[App] handleShowFullContent called for: ${filePath}`);
+    updateItemDisplayState(prevMap => {
+        const currentState = prevMap.get(filePath); // Check current state from previous map
+        console.log(`[App] Current state for ${filePath}:`, currentState);
+
+        if (currentState?.expanded && !currentState.showFull) {
+            const newMap = new Map(prevMap); // Create new map only if changing
+            console.log(`[App] Setting showFull = true for: ${filePath}`);
+            newMap.set(filePath, { ...currentState, showFull: true });
+            return newMap; // Return the new map
+        }
+        console.log(`[App] No state change needed for showFull on: ${filePath}`);
+        return prevMap; // Return the *previous* map reference if no change
+    });
+  }, [updateItemDisplayState]); // Depend on the memoized updater
+  // ---------------------------------------
+
+  const isFilterActive = debouncedFilterTerm.trim().length > 0;
 
   const filteredTextLines = useMemo(() => {
     if (!results) return [];
     const lines = results.split('\n');
-    if (!isFilterActive) return lines; // Use debounced active check
+    if (!isFilterActive) return lines;
 
-    const term = debouncedFilterTerm; // Use debounced term
+    const term = debouncedFilterTerm;
     const caseSensitive = resultsFilterCaseSensitive;
 
     return lines.filter(line => {
@@ -237,14 +247,13 @@ function App() {
         return line.toLowerCase().includes(term.toLowerCase());
       }
     });
-    // Depend on debounced term
   }, [results, debouncedFilterTerm, resultsFilterCaseSensitive, isFilterActive]);
 
   const filteredStructuredResults = useMemo(() => {
     if (!structuredResults) return null;
-    if (!isFilterActive) return structuredResults; // Use debounced active check
+    if (!isFilterActive) return structuredResults;
 
-    const term = debouncedFilterTerm; // Use debounced term
+    const term = debouncedFilterTerm;
     const caseSensitive = resultsFilterCaseSensitive;
 
     return structuredResults.filter(item => {
@@ -260,9 +269,7 @@ function App() {
 
       return filePathMatch || contentMatch;
     });
-    // Depend on debounced term
   }, [structuredResults, debouncedFilterTerm, resultsFilterCaseSensitive, isFilterActive]);
-  // -----------------------------------------
 
   return (
     <div className="app-container">
@@ -300,7 +307,6 @@ function App() {
 
       {!isLoading && results !== null && searchSummary && (
         <div className="results-area">
-            {/* Results Filter Section (Input uses raw term, filtering uses debounced) */}
             <div className="results-filter-section">
                 <label htmlFor="resultsFilterInput" className="results-filter-label">
                     {t('results:filterResultsLabel')}
@@ -309,7 +315,7 @@ function App() {
                     type="text"
                     id="resultsFilterInput"
                     className="results-filter-input"
-                    value={resultsFilterTerm} // Bind to raw term for responsiveness
+                    value={resultsFilterTerm}
                     onChange={(e) => setResultsFilterTerm(e.target.value)}
                     placeholder={t('results:filterResultsPlaceholder')}
                 />
@@ -338,21 +344,22 @@ function App() {
                 </label>
             </div>
 
-            {/* Pass debounced term and case sensitivity to ResultsDisplay for highlighting */}
+            {/* Pass itemDisplayStates AND itemDisplayVersion down */}
             <ResultsDisplay
                 results={results}
                 filteredTextLines={filteredTextLines}
                 filteredStructuredItems={filteredStructuredResults}
                 summary={searchSummary}
                 viewMode={viewMode}
-                itemDisplayStates={itemDisplayStates}
+                itemDisplayStates={itemDisplayStates} // Pass the state map
+                itemDisplayVersion={itemDisplayVersion} // Pass the version counter
                 onCopy={handleCopyResults}
                 onSave={handleSaveResults}
                 onToggleExpand={handleToggleExpand}
-                onShowFullContent={handleShowFullContent}
+                onShowFullContent={handleShowFullContent} // Pass the handler
                 isFilterActive={isFilterActive}
-                filterTerm={debouncedFilterTerm} // Pass debounced term for highlighting
-                filterCaseSensitive={resultsFilterCaseSensitive} // Pass case sensitivity
+                filterTerm={debouncedFilterTerm}
+                filterCaseSensitive={resultsFilterCaseSensitive}
             />
         </div>
       )}
