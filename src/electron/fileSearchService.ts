@@ -1,8 +1,17 @@
 // D:/Code/Electron/src/electron/fileSearchService.ts
 import path from "path";
 import fs from "fs/promises";
-import fg from "fast-glob";
-import picomatch from "picomatch"; // Ensure picomatch is imported
+// Remove the direct import of fast-glob
+// import fg from "fast-glob";
+import picomatch from "picomatch";
+
+// --- Import 'module' and create a require function ---
+import module from 'node:module';
+const require = module.createRequire(import.meta.url);
+
+// --- Use the created require function to load fast-glob ---
+// Add a type assertion to inform TypeScript about the module's shape
+const fg = require("fast-glob") as typeof import("fast-glob");
 
 // --- Interfaces ---
 // Define allowed folder exclusion modes
@@ -184,6 +193,7 @@ export async function searchFiles(
       }
 
       // Perform the glob search with the calculated depth
+      // Use the required 'fg' variable here
       const found = await fg(includePatterns, {
         cwd: normalizedPath,
         // ignore: handled manually later using picomatch/regex

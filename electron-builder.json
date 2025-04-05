@@ -1,20 +1,31 @@
 {
-    "appId": "de.mosch.filecontentaggregator",
-    "productName": "File Content Aggregator",
-    "files": ["dist-electron", "dist-react", "node_modules"],
-    "directories": {
+  "appId": "de.mosch.filecontentaggregator",
+  "productName": "File Content Aggregator",
+  "files": [
+    "dist-electron/**/*",
+    "dist-react/**/*",
+    "node_modules/**/*",
+    "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+    "!**/node_modules/*.d.ts",
+    "node_modules/mime/**/*"
+  ],
+  "directories": {
     "output": "release",
     "buildResources": "build"
   },
-    "icon": "./desktopIcon.png",
-    "mac": {
-      "target": "dmg"
-    },
-    "linux": {
-      "target": "AppImage",
-      "category": "Utility"
-    },
-    "win": {
-      "target": ["portable", "msi"]
-    }
+  "asar": false,
+  "icon": "./desktopIcon.png",
+  "mac": {
+    "target": "dmg"
+  },
+  "linux": {
+    "target": "AppImage",
+    "category": "Utility"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "msi"
+    ]
   }
+}
