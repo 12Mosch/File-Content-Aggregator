@@ -22,5 +22,7 @@
   "showMore": "Show More ({{remaining}} lines)",
   "filterResultsLabel": "Filter Results:",
   "filterResultsPlaceholder": "Enter text to filter...",
-  "filterCaseSensitiveLabel": "Case-Sensitive"
+  "filterCaseSensitiveLabel": "Case-Sensitive",
+  "highlighting": "Highlighting...",
+  "highlightError": "Highlighting Error"
 }
