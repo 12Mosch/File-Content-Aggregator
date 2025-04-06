@@ -5,6 +5,7 @@
   "progressDefault": "Processing {{processed}} of {{total}} files...",
   "progressErrorPrefix": "Error:",
   "settingsTitle": "Application Settings",
+  "settingsDescription": "Adjust application preferences like interface language.",
   "languageLabel": "Interface Language:",
   "closeButton": "Close",
   "lang_en": "English",
