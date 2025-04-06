@@ -1,26 +1,51 @@
+// D:/Code/Electron/tsconfig.app.json
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ES2020",
+    // --- Base URL and Path Alias (Mirrors root config) ---
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    // --- End Alias Config ---
+
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo", // Build info file location
+    "target": "ES2020", // Target for modern browsers
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
 
     /* Bundler mode */
-    "moduleResolution": "bundler",
+    "moduleResolution": "bundler", // Correct for Vite
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true, // Allow importing JSON
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": true,
+    "noEmit": true, // Vite handles emitting files
     "jsx": "react-jsx",
 
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noFallthroughCasesInSwitch": true
+    // "noUncheckedSideEffectImports": true // Keep if no issues
   },
-  "include": ["src"]
+  // --- Include ONLY the React app source files and related types ---
+  // Adjust paths if your structure differs slightly
+  "include": [
+    "src/ui", // Main UI source directory
+    "src/vite-env.d.ts", // Vite environment types
+    "src/ui/queryBuilderTypes.ts", // Your custom types if outside src/ui
+    "src/components", // Include shadcn components directory
+    "src/lib" // Include shadcn utils directory
+    ],
+  // --- Exclude non-app code ---
+  "exclude": [
+    "node_modules",
+    "dist-*",
+    "src/electron" // Exclude main process code
+    ]
 }

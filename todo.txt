@@ -1,6 +1,16 @@
-Allow users to name/label saved searches.
-Add a "favorite" or "pin" functionality for important searches.
-Search within the search history itself.
-
 4. Provide a documentation about the program.
 Add new fresh UI https://ui.shadcn.com/
+
+
+Phase 5: Global Styles & Cleanup
+
+Review App.css: Identify any remaining global styles (e.g., layout rules for .app-container, .app-header). Migrate these to Tailwind classes on the corresponding elements in App.tsx.
+Review index.css: Ensure it primarily contains the CSS variables set up by shadcn and the @import "tailwindcss"; directive. Remove any other custom global styles if they can be handled by Tailwind.
+Remove Old Files: Delete the component-specific CSS files (SearchForm.css, ProgressBar.css, HistoryModal.css, etc.) as they become redundant. Delete App.css if all its rules have been migrated.
+Remove Imports: Remove the corresponding CSS imports from your TSX files.
+Phase 6: Final Testing
+
+Comprehensive UI Review: Test all components, modals, forms, and interactions in different states (hover, focus, disabled, loading).
+Layout & Responsiveness: Check the overall layout and ensure it behaves as expected. If responsiveness is needed, use Tailwind's responsive modifiers (e.g., md:flex, lg:p-8).
+Theming: Verify the "Violet" theme is applied consistently. Test dark mode if applicable (Tailwind/shadcn handle this well).
+Build Test: Run npm run build and npm run preview (or test the Electron production build) to ensure styles work correctly in the optimized build.

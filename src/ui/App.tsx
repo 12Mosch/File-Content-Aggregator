@@ -4,6 +4,7 @@ import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
 import ProgressBar from "./ProgressBar";
 import SettingsModal from "./SettingsModal";
+//import { Button } from "@/components/ui/buttonButton";
 import HistoryButton from "./HistoryButton";
 import HistoryModal from "./HistoryModal";
 import useDebounce from "./hooks/useDebounce";
@@ -22,7 +23,7 @@ import "./App.css";
 import "./index.css";
 import "./SettingsModal.css";
 import "./ResultsFilter.css";
-import "./HistoryModal.css"; // Add History Modal CSS
+import "./HistoryModal.css";
 
 // Removed SearchParamsUI as SearchForm now handles its internal state differently
 
