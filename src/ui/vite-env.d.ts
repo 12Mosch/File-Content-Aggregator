@@ -43,6 +43,10 @@ type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 export type ContentSearchMode = "term" | "regex" | "boolean";
 // --------------------------------------
 
+// --- Theme Preference Type ---
+export type ThemePreference = "light" | "dark" | "system";
+// ---------------------------
+
 // Updated SearchParams interface (used for submitting search AND storing in history)
 // This is the structure that will be saved in history entries.
 interface SearchParams {
@@ -75,9 +79,8 @@ export interface SearchHistoryEntry {
 // -----------------------------------------
 
 // --- Electron API Definition ---
-// Ensure this matches exactly what's exposed in preload.cts
 export interface IElectronAPI {
-  invokeSearch: (params: Omit<SearchParams, 'structuredQuery'>) => Promise<SearchResult>; // Backend doesn't need structuredQuery
+  invokeSearch: (params: Omit<SearchParams, 'structuredQuery'>) => Promise<SearchResult>;
   showSaveDialog: () => Promise<string | undefined>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
   copyToClipboard: (content: string) => Promise<boolean>;
@@ -86,12 +89,17 @@ export interface IElectronAPI {
   setLanguagePreference: (lng: string) => Promise<void>;
   notifyLanguageChanged: (lng: string) => void;
 
-  // --- History API ---
+  // History API
   addSearchHistoryEntry: (entry: SearchHistoryEntry) => Promise<void>;
   getSearchHistory: () => Promise<SearchHistoryEntry[]>;
   deleteSearchHistoryEntry: (entryId: string) => Promise<void>;
-  clearSearchHistory: () => Promise<boolean>; // Returns boolean
+  clearSearchHistory: () => Promise<boolean>;
   updateSearchHistoryEntry: (entryId: string, updates: Partial<Pick<SearchHistoryEntry, 'name' | 'isFavorite'>>) => Promise<boolean>;
+
+  // --- NEW: Theme API ---
+  getThemePreference: () => Promise<ThemePreference>;
+  setThemePreference: (theme: ThemePreference) => Promise<void>;
+  // ------------------------
 }
 
 // --- Global Window Augmentation ---
@@ -102,5 +110,4 @@ declare global {
 }
 
 // --- Exports ---
-// Export all relevant types
 export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode, StructuredItem };
