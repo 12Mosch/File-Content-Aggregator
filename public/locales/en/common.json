@@ -32,7 +32,6 @@
   "historyUntitled": "Untitled Search",
   "historyNamePlaceholder": "Enter name...",
   "historyEditNameTooltip": "Click to edit name",
-  "historyFilterPlaceholder": "Filter history...",
+  "historyFilterPlaceholder": "Filter by name, path, query, extensions...",
   "historyNoResults": "No history entries match your filter."
 }
-
