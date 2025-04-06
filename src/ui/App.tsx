@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
 import ProgressBar from "./ProgressBar";
-import SettingsModal from "./SettingsModal"; // Keep component import
+import SettingsModal from "./SettingsModal";
 import HistoryButton from "./HistoryButton";
-import HistoryModal from "./HistoryModal"; // Keep component import
+import HistoryModal from "./HistoryModal";
 import useDebounce from "./hooks/useDebounce";
 import type {
   ProgressData,
@@ -14,22 +14,22 @@ import type {
   IElectronAPI,
   StructuredItem,
   SearchHistoryEntry,
-  SearchParams, // Use the unified SearchParams type
+  SearchParams,
 } from "./vite-env.d";
 import { generateId } from "./queryBuilderUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Import RadioGroup components
 import { cn } from "@/lib/utils";
 
-// Keep global styles (Tailwind base, theme vars)
-import "./index.css";
+import "./index.css"; // Keep global styles
+
 // Remove component-specific CSS imports that are no longer needed
-// import "./SettingsModal.css";
-// import "./HistoryModal.css";
-// Keep ResultsFilter.css ONLY if it hasn't been fully refactored into App.tsx yet
-// import "./ResultsFilter.css"; // Assuming this was also refactored into App.tsx
+// import "./SettingsModal.css"; // Assuming refactored
+// import "./HistoryModal.css"; // Assuming refactored
+// import "./ResultsFilter.css"; // Assuming refactored
 
 const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 type GroupedErrors = { [reasonKey: string]: string[] };
@@ -50,7 +50,7 @@ function App() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'text' | 'tree'>('text');
+  const [viewMode, setViewMode] = useState<'text' | 'tree'>('text'); // State for view mode
   const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(new Map());
   const [itemDisplayVersion, setItemDisplayVersion] = useState(0);
   const [resultsFilterTerm, setResultsFilterTerm] = useState<string>("");
@@ -197,17 +197,39 @@ function App() {
                   </div>
               </div>
 
-              {/* View Mode Switcher (using simple labels for now) */}
-              <div className="flex gap-4 self-start">
-                  <Label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
-                      <input type="radio" name="viewMode" value="text" checked={viewMode === 'text'} onChange={() => setViewMode('text')} className="accent-primary" />
-                      {t('results:viewModeText')}
+              {/* --- View Mode Switcher (Refactored) --- */}
+              <RadioGroup
+                value={viewMode}
+                onValueChange={(value) => setViewMode(value as 'text' | 'tree')} // Update state on change
+                className="flex gap-4 self-start" // Use flex layout
+              >
+                {/* Text Mode Option */}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="text" id="viewModeText" />
+                  <Label htmlFor="viewModeText" className="text-sm text-muted-foreground cursor-pointer">
+                    {t('results:viewModeText')}
                   </Label>
-                  <Label className={cn("flex items-center gap-2 text-sm text-muted-foreground", !structuredResults ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
-                      <input type="radio" name="viewMode" value="tree" checked={viewMode === 'tree'} onChange={() => setViewMode('tree')} disabled={!structuredResults} className="accent-primary"/>
-                      {t('results:viewModeTree')}
+                </div>
+                {/* Tree Mode Option */}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem
+                    value="tree"
+                    id="viewModeTree"
+                    disabled={!structuredResults} // Disable if no structured results
+                  />
+                  <Label
+                    htmlFor="viewModeTree"
+                    // Apply disabled styles using peer-disabled
+                    className={cn(
+                        "text-sm text-muted-foreground cursor-pointer",
+                        !structuredResults && "opacity-50 cursor-not-allowed" // Manual disable style if needed
+                    )}
+                  >
+                    {t('results:viewModeTree')}
                   </Label>
-              </div>
+                </div>
+              </RadioGroup>
+              {/* --- End View Mode Switcher --- */}
 
               {/* Results Display Component */}
               <ResultsDisplay
