@@ -1,7 +1,23 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { supportedLngs } from "./i18n"; // Import supported languages
-import "./SettingsModal.css"; // Import modal CSS
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogClose, // Optional close button in footer/header
+} from "@/components/ui/dialog"; // Import shadcn Dialog components
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"; // Import shadcn Select components
+import { Label } from "@/components/ui/label"; // Import shadcn Label
+import { Button } from "@/components/ui/button"; // Import shadcn Button
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,8 +27,8 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { t, i18n } = useTranslation(['common']); // Use common namespace
 
-  const handleLanguageChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLang = event.target.value;
+  const handleLanguageChange = async (newLang: string) => {
+    // No need for event object with shadcn Select's onValueChange
     if (supportedLngs.includes(newLang) && newLang !== i18n.language) {
       console.log(`UI: Changing language to ${newLang}`);
       try {
@@ -37,51 +53,80 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Don't render anything if the modal is not open
-  if (!isOpen) {
-    return null;
-  }
+  // Use the Dialog's controlled state
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose(); // Call the parent's close handler when the dialog requests to be closed
+    }
+    // We don't control opening from here, only closing
+  };
 
   return (
-    // Modal overlay
-    <div className="settings-modal-overlay" onClick={onClose}>
-      {/* Modal content box - stop propagation to prevent closing when clicking inside */}
-      <div className="settings-modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
-        <div className="settings-modal-header">
-          <h2>{t('settingsTitle')}</h2>
-          <button onClick={onClose} className="settings-modal-close-btn" aria-label={t('closeButton')}>
-            &times; {/* Simple 'X' close symbol */}
-          </button>
-        </div>
+    // Use the shadcn Dialog component
+    // Control its open state via the `open` prop
+    // Handle close requests via `onOpenChange`
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {/* DialogContent handles the overlay and centering */}
+      <DialogContent className="sm:max-w-[425px]"> {/* Adjust max width if needed */}
+        {/* DialogHeader for title and optional description */}
+        <DialogHeader>
+          <DialogTitle>{t('settingsTitle')}</DialogTitle>
+          {/* Optional: Add a description if needed */}
+          {/* <DialogDescription>
+            Manage your application settings here.
+          </DialogDescription> */}
+        </DialogHeader>
 
-        {/* Modal Body */}
-        <div className="settings-modal-body">
-          <div className="settings-group">
-            <label htmlFor="language-select">{t('languageLabel')}</label>
-            <select
-              id="language-select"
+        {/* Main settings content area */}
+        {/* Use Tailwind classes for layout */}
+        <div className="grid gap-4 py-4">
+          {/* Language Selection Group */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="language-select" className="text-right">
+              {t('languageLabel')}
+            </Label>
+            {/* Use shadcn Select */}
+            <Select
               value={i18n.language} // Current language
-              onChange={handleLanguageChange}
-              className="settings-language-select"
+              onValueChange={handleLanguageChange} // Pass the new value directly
             >
-              {supportedLngs.map((lng) => (
-                <option key={lng} value={lng}>
-                  {/* Translate language name using key like 'lang_en' */}
-                  {t(`lang_${lng}`)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="language-select" className="col-span-3">
+                <SelectValue placeholder={t('languageLabel')} />
+              </SelectTrigger>
+              <SelectContent>
+                {supportedLngs.map((lng) => (
+                  <SelectItem key={lng} value={lng}>
+                    {/* Translate language name using key like 'lang_en' */}
+                    {t(`lang_${lng}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          {/* Add more settings groups here if needed */}
+          {/* Add more settings groups here using Label and appropriate shadcn inputs */}
+          {/* Example:
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="some-setting" className="text-right">
+              Some Setting
+            </Label>
+            <Input id="some-setting" defaultValue="example" className="col-span-3" />
+          </div>
+          */}
         </div>
 
-        {/* Modal Footer (Optional) */}
-        {/* <div className="settings-modal-footer">
-          <button onClick={onClose}>{t('closeButton')}</button>
-        </div> */}
-      </div>
-    </div>
+        {/* DialogFooter for action buttons */}
+        <DialogFooter>
+          {/* DialogClose automatically triggers the onOpenChange(false) */}
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              {t('closeButton')}
+            </Button>
+          </DialogClose>
+          {/* Add other buttons like "Save Changes" if needed */}
+          {/* <Button type="submit">Save changes</Button> */}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

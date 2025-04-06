@@ -1,20 +1,18 @@
-// D:/Code/Electron/src/ui/ResultsDisplay.tsx
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList as List, VariableSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import HighlightMatches from "./HighlightMatches";
-import "./ResultsDisplay.css";
-import "./Highlight.css";
+import HighlightMatches from "./HighlightMatches"; // Assumes HighlightMatches is already refactored
+import { Button } from "@/components/ui/button"; // Import shadcn Button
 import type { StructuredItem } from "./vite-env.d";
 
-// Constants
-const TEXT_BLOCK_LINE_HEIGHT = 21;
-const TREE_ITEM_HEADER_HEIGHT = 30;
-const TREE_ITEM_CONTENT_LINE_HEIGHT = 18;
-const TREE_ITEM_PADDING = 10;
+// Constants (adjust if needed based on Tailwind's line-height/font-size)
+const TEXT_BLOCK_LINE_HEIGHT = 22; // Adjust based on final font-size/line-height in TextRow
+const TREE_ITEM_HEADER_HEIGHT = 32; // Adjust based on final padding/font-size in TreeRow header
+const TREE_ITEM_CONTENT_LINE_HEIGHT = 18; // Adjust based on final font-size/line-height in TreeRow content
+const TREE_ITEM_PADDING_Y = 8; // Approx vertical padding in content (py-1 * 2)
 const MAX_PREVIEW_LINES = 50;
-const SHOW_MORE_BUTTON_HEIGHT = 35;
+const SHOW_MORE_BUTTON_HEIGHT = 30; // Approx height of small shadcn button
 const LARGE_RESULT_LINE_THRESHOLD = 100000;
 
 // Types
@@ -31,7 +29,7 @@ interface ResultsDisplayProps {
   summary: { filesFound: number; filesProcessed: number; errorsEncountered: number; };
   viewMode: 'text' | 'tree';
   itemDisplayStates: ItemDisplayStates;
-  itemDisplayVersion: number; // Receive the version counter
+  itemDisplayVersion: number;
   onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>;
   onSave: () => Promise<void>;
   onToggleExpand: (filePath: string) => void;
@@ -41,7 +39,7 @@ interface ResultsDisplayProps {
   filterCaseSensitive: boolean;
 }
 
-// --- Row Component for Text View ---
+// --- Row Component for Text View (Refactored with Tailwind) ---
 interface TextRowData {
     lines: string[];
     filterTerm: string;
@@ -52,9 +50,11 @@ const TextRow: React.FC<ListChildComponentProps<TextRowData>> = ({ index, style,
     const lineContent = lines?.[index] ?? '';
 
     return (
-        <div style={style} className="results-line">
-            <pre className="results-line-content">
-                {lineContent === "" ? ( "\u00A0" ) : (
+        // Apply basic layout styles from props, add padding via Tailwind
+        <div style={style} className="px-3 overflow-hidden box-border flex items-center"> {/* Use flex to vertically center if needed */}
+            {/* Apply Tailwind font, size, color, whitespace, etc. */}
+            <pre className="font-mono text-sm leading-snug text-foreground whitespace-pre-wrap break-words m-0 select-text w-full">
+                {lineContent === "" ? ( "\u00A0" ) : ( // Render non-breaking space for empty lines
                     <HighlightMatches text={lineContent} term={filterTerm} caseSensitive={filterCaseSensitive} />
                 )}
             </pre>
@@ -63,11 +63,10 @@ const TextRow: React.FC<ListChildComponentProps<TextRowData>> = ({ index, style,
 };
 
 
-// --- Row Component for Tree View ---
-// Revert TreeRowData to represent the shared context object
+// --- Row Component for Tree View (Refactored with Tailwind) ---
 interface TreeRowData {
-  items: StructuredItem[]; // The full array of items
-  itemDisplayStates: ItemDisplayStates; // The full map of states
+  items: StructuredItem[];
+  itemDisplayStates: ItemDisplayStates;
   toggleExpand: (filePath: string) => void;
   showFullContentHandler: (filePath: string) => void;
   t: (key: string, options?: any) => string;
@@ -75,65 +74,32 @@ interface TreeRowData {
   filterCaseSensitive: boolean;
   highlightCache: HighlightCache;
   requestHighlighting: (filePath: string, code: string, language: string) => void;
-  // displayStateVersion is not needed inside itemData if itemKey handles it
 }
 
-const getLanguageFromPath = (filePath: string): string => {
-    const extension = filePath.split('.').pop()?.toLowerCase() || 'plaintext';
-    switch (extension) {
-        case 'js': case 'jsx': return 'javascript';
-        case 'ts': case 'tsx': return 'typescript';
-        case 'json': return 'json';
-        case 'css': case 'scss': case 'less': return 'css';
-        case 'html': case 'htm': return 'html';
-        case 'xml': case 'xaml': case 'csproj': case 'props': return 'xml';
-        case 'py': return 'python';
-        case 'java': return 'java';
-        case 'cs': return 'csharp';
-        case 'log': return 'log';
-        case 'txt': case 'md': return 'plaintext';
-        default:
-            const knownLangs = ['javascript', 'typescript', 'json', 'css', 'xml', 'python', 'java', 'csharp', 'plaintext'];
-            return knownLangs.includes(extension) ? extension : 'plaintext';
-    }
-};
+const getLanguageFromPath = (filePath: string): string => { /* ... (implementation unchanged) ... */ const extension = filePath.split('.').pop()?.toLowerCase() || 'plaintext'; switch (extension) { case 'js': case 'jsx': return 'javascript'; case 'ts': case 'tsx': return 'typescript'; case 'json': return 'json'; case 'css': case 'scss': case 'less': return 'css'; case 'html': case 'htm': return 'html'; case 'xml': case 'xaml': case 'csproj': case 'props': return 'xml'; case 'py': return 'python'; case 'java': return 'java'; case 'cs': return 'csharp'; case 'log': return 'log'; case 'txt': case 'md': return 'plaintext'; default: const knownLangs = ['javascript', 'typescript', 'json', 'css', 'xml', 'python', 'java', 'csharp', 'plaintext']; return knownLangs.includes(extension) ? extension : 'plaintext'; } };
 
-// TreeRow receives the shared context object and uses index
 const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({ index, style, data }) => {
   const {
-      items, // Get the full array
-      itemDisplayStates, // Get the full map
-      toggleExpand, showFullContentHandler, t,
+      items, itemDisplayStates, toggleExpand, showFullContentHandler, t,
       filterTerm, filterCaseSensitive, highlightCache, requestHighlighting,
-  } = data; // data is the shared context object
+  } = data;
 
-  // Get the specific item for this row using the index
   const item = items?.[index];
-  if (!item) {
-      console.warn(`[TreeRow] Item at index ${index} is missing from data.items.`);
-      return <div style={style} className="tree-item">Error: Item not found</div>;
-  }
+  if (!item) return <div style={style} className="p-2 text-destructive">Error: Item not found</div>;
 
-  // Look up the state for *this specific item* from the map
   const displayState = itemDisplayStates.get(item.filePath);
   const isExpanded = displayState?.expanded ?? false;
   const showFull = displayState?.showFull ?? false;
-
-  // console.log(`[TreeRow ${index}] Render. Path: ${item.filePath}, Expanded: ${isExpanded}, ShowFull: ${showFull}`);
-
   const language = useMemo(() => getLanguageFromPath(item.filePath), [item.filePath]);
 
-  // This recalculates based on showFull looked up from the map
   const { contentPreview, totalContentLines, isContentLarge } = useMemo(() => {
       const lines = item.content?.split('\n') ?? [];
       const totalLines = lines.length;
       const large = item.content ? totalLines > MAX_PREVIEW_LINES : false;
       const preview = (large && !showFull) ? lines.slice(0, MAX_PREVIEW_LINES).join('\n') : item.content;
-      // console.log(`[TreeRow ${index}] Recalculated contentPreview. ShowFull: ${showFull}, Preview length: ${preview?.length ?? 0}`);
       return { contentPreview: preview, totalContentLines: totalLines, isContentLarge: large };
-  }, [item.content, showFull]); // Depends on showFull derived from map
+  }, [item.content, showFull]);
 
-  // Effect for requesting highlighting
   useEffect(() => {
     const cacheEntry = highlightCache.get(item.filePath);
     if (isExpanded && contentPreview && language !== 'plaintext' && (!cacheEntry || cacheEntry.status === 'idle')) {
@@ -143,39 +109,60 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({ index, style,
 
   const showShowMoreButton = isExpanded && isContentLarge && !showFull;
   const handleToggle = () => toggleExpand(item.filePath);
-  const handleShowMore = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      showFullContentHandler(item.filePath);
-  };
-
+  const handleShowMore = (e: React.MouseEvent) => { e.stopPropagation(); showFullContentHandler(item.filePath); };
   const highlightInfo = highlightCache.get(item.filePath) ?? { status: 'idle' };
 
   return (
-    <div style={style} className="tree-item">
-      <div className="tree-item-header" onClick={handleToggle} title={item.filePath}>
-        <span className="tree-item-toggle">{isExpanded ? '▼' : '▶'}</span>
-        <span className="tree-item-path">
+    // Apply styles from props, add border and overflow
+    <div style={style} className="border-b border-border overflow-hidden box-border">
+      {/* Header: Apply Tailwind for layout, padding, bg, hover, cursor */}
+      <div
+        className="flex items-center px-2 py-1 cursor-pointer bg-muted/50 hover:bg-muted h-[32px] box-border transition-colors" // Adjusted height
+        onClick={handleToggle}
+        title={item.filePath}
+      >
+        {/* Toggle Icon: Apply Tailwind for size, margin, color */}
+        <span className="inline-block w-6 text-xs mr-1 text-center text-muted-foreground shrink-0">
+          {isExpanded ? '▼' : '▶'}
+        </span>
+        {/* File Path: Apply Tailwind font, size, overflow */}
+        <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
             <HighlightMatches text={item.filePath} term={filterTerm} caseSensitive={filterCaseSensitive} />
         </span>
       </div>
+      {/* Content Area (Conditional) */}
       {isExpanded && (
-        <div className="tree-item-content">
-          {item.readError ? ( <span className="tree-item-error">{t(`errors:${item.readError}`, { defaultValue: item.readError })}</span> )
-           : item.content !== null ? (
+        // Apply Tailwind for padding, background
+        <div className="pl-[2.1rem] pr-2 py-1 bg-background text-left box-border"> {/* Adjusted left padding */}
+          {item.readError ? (
+            // Error message styling
+            <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
+              {t(`errors:${item.readError}`, { defaultValue: item.readError })}
+            </span>
+           ) : item.content !== null ? (
             <>
-              {language === 'plaintext' ? ( <pre><code>{contentPreview}</code></pre> )
-               : highlightInfo.status === 'pending' ? ( <pre><code className="hljs">{t('results:highlighting')}</code></pre> )
-               : highlightInfo.status === 'error' ? ( <> <span className="tree-item-error">{t('results:highlightError')}: {highlightInfo.error}</span> <pre><code>{contentPreview}</code></pre> </> )
-               : highlightInfo.status === 'done' && highlightInfo.html ? ( <pre><code className={`language-${language} hljs`} dangerouslySetInnerHTML={{ __html: highlightInfo.html }} /></pre> )
-               : ( <pre><code>{contentPreview}</code></pre> )}
+              {/* Content Pre/Code Block */}
+              <pre className="m-0 text-left w-full font-mono text-xs leading-normal text-foreground whitespace-pre-wrap break-all">
+                {language === 'plaintext' ? ( <code>{contentPreview}</code> )
+                 : highlightInfo.status === 'pending' ? ( <code className="hljs">{t('results:highlighting')}</code> )
+                 : highlightInfo.status === 'error' ? ( <> <span className="block text-destructive italic mb-1">{t('results:highlightError')}: {highlightInfo.error}</span> <code>{contentPreview}</code> </> )
+                 : highlightInfo.status === 'done' && highlightInfo.html ? ( <code className={`language-${language} hljs block`} dangerouslySetInnerHTML={{ __html: highlightInfo.html }} /> ) // Added block
+                 : ( <code>{contentPreview}</code> )}
+              </pre>
 
+              {/* Show More Button (using shadcn Button) */}
               {showShowMoreButton && (
-                <button onClick={handleShowMore} className="show-more-button">
+                <Button
+                    onClick={handleShowMore}
+                    variant="ghost" // Use ghost or secondary for less emphasis
+                    size="sm" // Smaller size
+                    className="mt-1 h-auto px-2 py-0.5" // Adjust margin/padding/height
+                >
                   {t('results:showMore', { remaining: totalContentLines - MAX_PREVIEW_LINES })}
-                </button>
+                </Button>
               )}
             </>
-          ) : ( <span className="tree-item-error">{/* No content */}</span> )}
+          ) : ( <span className="block font-mono text-xs text-muted-foreground italic">{/* No content, maybe add placeholder? */}</span> )}
         </div>
       )}
     </div>
@@ -183,15 +170,15 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({ index, style,
 };
 
 
-// --- Main ResultsDisplay Component ---
+// --- Main ResultsDisplay Component (Refactored with Tailwind) ---
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   results,
   filteredTextLines,
   filteredStructuredItems,
   summary,
   viewMode,
-  itemDisplayStates, // Needed for getTreeItemSize and creating itemData
-  itemDisplayVersion, // Needed for triggering updates
+  itemDisplayStates,
+  itemDisplayVersion,
   onCopy,
   onSave,
   onToggleExpand,
@@ -206,188 +193,90 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [saveStatus, setSaveStatus] = useState<string>("");
 
   const textListRef = useRef<List<TextRowData>>(null);
-  // Correct ref type for VariableSizeList using the shared context type
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
 
+  // Worker and highlighting logic (remains the same)
   const workerRef = useRef<Worker | null>(null);
   const highlightCacheRef = useRef<HighlightCache>(new Map());
   const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
-
-  // Worker setup/cleanup useEffect remains the same
-  useEffect(() => {
-    workerRef.current = new Worker(new URL('./highlight.worker.ts', import.meta.url), { type: 'module' });
-    const handleWorkerMessage = (event: MessageEvent) => {
-        const { filePath, status, highlightedHtml, error } = event.data;
-        if (filePath) {
-            highlightCacheRef.current.set(filePath, { status, html: highlightedHtml, error });
-            setHighlightUpdateCounter(prev => prev + 1);
-        }
-    };
-    const handleWorkerError = (event: ErrorEvent) => { console.error("[Highlight Worker Error]", event.message, event); };
-    workerRef.current.addEventListener('message', handleWorkerMessage);
-    workerRef.current.addEventListener('error', handleWorkerError);
-    return () => {
-        if (workerRef.current) {
-            console.log("[Highlight Worker] Terminating.");
-            workerRef.current.removeEventListener('message', handleWorkerMessage);
-            workerRef.current.removeEventListener('error', handleWorkerError);
-            workerRef.current.terminate();
-            workerRef.current = null;
-            highlightCacheRef.current.clear();
-        }
-    };
-  }, []);
-
-  // requestHighlighting remains the same
-  const requestHighlighting = useCallback((filePath: string, code: string, language: string) => {
-    if (workerRef.current) {
-        highlightCacheRef.current.set(filePath, { status: 'pending' });
-        setHighlightUpdateCounter(prev => prev + 1);
-        workerRef.current.postMessage({ filePath, code, language });
-    } else {
-        console.warn("Highlight worker not available to process request for:", filePath);
-    }
-  }, []);
-
-  // Effect to clear cache remains the same
-  useEffect(() => {
-      highlightCacheRef.current.clear();
-      setHighlightUpdateCounter(0);
-  }, [results]);
+  useEffect(() => { workerRef.current = new Worker(new URL('./highlight.worker.ts', import.meta.url), { type: 'module' }); const handleWorkerMessage = (event: MessageEvent) => { const { filePath, status, highlightedHtml, error } = event.data; if (filePath) { highlightCacheRef.current.set(filePath, { status, html: highlightedHtml, error }); setHighlightUpdateCounter(prev => prev + 1); } }; const handleWorkerError = (event: ErrorEvent) => { console.error("[Highlight Worker Error]", event.message, event); }; workerRef.current.addEventListener('message', handleWorkerMessage); workerRef.current.addEventListener('error', handleWorkerError); return () => { if (workerRef.current) { console.log("[Highlight Worker] Terminating."); workerRef.current.removeEventListener('message', handleWorkerMessage); workerRef.current.removeEventListener('error', handleWorkerError); workerRef.current.terminate(); workerRef.current = null; highlightCacheRef.current.clear(); } }; }, []);
+  const requestHighlighting = useCallback((filePath: string, code: string, language: string) => { if (workerRef.current) { highlightCacheRef.current.set(filePath, { status: 'pending' }); setHighlightUpdateCounter(prev => prev + 1); workerRef.current.postMessage({ filePath, code, language }); } else { console.warn("Highlight worker not available for:", filePath); } }, []);
+  useEffect(() => { highlightCacheRef.current.clear(); setHighlightUpdateCounter(0); }, [results]); // Clear cache on new results
 
   const isOriginalResultLarge = useMemo(() => results.split('\n').length > LARGE_RESULT_LINE_THRESHOLD, [results]);
 
-  // Effect to reset list cache - depends on itemDisplayVersion from props
-  useEffect(() => {
-    if (viewMode === 'tree' && treeListRef.current) {
-      // console.log(`[ResultsDisplay] Resetting tree list cache (forcing render) due to state/prop change. Version: ${itemDisplayVersion}`);
-      treeListRef.current.resetAfterIndex(0, true); // Force re-render
-    }
-    // Also handle text list scroll reset
-    if (viewMode === 'text' && textListRef.current && isFilterActive) {
-        textListRef.current.scrollToItem(0);
-    }
-    // Depend on the version counter received from props
-  }, [viewMode, itemDisplayVersion, highlightUpdateCounter, isFilterActive, filteredTextLines, filteredStructuredItems]);
+  // Effect to reset list cache (remains the same logic)
+  useEffect(() => { if (viewMode === 'tree' && treeListRef.current) { treeListRef.current.resetAfterIndex(0, true); } if (viewMode === 'text' && textListRef.current && isFilterActive) { textListRef.current.scrollToItem(0); } }, [viewMode, itemDisplayVersion, highlightUpdateCounter, isFilterActive, filteredTextLines, filteredStructuredItems]);
 
-  // getTreeItemSize still needs itemDisplayStates to look up the state for size calculation
+  // Calculate tree item size (logic remains similar, constants adjusted)
   const getTreeItemSize = useCallback((index: number): number => {
     if (!filteredStructuredItems) return TREE_ITEM_HEADER_HEIGHT;
     const item = filteredStructuredItems[index];
     if (!item) return TREE_ITEM_HEADER_HEIGHT;
-
-    // Look up state from the prop map for size calculation
     const displayState = itemDisplayStates.get(item.filePath);
     const isExpanded = displayState?.expanded ?? false;
     const showFull = displayState?.showFull ?? false;
+    if (!isExpanded) return TREE_ITEM_HEADER_HEIGHT;
+    let contentLineCount = 0;
+    if (item.readError) { contentLineCount = 2; }
+    else if (item.content) { const lines = item.content.split('\n').length; contentLineCount = (lines > MAX_PREVIEW_LINES && !showFull) ? MAX_PREVIEW_LINES : lines; }
+    else { contentLineCount = 1; }
+    const highlightInfo = highlightCacheRef.current.get(item.filePath);
+    if (highlightInfo?.status === 'pending' || highlightInfo?.status === 'error') contentLineCount += 1;
+    const showShowMoreButton = (item.content && item.content.split('\n').length > MAX_PREVIEW_LINES && !showFull);
+    const showMoreButtonHeight = showShowMoreButton ? SHOW_MORE_BUTTON_HEIGHT : 0;
+    const contentHeight = contentLineCount * TREE_ITEM_CONTENT_LINE_HEIGHT;
+    return TREE_ITEM_HEADER_HEIGHT + contentHeight + showMoreButtonHeight + TREE_ITEM_PADDING_Y;
+  }, [filteredStructuredItems, itemDisplayStates, highlightUpdateCounter]);
 
-    let size: number;
-    if (!isExpanded) {
-      size = TREE_ITEM_HEADER_HEIGHT;
-    } else {
-      let contentLineCount = 0;
-      if (item.readError) { contentLineCount = 2; }
-      else if (item.content) {
-        const lines = item.content.split('\n').length;
-        contentLineCount = (lines > MAX_PREVIEW_LINES && !showFull) ? MAX_PREVIEW_LINES : lines;
-      } else { contentLineCount = 1; }
+  // Action button handlers (logic remains the same)
+  const handleCopy = async () => { setCopyStatus(t('copyButtonCopying')); const { success, potentiallyTruncated } = await onCopy(); let statusKey = success ? 'copyButtonSuccess' : 'copyButtonFailed'; if (success && isOriginalResultLarge) statusKey = 'copyButtonTruncated'; setCopyStatus(t(statusKey)); setTimeout(() => setCopyStatus(""), 5000); };
+  const handleSave = async () => { setSaveStatus(t('saveButtonSaving')); try { await onSave(); setSaveStatus(t('saveButtonInitiated')); setTimeout(() => setSaveStatus(""), 5000); } catch (error) { setSaveStatus(t('saveButtonFailed')); setTimeout(() => setSaveStatus(""), 3000); } };
 
-      const highlightInfo = highlightCacheRef.current.get(item.filePath);
-      if (highlightInfo?.status === 'pending' || highlightInfo?.status === 'error') {
-          contentLineCount += 1;
-      }
+  // Prepare itemData for virtualized lists (logic remains the same)
+  const textItemData: TextRowData = useMemo(() => ({ lines: filteredTextLines, filterTerm, filterCaseSensitive }), [filteredTextLines, filterTerm, filterCaseSensitive]);
+  const treeItemData: TreeRowData | null = useMemo(() => { if (!filteredStructuredItems) return null; return { items: filteredStructuredItems, itemDisplayStates: itemDisplayStates, toggleExpand: onToggleExpand, showFullContentHandler: onShowFullContent, t: t, filterTerm, filterCaseSensitive, highlightCache: highlightCacheRef.current, requestHighlighting: requestHighlighting }; }, [filteredStructuredItems, itemDisplayStates, itemDisplayVersion, onToggleExpand, onShowFullContent, t, filterTerm, filterCaseSensitive, requestHighlighting, highlightUpdateCounter]);
 
-      const showShowMoreButton = (item.content && item.content.split('\n').length > MAX_PREVIEW_LINES && !showFull);
-      const showMoreButtonHeight = showShowMoreButton ? SHOW_MORE_BUTTON_HEIGHT : 0;
-      const contentHeight = contentLineCount * TREE_ITEM_CONTENT_LINE_HEIGHT;
-      size = TREE_ITEM_HEADER_HEIGHT + contentHeight + showMoreButtonHeight + TREE_ITEM_PADDING;
-    }
-    return size;
-  }, [filteredStructuredItems, itemDisplayStates, highlightUpdateCounter]); // Keep itemDisplayStates dependency here
-
-  const handleCopy = async () => {
-    setCopyStatus(t('copyButtonCopying'));
-    const { success, potentiallyTruncated } = await onCopy();
-    let statusKey = success ? 'copyButtonSuccess' : 'copyButtonFailed';
-    if (success && isOriginalResultLarge) {
-        statusKey = 'copyButtonTruncated';
-    }
-    setCopyStatus(t(statusKey));
-    setTimeout(() => setCopyStatus(""), 5000);
-  };
-
-  const handleSave = async () => {
-    setSaveStatus(t('saveButtonSaving'));
-    try {
-      await onSave();
-      setSaveStatus(t('saveButtonInitiated'));
-      setTimeout(() => setSaveStatus(""), 5000);
-    } catch (error) {
-      setSaveStatus(t('saveButtonFailed'));
-      setTimeout(() => setSaveStatus(""), 3000);
-    }
-  };
-
-  // Ensure textItemData is correctly typed and populated
-  const textItemData: TextRowData = useMemo(() => ({
-      lines: filteredTextLines,
-      filterTerm,
-      filterCaseSensitive,
-  }), [filteredTextLines, filterTerm, filterCaseSensitive]);
-
-  // --- Revert treeItemData creation to the shared context object ---
-  const treeItemData: TreeRowData | null = useMemo(() => {
-      // Ensure items exist before creating data object
-      if (!filteredStructuredItems) return null;
-
-      return {
-          items: filteredStructuredItems, // Pass the full array
-          itemDisplayStates: itemDisplayStates, // Pass the full map
-          // Pass other handlers and context
-          toggleExpand: onToggleExpand,
-          showFullContentHandler: onShowFullContent,
-          t: t,
-          filterTerm,
-          filterCaseSensitive,
-          highlightCache: highlightCacheRef.current,
-          requestHighlighting: requestHighlighting,
-      };
-  // Depend on the items array, the state map, version counter, and other props
-  }, [filteredStructuredItems, itemDisplayStates, itemDisplayVersion, onToggleExpand, onShowFullContent, t, filterTerm, filterCaseSensitive, requestHighlighting, highlightUpdateCounter]);
-  // -----------------------------------------------------------------
-
-  // Ensure getSummaryLabelKey always returns a string
-  const getSummaryLabelKey = (): string => {
-      if (viewMode === 'text') {
-          return isFilterActive ? 'summaryTotalLinesFiltered' : 'summaryTotalLines';
-      } else {
-          return isFilterActive ? 'summaryTotalFilesFiltered' : 'summaryTotalFiles';
-      }
-  };
+  // Determine summary label (logic remains the same)
+  const getSummaryLabelKey = (): string => { if (viewMode === 'text') return isFilterActive ? 'summaryTotalLinesFiltered' : 'summaryTotalLines'; else return isFilterActive ? 'summaryTotalFilesFiltered' : 'summaryTotalFiles'; };
   const summaryCount = viewMode === 'text' ? filteredTextLines.length : (filteredStructuredItems?.length ?? 0);
 
   return (
-    <div className="results-display">
-      <h3>{t('heading')}</h3>
-      <div className="results-summary">
+    // Apply Tailwind classes for main container layout, padding, border, bg
+    // Using bg-card for semantic grouping of results
+    <div className="mt-6 p-4 border border-border rounded-lg bg-card flex flex-col flex-grow min-h-[300px] overflow-hidden">
+      {/* Heading */}
+      <h3 className="mt-0 mb-4 text-xl font-semibold text-card-foreground shrink-0">
+        {t('heading')}
+      </h3>
+      {/* Summary Section */}
+      <div className="flex gap-x-6 gap-y-1 mb-4 text-sm text-muted-foreground flex-wrap shrink-0">
         <span>{t('summaryFound', { count: summary.filesFound })}</span>
         <span>{t('summaryProcessed', { count: summary.filesProcessed })}</span>
         {summary.errorsEncountered > 0 && (
-          <span className="summary-errors">
+          <span className="text-destructive font-semibold"> {/* Error styling */}
             {t('summaryReadErrors', { count: summary.errorsEncountered })}
           </span>
         )}
         <span>{t(getSummaryLabelKey(), { count: summaryCount })}</span>
       </div>
-      {isOriginalResultLarge && ( <p className="clipboard-warning">{t('clipboardWarning')}</p> )}
+      {/* Clipboard Warning */}
+      {isOriginalResultLarge && (
+        // Apply Tailwind for warning styling
+        <p className="bg-yellow-900/10 border border-yellow-700/30 text-yellow-200 p-3 rounded-md text-xs mb-4 shrink-0">
+          {t('clipboardWarning')}
+        </p>
+       )}
 
-      <div className="results-virtualized-container">
+      {/* Virtualized List Container */}
+      {/* Apply Tailwind for layout, border, bg */}
+      <div className="flex-grow border border-border rounded-md bg-background overflow-hidden min-h-[200px]">
         <AutoSizer>
           {({ height, width }) => (
             viewMode === 'text' ? (
               <List
                 ref={textListRef}
-                className="results-list-scrollbar"
+                // className="results-list-scrollbar" // Remove custom scrollbar class if not needed
                 height={height}
                 itemCount={filteredTextLines.length}
                 itemSize={TEXT_BLOCK_LINE_HEIGHT}
@@ -397,18 +286,17 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               >
                 {TextRow}
               </List>
-            ) : treeItemData ? ( // Check if treeItemData (now the context object) is not null
+            ) : treeItemData ? (
               <VariableSizeList
                 ref={treeListRef}
-                className="results-list-scrollbar"
+                // className="results-list-scrollbar" // Remove custom scrollbar class if not needed
                 height={height}
-                itemCount={treeItemData.items.length} // Use length from items array inside itemData
+                itemCount={treeItemData.items.length}
                 itemSize={getTreeItemSize}
                 width={width}
-                itemData={treeItemData} // Pass the shared context object
+                itemData={treeItemData}
                 overscanCount={5}
                 estimatedItemSize={TREE_ITEM_HEADER_HEIGHT + (TREE_ITEM_CONTENT_LINE_HEIGHT * 5)}
-                // Use itemDisplayVersion from props in the key to force update
                 itemKey={(index, data) => `${data.items[index]?.filePath ?? index}-${itemDisplayVersion}`}
               >
                 {TreeRow}
@@ -418,13 +306,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         </AutoSizer>
       </div>
 
-      <div className="results-actions">
-        <button onClick={handleCopy} disabled={!results || !!copyStatus}>
+      {/* Action Buttons Section */}
+      {/* Apply Tailwind for layout */}
+      <div className="mt-4 flex gap-4 shrink-0">
+        {/* Use shadcn Button */}
+        <Button onClick={handleCopy} disabled={!results || !!copyStatus}>
           {copyStatus || t('copyButton')}
-        </button>
-        <button onClick={handleSave} disabled={!results || !!saveStatus}>
+        </Button>
+        <Button onClick={handleSave} disabled={!results || !!saveStatus} variant="secondary"> {/* Use secondary variant */}
           {saveStatus || t('saveButton')}
-        </button>
+        </Button>
       </div>
     </div>
   );

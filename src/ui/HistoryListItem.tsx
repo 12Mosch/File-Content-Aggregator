@@ -1,21 +1,23 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SearchHistoryEntry } from './vite-env.d';
-import useDebounce from './hooks/useDebounce'; // Import debounce hook
-import './HistoryModal.css';
+import useDebounce from './hooks/useDebounce';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Star, Trash2, Pencil, Check, X, History } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface HistoryListItemProps {
   entry: SearchHistoryEntry;
   onLoad: (entry: SearchHistoryEntry) => void;
   onDelete: (entryId: string) => void;
-  onUpdate: (entryId: string, updates: Partial<Pick<SearchHistoryEntry, 'name' | 'isFavorite'>>) => void; // Update handler
+  onUpdate: (entryId: string, updates: Partial<Pick<SearchHistoryEntry, 'name' | 'isFavorite'>>) => void;
 }
 
-// Debounce delay for saving name changes
 const NAME_SAVE_DEBOUNCE = 750; // ms
 
 // Helper to format timestamp (unchanged)
-const formatTimestamp = (isoString: string): string => { try { return new Date(isoString).toLocaleString(); } catch (e) { return isoString; } };
+const formatTimestamp = (isoString: string): string => { try { return new Date(isoString).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short'}); } catch (e) { return isoString; } };
 
 // Helper to create a concise summary string (unchanged)
 const createSummary = (params: SearchHistoryEntry['searchParams']): string => { let summary = params.searchPaths?.slice(0, 1).join(', ') ?? 'No paths'; if (params.searchPaths && params.searchPaths.length > 1) summary += ` (+${params.searchPaths.length - 1})`; if (params.contentSearchTerm) { const term = params.contentSearchTerm.length > 50 ? params.contentSearchTerm.substring(0, 47) + '...' : params.contentSearchTerm; summary += ` | Query: "${term}"`; } else if (params.structuredQuery) summary += ` | Query: [Builder]`; return summary; };
@@ -26,23 +28,23 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({ entry, onLoad, onDele
   const [currentName, setCurrentName] = useState(entry.name ?? '');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Debounce the name before calling the update function
+  // Debounce the name before calling the update function (for auto-save feel)
   const debouncedName = useDebounce(currentName, NAME_SAVE_DEBOUNCE);
 
-  // Effect to save the debounced name
+  // Effect to auto-save the debounced name while editing
   useEffect(() => {
-    // Only save if editing and the debounced name is different from the original entry name
-    // This prevents saving on initial load or if the name hasn't actually changed
     if (isEditingName && debouncedName !== (entry.name ?? '')) {
+      // Auto-save without closing edit mode
       onUpdate(entry.id, { name: debouncedName });
     }
+    // Only depend on debouncedName for auto-saving while editing
   }, [debouncedName, entry.id, entry.name, onUpdate, isEditingName]);
 
   // Effect to focus input when editing starts
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
       nameInputRef.current.focus();
-      nameInputRef.current.select(); // Select text for easy replacement
+      nameInputRef.current.select();
     }
   }, [isEditingName]);
 
@@ -53,8 +55,9 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({ entry, onLoad, onDele
     onUpdate(entry.id, { isFavorite: !entry.isFavorite });
   };
 
-  const handleNameClick = () => {
+  const handleEditNameClick = () => {
     if (!isEditingName) {
+      setCurrentName(entry.name ?? ''); // Ensure currentName is fresh when starting edit
       setIsEditingName(true);
     }
   };
@@ -63,71 +66,129 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({ entry, onLoad, onDele
     setCurrentName(e.target.value);
   };
 
-  const handleNameBlur = () => {
-    setIsEditingName(false);
-    // Save immediately on blur if the name changed from the original entry name
-    // This catches cases where the user blurs before the debounce timer fires
+  // Save changes explicitly (e.g., on Check button click or Enter key)
+  const saveNameChange = () => {
     if (currentName !== (entry.name ?? '')) {
-        onUpdate(entry.id, { name: currentName });
+      onUpdate(entry.id, { name: currentName });
     }
+    setIsEditingName(false);
+  };
+
+  // Cancel editing (e.g., on X button click or Escape key)
+  const cancelNameEdit = () => {
+    setCurrentName(entry.name ?? ''); // Revert to original name
+    setIsEditingName(false);
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      setIsEditingName(false);
-      // Save immediately on Enter if the name changed
-      if (currentName !== (entry.name ?? '')) {
-          onUpdate(entry.id, { name: currentName });
-      }
+      saveNameChange();
     } else if (e.key === 'Escape') {
-      setCurrentName(entry.name ?? ''); // Revert changes
-      setIsEditingName(false);
+      cancelNameEdit();
     }
   };
 
   const summaryText = createSummary(entry.searchParams);
-  const displayName = entry.name || t('historyUntitled'); // Use 'Untitled' if no name
+  const displayName = entry.name || t('historyUntitled');
 
   return (
-    <li className={`history-list-item ${entry.isFavorite ? 'favorite' : ''}`}>
-      <button
+    // Apply Tailwind classes for list item layout, padding, border, and conditional favorite styling
+    <li
+      className={cn(
+        "flex items-center gap-2 px-2 py-2 border-b border-border", // Base layout and border
+        "hover:bg-muted/50 transition-colors duration-150", // Hover effect
+        entry.isFavorite && "bg-primary/10 hover:bg-primary/20" // Favorite background
+      )}
+    >
+      {/* Favorite Toggle Button */}
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={handleToggleFavorite}
-        className="history-item-favorite-toggle"
+        className={cn(
+            "h-7 w-7 shrink-0 text-muted-foreground hover:text-amber-500", // Base style
+            entry.isFavorite && "text-amber-400 hover:text-amber-600" // Style when favorited
+        )}
         title={entry.isFavorite ? t('historyUnfavorite') : t('historyFavorite')}
         aria-label={entry.isFavorite ? t('historyUnfavorite') : t('historyFavorite')}
       >
-        {entry.isFavorite ? '★' : '☆'} {/* Filled/Empty star */}
-      </button>
-      <div className="history-item-summary" title={summaryText}>
-        {isEditingName ? (
-          <input
-            ref={nameInputRef}
-            type="text"
-            value={currentName}
-            onChange={handleNameChange}
-            onBlur={handleNameBlur}
-            onKeyDown={handleNameKeyDown}
-            className="history-item-name-input"
-            placeholder={t('historyNamePlaceholder')}
-          />
-        ) : (
-          <span
-            className={`history-item-name ${!entry.name ? 'untitled' : ''}`}
-            onClick={handleNameClick}
-            title={t('historyEditNameTooltip')} // Add tooltip to indicate clickable
-          >
-            {displayName}
-          </span>
-        )}
-        <span className="history-item-timestamp">{formatTimestamp(entry.timestamp)}</span>
+        <Star className={cn("h-4 w-4", entry.isFavorite && "fill-current")} /> {/* Conditional fill */}
+      </Button>
+
+      {/* Main Content Area */}
+      <div className="flex-grow flex flex-col gap-0.5 overflow-hidden">
+        {/* Name Display/Input Area */}
+        <div className="flex items-center gap-1">
+          {isEditingName ? (
+            <>
+              <Input
+                ref={nameInputRef}
+                type="text"
+                value={currentName}
+                onChange={handleNameChange}
+                onKeyDown={handleNameKeyDown}
+                // Removed onBlur auto-save in favor of explicit actions
+                className="h-6 px-1 py-0 text-sm font-medium flex-grow" // Compact input style
+                placeholder={t('historyNamePlaceholder')}
+              />
+              <Button variant="ghost" size="icon" onClick={saveNameChange} className="h-6 w-6 text-green-500 hover:text-green-600" aria-label="Save name">
+                  <Check className="h-4 w-4"/>
+              </Button>
+              <Button variant="ghost" size="icon" onClick={cancelNameEdit} className="h-6 w-6 text-destructive hover:text-destructive/80" aria-label="Cancel edit name">
+                  <X className="h-4 w-4"/>
+              </Button>
+            </>
+          ) : (
+            // Display Name (Clickable to edit)
+            <span
+              className={cn(
+                "text-sm font-medium text-foreground truncate cursor-pointer hover:underline decoration-dotted", // Base style
+                !entry.name && "italic text-muted-foreground" // Style for untitled
+              )}
+              onClick={handleEditNameClick}
+              title={t('historyEditNameTooltip')}
+            >
+              {displayName}
+            </span>
+          )}
+          {/* Edit Icon (only shown when not editing) */}
+          {!isEditingName && (
+             <Button variant="ghost" size="icon" onClick={handleEditNameClick} className="h-6 w-6 text-muted-foreground hover:text-foreground" aria-label="Edit name">
+                 <Pencil className="h-3 w-3"/>
+             </Button>
+          )}
+        </div>
+
+        {/* Timestamp and Summary */}
+        <span className="text-xs text-muted-foreground truncate" title={summaryText}>
+          {formatTimestamp(entry.timestamp)} - {summaryText}
+        </span>
       </div>
-      <div className="history-item-actions">
-        <button onClick={handleLoadClick} className="history-item-button load">
-          {t('historyLoadButton')}
-        </button>
-        <button onClick={handleDeleteClick} className="history-item-button delete">
-          {t('historyDeleteButton')}
-        </button>
+
+      {/* Action Buttons Area */}
+      <div className="flex gap-1 shrink-0">
+        {/* Load Button */}
+        <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLoadClick}
+            className="h-7 px-2"
+            title={t('historyLoadButton')}
+        >
+            <History className="h-3.5 w-3.5 mr-1" /> {/* Load icon */}
+            {t('historyLoadButton')}
+        </Button>
+        {/* Delete Button */}
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDeleteClick}
+            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+            title={t('historyDeleteButton')}
+            aria-label={t('historyDeleteButton')}
+        >
+            <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </li>
   );

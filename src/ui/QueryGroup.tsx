@@ -1,10 +1,18 @@
-// D:/Code/Electron/src/ui/QueryGroup.tsx
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import QueryCondition from './QueryCondition';
+import QueryCondition from './QueryCondition'; // Child component
 import type { QueryGroup as QueryStructure, Condition } from './queryBuilderTypes';
 import { generateId } from './queryBuilderUtils';
-import './QueryBuilder.css';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Plus, Trash2, Group } from 'lucide-react';
 
 interface QueryGroupProps {
   group: QueryStructure;
@@ -25,9 +33,10 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
 }) => {
   const { t } = useTranslation(['form']);
 
-  const handleOperatorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  // Handler for shadcn Select's onValueChange
+  const handleOperatorChange = (value: 'AND' | 'OR') => {
     if (disabled) return;
-    onChange({ ...group, operator: e.target.value as 'AND' | 'OR' });
+    onChange({ ...group, operator: value });
   };
 
   const handleAddCondition = () => {
@@ -51,6 +60,7 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
     onChange({ ...group, conditions: [...group.conditions, newGroup] });
   };
 
+  // Callbacks for child changes (remain the same logic)
   const handleConditionChange = useCallback((index: number, updatedItem: Condition | QueryStructure) => {
     if (disabled) return;
     const newConditions = [...group.conditions];
@@ -67,49 +77,96 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
   const canRemove = !isRoot && onRemove; // Can remove if not root and handler exists
 
   return (
-    <div className={`query-group level-${level} ${isRoot ? 'root-group' : ''}`}>
-      <div className="query-group-controls">
-        {!isRoot && <div className="query-group-indent"></div>}
-        <select
+    // Apply Tailwind classes for layout, border, padding, margin (indentation)
+    <div
+      className={cn(
+        "flex flex-col gap-2", // Vertical layout with gap
+        !isRoot && "ml-4 pl-4 border-l-2 border-border/60" // Indentation for nested groups
+      )}
+    >
+      {/* Controls Section */}
+      <div className="flex items-center gap-2 flex-wrap"> {/* Flex layout for controls */}
+        {/* Operator Select */}
+        <Select
           value={group.operator}
-          onChange={handleOperatorChange}
-          disabled={disabled || group.conditions.length < 2} // Disable if less than 2 items
-          className="query-group-operator"
+          onValueChange={handleOperatorChange} // Use onValueChange
+          disabled={disabled || group.conditions.length < 2}
         >
-          <option value="AND">{t('queryBuilderAND')}</option>
-          <option value="OR">{t('queryBuilderOR')}</option>
-        </select>
-        <button type="button" onClick={handleAddCondition} disabled={disabled} className="query-builder-button add-condition">
-          {t('queryBuilderAddCondition')}
-        </button>
-        <button type="button" onClick={handleAddGroup} disabled={disabled} className="query-builder-button add-group">
-          {t('queryBuilderAddGroup')}
-        </button>
+          <SelectTrigger className="w-[80px] h-8 text-xs shrink-0"> {/* Smaller trigger */}
+            <SelectValue placeholder="Operator" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="AND">{t('queryBuilderAND')}</SelectItem>
+            <SelectItem value="OR">{t('queryBuilderOR')}</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Add Condition Button */}
+        <Button
+            type="button"
+            variant="ghost" // Use ghost for less emphasis
+            size="sm" // Smaller size
+            onClick={handleAddCondition}
+            disabled={disabled}
+            className="h-8 px-2 text-xs" // Adjust padding/height
+        >
+            <Plus className="h-3 w-3 mr-1" /> {/* Icon */}
+            {t('queryBuilderAddCondition')}
+        </Button>
+
+        {/* Add Group Button */}
+        <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleAddGroup}
+            disabled={disabled}
+            className="h-8 px-2 text-xs"
+        >
+            <Group className="h-3 w-3 mr-1" /> {/* Icon */}
+            {t('queryBuilderAddGroup')}
+        </Button>
+
+        {/* Remove Group Button (Conditional) */}
         {canRemove && (
-          <button type="button" onClick={onRemove} disabled={disabled} className="query-builder-button remove-item remove-group">
-            &times; {/* Simple remove icon */}
-          </button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon" // Icon only button
+            onClick={onRemove}
+            disabled={disabled}
+            className="ml-auto h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" // Push right, specific styling
+            aria-label="Remove group"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         )}
       </div>
-      <div className="query-group-conditions">
+
+      {/* Conditions/Subgroups Section */}
+      {/* Apply Tailwind for layout */}
+      <div className="flex flex-col gap-2">
         {group.conditions.map((item, index) => (
-          <div key={item.id} className="query-item-container">
+          // Container for each item (condition or subgroup)
+          <div key={item.id}>
             {'operator' in item ? (
+              // Render nested QueryGroup
               <QueryGroup
                 group={item}
                 onChange={(updatedSubGroup) => handleConditionChange(index, updatedSubGroup)}
                 onRemove={() => handleRemoveItem(index)}
-                level={level + 1}
+                level={level + 1} // Increment level for nesting
                 disabled={disabled}
               />
             ) : (
+              // Render QueryCondition
               <QueryCondition
                 condition={item}
                 onChange={(updatedCondition) => handleConditionChange(index, updatedCondition)}
                 onRemove={() => handleRemoveItem(index)}
-                level={level} // Pass level for potential indenting/styling
-                isFirstInGroup={index === 0} // Pass info if it's the first item
-                groupOperator={group.operator} // Pass parent operator
+                level={level} // Pass level
+                isFirstInGroup={index === 0}
+                groupOperator={group.operator}
                 disabled={disabled}
               />
             )}

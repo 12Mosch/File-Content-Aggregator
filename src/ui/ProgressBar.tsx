@@ -1,6 +1,6 @@
 import React from "react";
-import { useTranslation } from "react-i18next"; // Import the hook
-import "./ProgressBar.css";
+import { useTranslation } from "react-i18next";
+import { Progress } from "@/components/ui/progress";
 
 interface ProgressBarProps {
   processed: number;
@@ -15,34 +15,36 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   message,
   error,
 }) => {
-  // Use the hook, specifying the 'common' namespace
   const { t } = useTranslation(['common']);
 
-  const percentage = total > 0 ? Math.round((processed / total) * 100) : 0;
+  // Calculate percentage (ensure it's between 0 and 100)
+  const percentage = total > 0 ? Math.min(100, Math.max(0, Math.round((processed / total) * 100))) : 0;
 
-  // Use provided message or generate default translated message with interpolation
+  // Determine the display message
   const displayMessage = message || t('progressDefault', { processed, total });
 
   return (
-    <div className="progress-container">
-      <div className="progress-info">
+    // Main container with vertical spacing
+    <div className="w-full my-4 space-y-2">
+      {/* Container for the text labels (message and error) */}
+      <div className="flex justify-between items-center flex-wrap gap-x-4 text-sm text-muted-foreground">
+        {/* Display message and percentage */}
         <span>
           {displayMessage} ({percentage}%)
         </span>
-        {/* Translate error prefix */}
-        {error && <span className="progress-error">{t('progressErrorPrefix')} {error}</span>}
+        {/* Display error message if present */}
+        {error && (
+          <span className="ml-4 font-semibold text-destructive">
+            {t('progressErrorPrefix')} {error}
+          </span>
+        )}
       </div>
-      <div className="progress-bar-background">
-        <div
-          className="progress-bar-foreground"
-          style={{ width: `${percentage}%` }}
-          role="progressbar"
-          aria-valuenow={percentage}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={displayMessage} // Use translated message for accessibility
-        ></div>
-      </div>
+      {/* Use the shadcn Progress component */}
+      <Progress
+        value={percentage} // Pass the calculated percentage
+        aria-label={displayMessage} // For accessibility
+        className="h-2.5" // Optional: Adjust height if needed (default is h-2)
+      />
     </div>
   );
 };
