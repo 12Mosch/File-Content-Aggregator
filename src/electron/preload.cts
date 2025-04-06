@@ -8,116 +8,35 @@ import type { IpcRendererEvent } from "electron";
 // relying on the typed main/renderer processes for stricter checks.
 const electronAPI = {
   // --- Invoke Handlers (Renderer -> Main -> Renderer) ---
-
-  /**
-   * Invokes the file search process in the main process.
-   * @param params - An object containing search parameters (structure matches SearchParams).
-   * @returns A Promise resolving to the search results (structure matches SearchResult).
-   */
-  invokeSearch: (params: any): Promise<any> => // Pass the full params object
-    ipcRenderer.invoke("search-files", params),
-
-  /**
-   * Shows the native "Save File" dialog.
-   * @returns A Promise resolving to the selected file path or undefined if cancelled.
-   */
-  showSaveDialog: (): Promise<string | undefined> =>
-    ipcRenderer.invoke("save-file-dialog"),
-
-  /**
-   * Writes content to a specified file path.
-   * @param filePath - The absolute path to the file.
-   * @param content - The string content to write.
-   * @returns A Promise resolving to true on success, false on failure.
-   */
-  writeFile: (filePath: string, content: string): Promise<boolean> =>
-    ipcRenderer.invoke("write-file", filePath, content),
-
-  /**
-   * Copies the given text content to the system clipboard.
-   * @param content - The string content to copy.
-   * @returns A Promise resolving to true on success, false on failure.
-   */
-  copyToClipboard: (content: string): Promise<boolean> =>
-    ipcRenderer.invoke("copy-to-clipboard", content),
+  invokeSearch: (params: any): Promise<any> => ipcRenderer.invoke("search-files", params),
+  showSaveDialog: (): Promise<string | undefined> => ipcRenderer.invoke("save-file-dialog"),
+  writeFile: (filePath: string, content: string): Promise<boolean> => ipcRenderer.invoke("write-file", filePath, content),
+  copyToClipboard: (content: string): Promise<boolean> => ipcRenderer.invoke("copy-to-clipboard", content),
 
   // --- Event Listeners (Main -> Renderer) ---
-
-  /**
-   * Registers a callback function to receive search progress updates from the main process.
-   * @param callback - The function to call with progress data (structure matches ProgressData).
-   * @returns A function to unsubscribe the listener.
-   */
-  onSearchProgress: (callback: (data: any) => void): (() => void) => { // Use 'any' for data
-    // Define the listener with explicit types
+  onSearchProgress: (callback: (data: any) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on("search-progress", listener);
-    // Return an unsubscribe function
     return () => ipcRenderer.removeListener("search-progress", listener);
   },
 
   // --- i18n Methods ---
+  getInitialLanguage: (): Promise<string> => ipcRenderer.invoke("get-initial-language"),
+  setLanguagePreference: (lng: string): Promise<void> => ipcRenderer.invoke("set-language-preference", lng),
+  notifyLanguageChanged: (lng: string): void => ipcRenderer.send("language-changed", lng),
 
-  /**
-   * Gets the initial language (stored preference or OS locale) from the main process.
-   * @returns Promise<string> - The language code (e.g., 'en', 'de').
-   */
-  getInitialLanguage: (): Promise<string> =>
-    ipcRenderer.invoke("get-initial-language"),
-
-  /**
-   * Saves the user's preferred language via the main process.
-   * @param lng - The language code to save (e.g., 'fr').
-   * @returns Promise<void>
-   */
-  setLanguagePreference: (lng: string): Promise<void> =>
-    ipcRenderer.invoke("set-language-preference", lng),
-
-  /**
-   * Notifies the main process that the renderer's language has changed.
-   * @param lng - The new language code.
-   * @returns {void}
-   */
-  notifyLanguageChanged: (lng: string): void =>
-    ipcRenderer.send("language-changed", lng),
-
-  // --- NEW: Search History Methods ---
-
-  /**
-   * Adds a new entry to the search history.
-   * @param entry - The search history entry object (structure matches SearchHistoryEntry).
-   * @returns Promise<void>
-   */
-  addSearchHistoryEntry: (entry: any): Promise<void> =>
-    ipcRenderer.invoke("add-search-history-entry", entry),
-
-  /**
-   * Retrieves the entire search history.
-   * @returns Promise<any[]> - An array of search history entries.
-   */
-  getSearchHistory: (): Promise<any[]> =>
-    ipcRenderer.invoke("get-search-history"),
-
-  /**
-   * Deletes a specific entry from the search history by its ID.
-   * @param entryId - The unique ID of the history entry to delete.
-   * @returns Promise<void>
-   */
-  deleteSearchHistoryEntry: (entryId: string): Promise<void> =>
-    ipcRenderer.invoke("delete-search-history-entry", entryId),
-
-  /**
-   * Clears the entire search history.
-   * @returns Promise<void>
-   */
-  clearSearchHistory: (): Promise<void> =>
-    ipcRenderer.invoke("clear-search-history"),
-
+  // --- Search History Methods ---
+  addSearchHistoryEntry: (entry: any): Promise<void> => ipcRenderer.invoke("add-search-history-entry", entry),
+  getSearchHistory: (): Promise<any[]> => ipcRenderer.invoke("get-search-history"),
+  deleteSearchHistoryEntry: (entryId: string): Promise<void> => ipcRenderer.invoke("delete-search-history-entry", entryId),
+  clearSearchHistory: (): Promise<boolean> => ipcRenderer.invoke("clear-search-history"), // Returns boolean now
+  // --- NEW: Update History Entry ---
+  updateSearchHistoryEntry: (entryId: string, updates: any): Promise<boolean> =>
+    ipcRenderer.invoke("update-search-history-entry", entryId, updates),
 };
 
 // --- Expose API ---
 try {
-  // Securely expose the defined API to the renderer process under the 'electronAPI' key
   contextBridge.exposeInMainWorld("electronAPI", electronAPI);
   console.log("Preload script: electronAPI exposed successfully.");
 } catch (error) {

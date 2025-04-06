@@ -22,5 +22,17 @@
   "historyLoadButton": "Load",
   "historyDeleteButton": "Delete",
   "historyClearAllButton": "Clear All History",
-  "historyClearConfirm": "Are you sure you want to clear the entire search history? This cannot be undone."
+  "historyClearConfirmTitle": "Clear History Confirmation",
+  "historyClearConfirmMessage": "Are you sure you want to clear the entire search history?",
+  "historyClearConfirmDetail": "This action cannot be undone.",
+  "dialogConfirm": "Confirm",
+  "dialogCancel": "Cancel",
+  "historyFavorite": "Mark as favorite",
+  "historyUnfavorite": "Remove from favorites",
+  "historyUntitled": "Untitled Search",
+  "historyNamePlaceholder": "Enter name...",
+  "historyEditNameTooltip": "Click to edit name",
+  "historyFilterPlaceholder": "Filter history...",
+  "historyNoResults": "No history entries match your filter."
 }
+

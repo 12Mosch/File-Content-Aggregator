@@ -22,5 +22,6 @@
   "historyFetchFailed": "Failed to load search history.",
   "historyDeleteFailed": "Failed to delete history entry.",
   "historyClearFailed": "Failed to clear search history.",
+  "historyUpdateFailed": "Failed to update history entry.",
   "historyApiNA": "History feature is currently unavailable."
 }
