@@ -1,0 +1,209 @@
+/* D:/Code/Electron/src/ui/QueryBuilder.css */
+
+/* Main container for the builder */
+.query-builder-container {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-small);
+    padding: 0.8rem;
+    background-color: var(--color-bg-deep); /* Slightly darker background */
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem; /* Space between root group and options */
+  }
+  
+  .query-builder-container.disabled {
+    opacity: 0.6;
+    pointer-events: none; /* Prevent interaction when disabled */
+  }
+  
+  /* Styling for each group */
+  .query-group {
+    border-left: 2px solid var(--color-border);
+    padding-left: 0.8rem;
+    margin-left: 0.5rem; /* Indentation for nested groups */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Space between controls and conditions */
+  }
+  
+  .query-group.root-group {
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+  }
+  
+  /* Controls within a group (operator, add buttons) */
+  .query-group-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap; /* Allow controls to wrap */
+  }
+  
+  /* Indentation spacer for nested groups */
+  .query-group-indent {
+      width: 10px; /* Adjust as needed */
+      flex-shrink: 0;
+  }
+  
+  /* Operator dropdown (AND/OR) */
+  .query-group-operator {
+    padding: 0.4em 0.8em;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+    min-width: 70px; /* Ensure minimum width */
+  }
+  .query-group-operator:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+  }
+  
+  /* General button styling within the builder */
+  .query-builder-button {
+    padding: 0.4em 0.8em;
+    font-size: 0.9em;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  }
+  
+  .query-builder-button:hover:not(:disabled) {
+    background-color: var(--color-accent-primary-focus);
+    color: var(--color-text-primary);
+    border-color: var(--color-accent-primary);
+  }
+  .query-builder-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+  }
+  
+  /* --- REMOVED EMPTY RULESET for .add-condition, .add-group --- */
+  
+  .remove-item {
+    background-color: transparent;
+    border: none;
+    color: var(--color-error-text);
+    font-weight: bold;
+    font-size: 1.2em;
+    padding: 0 0.5em;
+    margin-left: auto; /* Push remove button to the right */
+  }
+  .remove-item:hover:not(:disabled) {
+    color: var(--color-error-border);
+    background-color: transparent; /* Override general hover */
+  }
+  
+  /* Container for conditions within a group */
+  .query-group-conditions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem; /* Space between conditions/subgroups */
+  }
+  
+  /* --- REMOVED EMPTY RULESET for .query-item-container --- */
+  
+  /* --- REMOVED EMPTY RULESET for .query-condition --- */
+  
+  .query-condition-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap; /* Allow condition parts to wrap */
+    background-color: var(--color-bg-medium); /* Background for the condition row */
+    padding: 0.5rem;
+    border-radius: var(--border-radius-small);
+  }
+  
+  /* Condition type dropdown */
+  .query-condition-type {
+    padding: 0.4em 0.8em;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+    min-width: 100px; /* Ensure minimum width */
+  }
+  
+  /* Input fields within a condition */
+  .query-condition-value,
+  .query-condition-flags,
+  .query-condition-near-distance {
+    padding: 0.4em 0.8em;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.9em;
+  }
+  
+  .query-condition-value {
+    flex-grow: 1; /* Allow main value input to grow */
+    min-width: 150px;
+  }
+  
+  .query-condition-flags {
+    width: 60px; /* Fixed width for flags */
+    text-align: center;
+  }
+  
+  .query-condition-near-distance {
+    width: 60px; /* Fixed width for distance */
+    text-align: right;
+    /* Remove spinners */
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .query-condition-near-distance::-webkit-outer-spin-button,
+  .query-condition-near-distance::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  
+  .query-condition-value.regex-value {
+    /* Specific styles for regex pattern input if needed */
+    font-family: var(--font-monospace);
+  }
+  
+  .query-condition-value.near-term {
+      min-width: 120px;
+      flex-grow: 1;
+  }
+  
+  /* Separators and labels for regex/near */
+  .query-condition-regex-sep {
+    font-size: 1.1em;
+    color: var(--color-text-secondary);
+    margin: 0 -0.2rem; /* Adjust spacing around slashes */
+  }
+  
+  .query-condition-near-label {
+      font-size: 0.9em;
+      color: var(--color-text-secondary);
+      margin: 0 0.2rem;
+  }
+  
+  /* Options section (e.g., case sensitive checkbox) */
+  .query-builder-options {
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid var(--color-border);
+  }
+  
+  .query-builder-case-sensitive {
+      /* Uses form-group-checkbox styles */
+      justify-content: flex-start; /* Align checkbox to the left */
+  }
+  

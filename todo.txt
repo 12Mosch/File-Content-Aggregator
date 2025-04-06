@@ -1,5 +1,2 @@
-2. Proximity Search: Implement operators like NEAR or WITHIN (e.g., "error" NEAR/5 "database"). This requires much more complex evaluation logic, tracking term positions.
-3. Structured Query Builder UI: Replace the text input with a visual builder for users less comfortable with boolean syntax.
-
 4. Provide a documentation about the program.
 Add new fresh UI https://ui.shadcn.com/

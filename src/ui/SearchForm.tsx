@@ -1,24 +1,24 @@
 // D:/Code/Electron/src/ui/SearchForm.tsx
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import QueryBuilder from "./QueryBuilder"; // Import the new QueryBuilder
+import type { QueryGroup as QueryStructure } from "./queryBuilderTypes"; // Import the structure type
 import "./SearchForm.css";
-import type { ContentSearchMode } from "./vite-env.d";
+import type { ContentSearchMode } from "./vite-env.d"; // Keep this if needed elsewhere
 
 // Define unit constants for calculations
 const SIZE_UNITS = { Bytes: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
 type SizeUnit = keyof typeof SIZE_UNITS;
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
-// Define the shape of the data managed by the form's state
+// Define the shape of the data managed by the form's state (excluding content search)
 interface SearchFormData {
   searchPaths: string;
   extensions: string;
   excludeFiles: string;
   excludeFolders: string;
   folderExclusionMode: FolderExclusionMode;
-  contentSearchTerm: string;
-  contentSearchMode: ContentSearchMode;
-  caseSensitive: boolean;
+  // Removed: contentSearchTerm, contentSearchMode, caseSensitive (handled by QueryBuilder)
   modifiedAfter: string;
   modifiedBefore: string;
   minSizeValue: string;
@@ -29,15 +29,16 @@ interface SearchFormData {
 }
 
 // Define the shape of the parameters passed to the onSubmit callback
+// Content search term is now generated from the query builder structure
 interface SubmitParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
   folderExclusionMode?: FolderExclusionMode;
-  contentSearchTerm?: string;
-  contentSearchMode?: ContentSearchMode;
-  caseSensitive?: boolean; // Applies to 'term' mode and non-regex terms in 'boolean' mode
+  contentSearchTerm?: string; // This will be the generated boolean string
+  contentSearchMode?: ContentSearchMode; // Will likely always be 'boolean' if term exists
+  caseSensitive?: boolean; // Still needed for backend simple term matching within boolean
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
@@ -50,6 +51,54 @@ interface SearchFormProps {
   isLoading: boolean;
 }
 
+// --- Helper Function to Convert Structured Query to String ---
+const convertStructuredQueryToString = (group: QueryStructure): string => {
+  if (!group || group.conditions.length === 0) {
+    return "";
+  }
+
+  const parts = group.conditions.map((item) => {
+    if ("operator" in item) {
+      // It's a nested QueryGroup
+      return `(${convertStructuredQueryToString(item)})`;
+    } else {
+      // It's a Condition
+      switch (item.type) {
+        case "term":
+          // Quote terms containing spaces or special chars for safety, handle case sensitivity later
+          return /\s|[()]|AND|OR|NOT|NEAR/i.test(item.value)
+            ? `"${item.value.replace(/"/g, '\\"')}"` // Escape internal quotes
+            : item.value;
+        case "regex":
+          // Assume value is the pattern, flags are separate. Construct /pattern/flags literal.
+          // Ensure flags are valid characters
+          const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
+          return `/${item.value}/${validFlags}`;
+        case "near":
+          // Wrap terms in quotes if they aren't already regex literals or simple identifiers
+          const formatNearTerm = (term: string) => {
+            if (term.startsWith('/') && term.endsWith('/')) return term; // Already regex
+            return /\s|[()]|AND|OR|NOT|NEAR/i.test(term)
+              ? `"${term.replace(/"/g, '\\"')}"`
+              : term;
+          };
+          return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
+        default:
+          console.warn("Unknown condition type in query structure:", item);
+          return "";
+      }
+    }
+  });
+
+  // Filter out empty strings resulting from unknown types
+  const validParts = parts.filter(Boolean);
+  if (validParts.length === 0) return "";
+  if (validParts.length === 1) return validParts[0]; // No need for operator if only one part
+
+  return validParts.join(` ${group.operator} `);
+};
+// ---------------------------------------------------------
+
 const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   const { t } = useTranslation(["form"]);
 
@@ -59,9 +108,6 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     excludeFiles: "",
     excludeFolders: ".git, node_modules, bin, obj, dist",
     folderExclusionMode: "contains",
-    contentSearchTerm: "",
-    contentSearchMode: "term",
-    caseSensitive: false,
     modifiedAfter: "",
     modifiedBefore: "",
     minSizeValue: "",
@@ -71,7 +117,12 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     maxDepthValue: "",
   });
 
-  const handleChange = (
+  // State for the structured query from the QueryBuilder
+  const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(null);
+  // State to track if the query builder should use case sensitivity for simple terms
+  const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
+
+  const handleFormChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
@@ -86,14 +137,23 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
+  // Callback for the QueryBuilder to update the structured query state
+  const handleQueryChange = useCallback((newQuery: QueryStructure | null) => {
+    setQueryStructure(newQuery);
+  }, []);
+
+  // Callback for the QueryBuilder to update case sensitivity
+  const handleQueryCaseSensitivityChange = useCallback((checked: boolean) => {
+    setQueryCaseSensitive(checked);
+  }, []);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const splitAndClean = (str: string) => str.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+
+    // Convert the structured query to a string for the backend
+    const contentQueryString = queryStructure ? convertStructuredQueryToString(queryStructure) : "";
 
     const submitParams: SubmitParams = {
       searchPaths: splitAndClean(formData.searchPaths),
@@ -103,23 +163,18 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       folderExclusionMode: formData.folderExclusionMode,
     };
 
-    if (formData.contentSearchTerm.trim()) {
-      submitParams.contentSearchTerm = formData.contentSearchTerm.trim();
-      submitParams.contentSearchMode = formData.contentSearchMode;
-      // Only pass caseSensitive if mode is 'term' or 'boolean'
-      // Regex mode relies on flags in the pattern itself
-      if (formData.contentSearchMode === 'term' || formData.contentSearchMode === 'boolean') {
-        submitParams.caseSensitive = formData.caseSensitive;
-      } else {
-        submitParams.caseSensitive = undefined; // Don't pass for regex mode
-      }
+    // Set content search parameters if a query string was generated
+    if (contentQueryString) {
+      submitParams.contentSearchTerm = contentQueryString;
+      submitParams.contentSearchMode = "boolean"; // Always boolean mode when using builder
+      submitParams.caseSensitive = queryCaseSensitive; // Pass the case sensitivity setting
     } else {
       submitParams.contentSearchTerm = undefined;
       submitParams.contentSearchMode = undefined;
       submitParams.caseSensitive = undefined;
     }
 
-    // --- Date, Size, Depth handling ---
+    // --- Date, Size, Depth handling (remains the same) ---
     if (formData.modifiedAfter) submitParams.modifiedAfter = formData.modifiedAfter;
     if (formData.modifiedBefore) submitParams.modifiedBefore = formData.modifiedBefore;
     const minSizeNum = parseFloat(formData.minSizeValue);
@@ -134,49 +189,34 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     if (!isNaN(maxDepthNum) && maxDepthNum > 0) submitParams.maxDepth = maxDepthNum;
     // ---------------------------------
 
+    console.log("Submitting Params:", submitParams); // Log parameters being sent
     onSubmit(submitParams);
   };
-
-  const hasContentSearchTerm = !!formData.contentSearchTerm.trim();
-  // Case sensitive checkbox is relevant for 'term' and 'boolean' modes
-  const isCaseSensitiveRelevant = formData.contentSearchMode === 'term' || formData.contentSearchMode === 'boolean';
-  const isCaseSensitiveDisabled = isLoading || !hasContentSearchTerm || !isCaseSensitiveRelevant;
-
-  // --- Determine placeholder based on mode ---
-  const getPlaceholder = () => {
-      switch (formData.contentSearchMode) {
-          case 'regex': return t("contentSearchPlaceholderRegex");
-          case 'boolean': return t("contentSearchPlaceholderBooleanRegex"); // Use updated key
-          case 'term':
-          default: return t("contentSearchPlaceholder");
-      }
-  };
-  // -----------------------------------------
 
   return (
     <form onSubmit={handleSubmit} className="search-form">
       {/* Search Paths, Extensions, Exclude Files */}
       <div className="form-group">
         <label htmlFor="searchPaths">{t("searchPathLabel")}</label>
-        <textarea id="searchPaths" name="searchPaths" value={formData.searchPaths} onChange={handleChange} rows={3} required placeholder={t("searchPathPlaceholder")} disabled={isLoading} />
+        <textarea id="searchPaths" name="searchPaths" value={formData.searchPaths} onChange={handleFormChange} rows={3} required placeholder={t("searchPathPlaceholder")} disabled={isLoading} />
       </div>
       <div className="form-group">
         <label htmlFor="extensions">{t("extensionsLabel")}</label>
-        <input type="text" id="extensions" name="extensions" value={formData.extensions} onChange={handleChange} required placeholder={t("extensionsPlaceholder")} disabled={isLoading} />
+        <input type="text" id="extensions" name="extensions" value={formData.extensions} onChange={handleFormChange} required placeholder={t("extensionsPlaceholder")} disabled={isLoading} />
       </div>
       <div className="form-group">
         <label htmlFor="excludeFiles">{t("excludeFilesLabelRegex")}</label>
-        <textarea id="excludeFiles" name="excludeFiles" value={formData.excludeFiles} onChange={handleChange} rows={2} placeholder={t("excludeFilesPlaceholderRegex")} disabled={isLoading} />
+        <textarea id="excludeFiles" name="excludeFiles" value={formData.excludeFiles} onChange={handleFormChange} rows={2} placeholder={t("excludeFilesPlaceholderRegex")} disabled={isLoading} />
       </div>
 
       {/* Exclude Folders & Mode Selector */}
       <div className="form-group">
         <label htmlFor="excludeFolders">{t("excludeFoldersLabelRegex")}</label>
         <div className="folder-exclusion-group">
-          <textarea id="excludeFolders" name="excludeFolders" value={formData.excludeFolders} onChange={handleChange} rows={2} placeholder={t("excludeFoldersPlaceholderRegex")} disabled={isLoading} className="folder-exclusion-input" />
+          <textarea id="excludeFolders" name="excludeFolders" value={formData.excludeFolders} onChange={handleFormChange} rows={2} placeholder={t("excludeFoldersPlaceholderRegex")} disabled={isLoading} className="folder-exclusion-input" />
           <div className="folder-exclusion-mode-group">
              <label htmlFor="folderExclusionMode" className="folder-exclusion-mode-label">{t("folderExclusionModeLabel")}</label>
-             <select id="folderExclusionMode" name="folderExclusionMode" value={formData.folderExclusionMode} onChange={handleChange} disabled={isLoading} className="folder-exclusion-mode-select">
+             <select id="folderExclusionMode" name="folderExclusionMode" value={formData.folderExclusionMode} onChange={handleFormChange} disabled={isLoading} className="folder-exclusion-mode-select">
                 <option value="contains">{t("folderExclusionModeContains")}</option>
                 <option value="exact">{t("folderExclusionModeExact")}</option>
                 <option value="startsWith">{t("folderExclusionModeStartsWith")}</option>
@@ -189,65 +229,30 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       {/* Max Depth */}
       <div className="form-group form-group-depth">
         <label htmlFor="maxDepthValue">{t("maxDepthLabel")}</label>
-        <input type="number" id="maxDepthValue" name="maxDepthValue" value={formData.maxDepthValue} onChange={handleChange} disabled={isLoading} className="form-input-depth" placeholder={t("maxDepthPlaceholder")} min="1" step="1" />
+        <input type="number" id="maxDepthValue" name="maxDepthValue" value={formData.maxDepthValue} onChange={handleFormChange} disabled={isLoading} className="form-input-depth" placeholder={t("maxDepthPlaceholder")} min="1" step="1" />
       </div>
 
-      {/* Content Search Group (Dropdown + Input) */}
+      {/* --- Query Builder Integration --- */}
       <div className="form-group">
-        <label htmlFor="contentSearchMode">{t("contentSearchModeLabel")}</label>
-        <div className="content-search-group">
-          <select
-            id="contentSearchMode"
-            name="contentSearchMode"
-            value={formData.contentSearchMode}
-            onChange={handleChange}
+        <label>{t("contentQueryBuilderLabel")}</label>
+        <QueryBuilder
+            onChange={handleQueryChange}
+            onCaseSensitivityChange={handleQueryCaseSensitivityChange} // Pass handler
+            initialCaseSensitive={queryCaseSensitive} // Pass initial state
             disabled={isLoading}
-            className="content-search-mode-select"
-          >
-            <option value="term">{t("contentSearchModeTerm")}</option>
-            <option value="regex">{t("contentSearchModeRegex")}</option>
-            <option value="boolean">{t("contentSearchModeBoolean")}</option>
-          </select>
-          <input
-            type="text"
-            id="contentSearchTerm"
-            name="contentSearchTerm"
-            value={formData.contentSearchTerm}
-            onChange={handleChange}
-            placeholder={getPlaceholder()} // Use dynamic placeholder
-            disabled={isLoading}
-            className="content-search-input"
-          />
-        </div>
+        />
       </div>
-
-      {/* Case Sensitive Checkbox (only shown if relevant) */}
-      {hasContentSearchTerm && isCaseSensitiveRelevant && (
-        <div className="form-group form-group-checkbox">
-          <input
-            type="checkbox"
-            id="caseSensitive"
-            name="caseSensitive"
-            checked={formData.caseSensitive}
-            onChange={handleCheckboxChange}
-            disabled={isCaseSensitiveDisabled}
-            className="form-checkbox"
-          />
-          <label htmlFor="caseSensitive" className="form-checkbox-label">
-            {t("caseSensitiveLabel")}
-          </label>
-        </div>
-      )}
+      {/* ------------------------------- */}
 
       {/* Date Fields */}
       <div className="form-row">
         <div className="form-group">
           <label htmlFor="modifiedAfter">{t("modifiedAfterLabel")}</label>
-          <input type="date" id="modifiedAfter" name="modifiedAfter" value={formData.modifiedAfter} onChange={handleChange} disabled={isLoading} className="form-input-date" />
+          <input type="date" id="modifiedAfter" name="modifiedAfter" value={formData.modifiedAfter} onChange={handleFormChange} disabled={isLoading} className="form-input-date" />
         </div>
         <div className="form-group">
           <label htmlFor="modifiedBefore">{t("modifiedBeforeLabel")}</label>
-          <input type="date" id="modifiedBefore" name="modifiedBefore" value={formData.modifiedBefore} onChange={handleChange} disabled={isLoading} className="form-input-date" />
+          <input type="date" id="modifiedBefore" name="modifiedBefore" value={formData.modifiedBefore} onChange={handleFormChange} disabled={isLoading} className="form-input-date" />
         </div>
       </div>
 
@@ -256,8 +261,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         <div className="form-group form-group-size">
           <label htmlFor="minSizeValue">{t("minSizeLabel")}</label>
           <div className="size-input-group">
-            <input type="number" id="minSizeValue" name="minSizeValue" value={formData.minSizeValue} onChange={handleChange} disabled={isLoading} className="form-input-size-value" placeholder="e.g., 100" min="0" step="any" />
-            <select id="minSizeUnit" name="minSizeUnit" value={formData.minSizeUnit} onChange={handleChange} disabled={isLoading} className="form-input-size-unit">
+            <input type="number" id="minSizeValue" name="minSizeValue" value={formData.minSizeValue} onChange={handleFormChange} disabled={isLoading} className="form-input-size-value" placeholder="e.g., 100" min="0" step="any" />
+            <select id="minSizeUnit" name="minSizeUnit" value={formData.minSizeUnit} onChange={handleFormChange} disabled={isLoading} className="form-input-size-unit">
               {Object.keys(SIZE_UNITS).map((unit) => (<option key={unit} value={unit}>{t(`sizeUnit${unit}` as any)}</option>))}
             </select>
           </div>
@@ -265,8 +270,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         <div className="form-group form-group-size">
           <label htmlFor="maxSizeValue">{t("maxSizeLabel")}</label>
           <div className="size-input-group">
-            <input type="number" id="maxSizeValue" name="maxSizeValue" value={formData.maxSizeValue} onChange={handleChange} disabled={isLoading} className="form-input-size-value" placeholder="e.g., 50" min="0" step="any" />
-            <select id="maxSizeUnit" name="maxSizeUnit" value={formData.maxSizeUnit} onChange={handleChange} disabled={isLoading} className="form-input-size-unit">
+            <input type="number" id="maxSizeValue" name="maxSizeValue" value={formData.maxSizeValue} onChange={handleFormChange} disabled={isLoading} className="form-input-size-value" placeholder="e.g., 50" min="0" step="any" />
+            <select id="maxSizeUnit" name="maxSizeUnit" value={formData.maxSizeUnit} onChange={handleFormChange} disabled={isLoading} className="form-input-size-unit">
               {Object.keys(SIZE_UNITS).map((unit) => (<option key={unit} value={unit}>{t(`sizeUnit${unit}` as any)}</option>))}
             </select>
           </div>
