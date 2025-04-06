@@ -14,5 +14,13 @@
   "lang_fr": "French (Français)",
   "lang_pt": "Portuguese (Português)",
   "lang_ru": "Russian (Русский)",
-  "lang_it": "Italian (Italiano)"
+  "lang_it": "Italian (Italiano)",
+
+  "historyButtonLabel": "Search History",
+  "historyTitle": "Search History",
+  "historyEmpty": "No search history yet.",
+  "historyLoadButton": "Load",
+  "historyDeleteButton": "Delete",
+  "historyClearAllButton": "Clear All History",
+  "historyClearConfirm": "Are you sure you want to clear the entire search history? This cannot be undone."
 }

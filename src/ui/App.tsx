@@ -1,10 +1,11 @@
-// D:/Code/Electron/src/ui/App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
 import ProgressBar from "./ProgressBar";
 import SettingsModal from "./SettingsModal";
+import HistoryButton from "./HistoryButton";
+import HistoryModal from "./HistoryModal";
 import useDebounce from "./hooks/useDebounce";
 import type {
   ProgressData,
@@ -12,25 +13,18 @@ import type {
   FileReadError,
   IElectronAPI,
   StructuredItem,
+  SearchHistoryEntry, // Import History Entry type
+  SearchParams as SubmitParams, // Rename for clarity in this file
 } from "./vite-env.d";
+import { generateId } from "./queryBuilderUtils"; // Import ID generator
 
 import "./App.css";
 import "./index.css";
 import "./SettingsModal.css";
 import "./ResultsFilter.css";
+import "./HistoryModal.css"; // Add History Modal CSS
 
-interface SearchParamsUI {
-  searchPaths: string[];
-  extensions: string[];
-  excludeFiles: string[];
-  excludeFolders: string[];
-  folderExclusionMode?: 'contains' | 'exact' | 'startsWith' | 'endsWith';
-  contentSearchTerm?: string;
-  caseSensitive?: boolean;
-  modifiedAfter?: string;
-  modifiedBefore?: string;
-  maxDepth?: number;
-}
+// Removed SearchParamsUI as SearchForm now handles its internal state differently
 
 const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 type GroupedErrors = { [reasonKey: string]: string[] };
@@ -61,13 +55,18 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'text' | 'tree'>('text');
   const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(new Map());
-  // --- Add a state counter to force updates ---
   const [itemDisplayVersion, setItemDisplayVersion] = useState(0);
-  // -------------------------------------------
 
   const [resultsFilterTerm, setResultsFilterTerm] = useState<string>("");
   const [resultsFilterCaseSensitive, setResultsFilterCaseSensitive] = useState<boolean>(false);
   const debouncedFilterTerm = useDebounce(resultsFilterTerm, FILTER_DEBOUNCE_DELAY);
+
+  // --- History State ---
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
+  // State to trigger loading a history entry into the form
+  const [historyEntryToLoad, setHistoryEntryToLoad] = useState<SearchHistoryEntry | null>(null);
+  // ---------------------
 
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
@@ -90,18 +89,104 @@ function App() {
     }
   }, [t]);
 
-  const handleSearchSubmit = useCallback(async (params: SearchParamsUI) => {
+  // --- History Functions ---
+  const openHistoryModal = useCallback(async () => {
+    if (window.electronAPI?.getSearchHistory) {
+      try {
+        const history = await window.electronAPI.getSearchHistory();
+        setSearchHistory(history);
+        setIsHistoryOpen(true);
+      } catch (err) {
+        console.error("UI: Failed to fetch search history:", err);
+        setGeneralError(t('errors:historyFetchFailed'));
+      }
+    } else {
+      console.warn("UI: getSearchHistory API not available.");
+      setGeneralError(t('errors:historyApiNA'));
+    }
+  }, [t]);
+
+  const closeHistoryModal = () => setIsHistoryOpen(false);
+
+  const handleLoadSearchFromHistory = useCallback((entry: SearchHistoryEntry) => {
+    console.log("UI: Loading history entry:", entry.id);
+    setHistoryEntryToLoad(entry); // Set the entry to be loaded by SearchForm
+    closeHistoryModal(); // Close modal after selection
+  }, []);
+
+  // Callback for SearchForm to signal loading is complete
+  const handleHistoryLoadComplete = useCallback(() => {
+    setHistoryEntryToLoad(null); // Reset the trigger
+  }, []);
+
+  const handleDeleteHistoryEntry = useCallback(async (entryId: string) => {
+    if (window.electronAPI?.deleteSearchHistoryEntry) {
+      try {
+        await window.electronAPI.deleteSearchHistoryEntry(entryId);
+        // Refresh history in the modal
+        setSearchHistory(prev => prev.filter(entry => entry.id !== entryId));
+      } catch (err) {
+        console.error("UI: Failed to delete history entry:", err);
+        setGeneralError(t('errors:historyDeleteFailed'));
+      }
+    } else {
+      console.warn("UI: deleteSearchHistoryEntry API not available.");
+      setGeneralError(t('errors:historyApiNA'));
+    }
+  }, [t]);
+
+  const handleClearHistory = useCallback(async () => {
+    // Optional: Add a confirmation dialog here
+    if (!confirm(t('common:historyClearConfirm'))) {
+        return;
+    }
+    if (window.electronAPI?.clearSearchHistory) {
+      try {
+        await window.electronAPI.clearSearchHistory();
+        setSearchHistory([]); // Clear local state
+        // Optionally close the modal after clearing
+        // closeHistoryModal();
+      } catch (err) {
+        console.error("UI: Failed to clear history:", err);
+        setGeneralError(t('errors:historyClearFailed'));
+      }
+    } else {
+      console.warn("UI: clearSearchHistory API not available.");
+      setGeneralError(t('errors:historyApiNA'));
+    }
+  }, [t]);
+  // -----------------------
+
+  const handleSearchSubmit = useCallback(async (params: SubmitParams) => {
     setIsLoading(true);
     setResults(null);
     setStructuredResults(null);
     setSearchSummary(null);
     setPathErrors([]);
     setFileReadErrors([]);
-    setItemDisplayStates(new Map()); // Reset map
-    setItemDisplayVersion(0); // Reset version counter
+    setItemDisplayStates(new Map());
+    setItemDisplayVersion(0);
     setProgress({ processed: 0, total: 0, message: "Starting search..." });
     setGeneralError(null);
     setResultsFilterTerm("");
+
+    // --- Save to History ---
+    if (window.electronAPI?.addSearchHistoryEntry && params.searchPaths.length > 0) {
+        const historyEntry: SearchHistoryEntry = {
+            id: generateId(), // Use utility function
+            timestamp: new Date().toISOString(),
+            // Store the exact parameters sent to the backend
+            // including the potentially null structuredQuery
+            searchParams: { ...params },
+        };
+        try {
+            await window.electronAPI.addSearchHistoryEntry(historyEntry);
+        } catch (err) {
+            console.error("UI: Failed to save search to history:", err);
+            // Non-critical error, don't block the search itself
+        }
+    }
+    // ---------------------
 
     try {
       if (!window.electronAPI?.invokeSearch) throw new Error(t('errors:searchFunctionNA'));
@@ -119,7 +204,10 @@ function App() {
           if (err.startsWith('Search path not found:')) return t('errors:pathNotFound', { path: err.substring('Search path not found:'.length).trim() });
           if (err.startsWith('Search path is not a directory:')) return t('errors:pathNotDir', { path: err.substring('Search path is not a directory:'.length).trim() });
           if (err.startsWith('Permission denied for search path:')) return t('errors:pathPermissionDenied', { path: err.substring('Permission denied for search path:'.length).trim() });
-          return err;
+          // Add translation for boolean/regex parse errors if needed
+          if (err.startsWith('Invalid boolean query syntax:')) return t('errors:invalidBooleanQuery', { detail: err.substring('Invalid boolean query syntax:'.length).trim() });
+          if (err.startsWith('Invalid regular expression pattern:')) return t('errors:invalidRegexPattern', { pattern: err.substring('Invalid regular expression pattern:'.length).trim() });
+          return err; // Fallback for untranslated errors
       });
       setPathErrors(translatedPathErrors);
       setFileReadErrors(searchResult.fileReadErrors);
@@ -138,7 +226,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t]); // Add t to dependency array
 
   const handleCopyResults = useCallback(async (): Promise<{ success: boolean; potentiallyTruncated: boolean }> => {
     let potentiallyTruncated = false;
@@ -183,51 +271,39 @@ function App() {
   // --- Modified state update functions ---
   const updateItemDisplayState = useCallback((updater: (prevMap: ItemDisplayStates) => ItemDisplayStates) => {
       setItemDisplayStates(prevMap => {
-          // Always create a new map from the updater function's result
           const newMap = updater(prevMap);
-          // Only increment version if the map actually changed reference or content
-          // (updater should return prevMap if no change occurred)
           if (newMap !== prevMap) {
-              setItemDisplayVersion(v => v + 1); // Increment version on change
+              setItemDisplayVersion(v => v + 1);
               return newMap;
           }
-          return prevMap; // Return old map if no change
+          return prevMap;
       });
-  }, []); // No dependencies needed for the updater function itself
+  }, []);
 
   const handleToggleExpand = useCallback((filePath: string) => {
-    console.log(`[App] Toggling expand for: ${filePath}`);
     updateItemDisplayState(prevMap => {
-      const newMap = new Map(prevMap); // Create a new map instance
+      const newMap = new Map(prevMap);
       const currentState = newMap.get(filePath);
       if (currentState?.expanded) {
-          console.log(`[App] Collapsing: ${filePath}`);
           newMap.delete(filePath);
       } else {
-          console.log(`[App] Expanding: ${filePath}`);
           newMap.set(filePath, { expanded: true, showFull: false });
       }
-      console.log('[App] New itemDisplayStates size:', newMap.size);
-      return newMap; // Return the new map
+      return newMap;
     });
-  }, [updateItemDisplayState]); // Depend on the memoized updater
+  }, [updateItemDisplayState]);
 
   const handleShowFullContent = useCallback((filePath: string) => {
-    console.log(`[App] handleShowFullContent called for: ${filePath}`);
     updateItemDisplayState(prevMap => {
-        const currentState = prevMap.get(filePath); // Check current state from previous map
-        console.log(`[App] Current state for ${filePath}:`, currentState);
-
+        const currentState = prevMap.get(filePath);
         if (currentState?.expanded && !currentState.showFull) {
-            const newMap = new Map(prevMap); // Create new map only if changing
-            console.log(`[App] Setting showFull = true for: ${filePath}`);
+            const newMap = new Map(prevMap);
             newMap.set(filePath, { ...currentState, showFull: true });
-            return newMap; // Return the new map
+            return newMap;
         }
-        console.log(`[App] No state change needed for showFull on: ${filePath}`);
-        return prevMap; // Return the *previous* map reference if no change
+        return prevMap;
     });
-  }, [updateItemDisplayState]); // Depend on the memoized updater
+  }, [updateItemDisplayState]);
   // ---------------------------------------
 
   const isFilterActive = debouncedFilterTerm.trim().length > 0;
@@ -275,12 +351,21 @@ function App() {
     <div className="app-container">
       <div className="app-header">
         <h1>{t('common:appName')}</h1>
-        <button onClick={openSettings} className="settings-button" aria-label={t('common:settings')}>
-          ⚙️
-        </button>
+        <div className="app-header-actions">
+            <HistoryButton onClick={openHistoryModal} disabled={isLoading} />
+            <button onClick={openSettings} className="settings-button" aria-label={t('common:settings')}>
+              ⚙️
+            </button>
+        </div>
       </div>
 
-      <SearchForm onSubmit={handleSearchSubmit} isLoading={isLoading} />
+      <SearchForm
+        onSubmit={handleSearchSubmit}
+        isLoading={isLoading}
+        // Pass the history entry to load and the completion callback
+        historyEntryToLoad={historyEntryToLoad}
+        onLoadComplete={handleHistoryLoadComplete}
+      />
 
       {generalError && <p className="error-message">{t('errors:generalErrorPrefix')} {generalError}</p>}
 
@@ -344,19 +429,18 @@ function App() {
                 </label>
             </div>
 
-            {/* Pass itemDisplayStates AND itemDisplayVersion down */}
             <ResultsDisplay
                 results={results}
                 filteredTextLines={filteredTextLines}
                 filteredStructuredItems={filteredStructuredResults}
                 summary={searchSummary}
                 viewMode={viewMode}
-                itemDisplayStates={itemDisplayStates} // Pass the state map
-                itemDisplayVersion={itemDisplayVersion} // Pass the version counter
+                itemDisplayStates={itemDisplayStates}
+                itemDisplayVersion={itemDisplayVersion}
                 onCopy={handleCopyResults}
                 onSave={handleSaveResults}
                 onToggleExpand={handleToggleExpand}
-                onShowFullContent={handleShowFullContent} // Pass the handler
+                onShowFullContent={handleShowFullContent}
                 isFilterActive={isFilterActive}
                 filterTerm={debouncedFilterTerm}
                 filterCaseSensitive={resultsFilterCaseSensitive}
@@ -365,6 +449,14 @@ function App() {
       )}
 
       <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={closeHistoryModal}
+        history={searchHistory}
+        onLoad={handleLoadSearchFromHistory}
+        onDelete={handleDeleteHistoryEntry}
+        onClear={handleClearHistory}
+      />
     </div>
   );
 }

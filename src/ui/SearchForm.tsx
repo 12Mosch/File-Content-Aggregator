@@ -1,24 +1,24 @@
 // D:/Code/Electron/src/ui/SearchForm.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import QueryBuilder from "./QueryBuilder"; // Import the new QueryBuilder
-import type { QueryGroup as QueryStructure } from "./queryBuilderTypes"; // Import the structure type
+import QueryBuilder from "./QueryBuilder";
+import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
+import type { SearchHistoryEntry } from "./vite-env.d"; // Import history type
 import "./SearchForm.css";
-import type { ContentSearchMode } from "./vite-env.d"; // Keep this if needed elsewhere
+import type { ContentSearchMode } from "./vite-env.d";
 
 // Define unit constants for calculations
 const SIZE_UNITS = { Bytes: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
 type SizeUnit = keyof typeof SIZE_UNITS;
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
-// Define the shape of the data managed by the form's state (excluding content search)
+// Define the shape of the data managed by the form's state
 interface SearchFormData {
   searchPaths: string;
   extensions: string;
   excludeFiles: string;
   excludeFolders: string;
   folderExclusionMode: FolderExclusionMode;
-  // Removed: contentSearchTerm, contentSearchMode, caseSensitive (handled by QueryBuilder)
   modifiedAfter: string;
   modifiedBefore: string;
   minSizeValue: string;
@@ -29,16 +29,16 @@ interface SearchFormData {
 }
 
 // Define the shape of the parameters passed to the onSubmit callback
-// Content search term is now generated from the query builder structure
 interface SubmitParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
   folderExclusionMode?: FolderExclusionMode;
-  contentSearchTerm?: string; // This will be the generated boolean string
-  contentSearchMode?: ContentSearchMode; // Will likely always be 'boolean' if term exists
-  caseSensitive?: boolean; // Still needed for backend simple term matching within boolean
+  contentSearchTerm?: string;
+  contentSearchMode?: ContentSearchMode;
+  structuredQuery?: QueryStructure | null; // Include the raw structure for history saving
+  caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
@@ -49,57 +49,84 @@ interface SubmitParams {
 interface SearchFormProps {
   onSubmit: (params: SubmitParams) => void;
   isLoading: boolean;
+  historyEntryToLoad: SearchHistoryEntry | null; // Prop to receive history entry
+  onLoadComplete: () => void; // Callback to signal loading is done
 }
 
-// --- Helper Function to Convert Structured Query to String ---
+// Helper function to convert structured query to string (remains the same)
 const convertStructuredQueryToString = (group: QueryStructure): string => {
-  if (!group || group.conditions.length === 0) {
-    return "";
-  }
-
-  const parts = group.conditions.map((item) => {
-    if ("operator" in item) {
-      // It's a nested QueryGroup
-      return `(${convertStructuredQueryToString(item)})`;
-    } else {
-      // It's a Condition
-      switch (item.type) {
-        case "term":
-          // Quote terms containing spaces or special chars for safety, handle case sensitivity later
-          return /\s|[()]|AND|OR|NOT|NEAR/i.test(item.value)
-            ? `"${item.value.replace(/"/g, '\\"')}"` // Escape internal quotes
-            : item.value;
-        case "regex":
-          // Assume value is the pattern, flags are separate. Construct /pattern/flags literal.
-          // Ensure flags are valid characters
-          const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
-          return `/${item.value}/${validFlags}`;
-        case "near":
-          // Wrap terms in quotes if they aren't already regex literals or simple identifiers
-          const formatNearTerm = (term: string) => {
-            if (term.startsWith('/') && term.endsWith('/')) return term; // Already regex
-            return /\s|[()]|AND|OR|NOT|NEAR/i.test(term)
-              ? `"${term.replace(/"/g, '\\"')}"`
-              : term;
-          };
-          return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
-        default:
-          console.warn("Unknown condition type in query structure:", item);
-          return "";
-      }
+  // ... (implementation from previous step) ...
+    if (!group || group.conditions.length === 0) {
+        return "";
     }
-  });
 
-  // Filter out empty strings resulting from unknown types
-  const validParts = parts.filter(Boolean);
-  if (validParts.length === 0) return "";
-  if (validParts.length === 1) return validParts[0]; // No need for operator if only one part
+    const parts = group.conditions.map((item) => {
+        if ("operator" in item) {
+        // It's a nested QueryGroup
+        return `(${convertStructuredQueryToString(item)})`;
+        } else {
+        // It's a Condition
+        switch (item.type) {
+            case "term":
+            // Quote terms containing spaces or special chars for safety, handle case sensitivity later
+            return /\s|[()]|AND|OR|NOT|NEAR/i.test(item.value)
+                ? `"${item.value.replace(/"/g, '\\"')}"` // Escape internal quotes
+                : item.value;
+            case "regex":
+            // Assume value is the pattern, flags are separate. Construct /pattern/flags literal.
+            // Ensure flags are valid characters
+            const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
+            return `/${item.value}/${validFlags}`;
+            case "near":
+            // Wrap terms in quotes if they aren't already regex literals or simple identifiers
+            const formatNearTerm = (term: string) => {
+                if (term.startsWith('/') && term.endsWith('/')) return term; // Already regex
+                return /\s|[()]|AND|OR|NOT|NEAR/i.test(term)
+                ? `"${term.replace(/"/g, '\\"')}"`
+                : term;
+            };
+            return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
+            default:
+            console.warn("Unknown condition type in query structure:", item);
+            return "";
+        }
+        }
+    });
 
-  return validParts.join(` ${group.operator} `);
+    // Filter out empty strings resulting from unknown types
+    const validParts = parts.filter(Boolean);
+    if (validParts.length === 0) return "";
+    if (validParts.length === 1) return validParts[0]; // No need for operator if only one part
+
+    return validParts.join(` ${group.operator} `);
 };
-// ---------------------------------------------------------
 
-const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
+// Helper to convert size in bytes back to value and unit for the form
+const bytesToSizeForm = (bytes: number | undefined): { value: string; unit: SizeUnit } => {
+    if (bytes === undefined || bytes < 0) return { value: '', unit: 'Bytes' };
+    if (bytes === 0) return { value: '0', unit: 'Bytes' };
+
+    const gb = SIZE_UNITS.GB;
+    const mb = SIZE_UNITS.MB;
+    const kb = SIZE_UNITS.KB;
+
+    if (bytes >= gb && bytes % gb === 0) return { value: (bytes / gb).toString(), unit: 'GB' };
+    if (bytes >= mb && bytes % mb === 0) return { value: (bytes / mb).toString(), unit: 'MB' };
+    if (bytes >= kb && bytes % kb === 0) return { value: (bytes / kb).toString(), unit: 'KB' };
+
+    // Default to Bytes or potentially MB if large but not exact multiple
+    if (bytes >= mb) return { value: (bytes / mb).toFixed(2).replace(/\.?0+$/, ''), unit: 'MB' };
+    if (bytes >= kb) return { value: (bytes / kb).toFixed(2).replace(/\.?0+$/, ''), unit: 'KB' };
+    return { value: bytes.toString(), unit: 'Bytes' };
+};
+
+
+const SearchForm: React.FC<SearchFormProps> = ({
+    onSubmit,
+    isLoading,
+    historyEntryToLoad,
+    onLoadComplete
+}) => {
   const { t } = useTranslation(["form"]);
 
   const [formData, setFormData] = useState<SearchFormData>({
@@ -121,6 +148,41 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(null);
   // State to track if the query builder should use case sensitivity for simple terms
   const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
+
+  // --- Effect to load history entry into form state ---
+  useEffect(() => {
+    if (historyEntryToLoad) {
+      console.log("SearchForm: Loading history entry into state", historyEntryToLoad.id);
+      const params = historyEntryToLoad.searchParams;
+
+      const minSize = bytesToSizeForm(params.minSizeBytes);
+      const maxSize = bytesToSizeForm(params.maxSizeBytes);
+
+      setFormData({
+        searchPaths: params.searchPaths?.join('\n') ?? '',
+        extensions: params.extensions?.join(', ') ?? '',
+        excludeFiles: params.excludeFiles?.join('\n') ?? '',
+        excludeFolders: params.excludeFolders?.join('\n') ?? '',
+        folderExclusionMode: params.folderExclusionMode ?? 'contains',
+        modifiedAfter: params.modifiedAfter ?? '',
+        modifiedBefore: params.modifiedBefore ?? '',
+        minSizeValue: minSize.value,
+        minSizeUnit: minSize.unit,
+        maxSizeValue: maxSize.value,
+        maxSizeUnit: maxSize.unit,
+        maxDepthValue: params.maxDepth?.toString() ?? '',
+      });
+
+      // Set query builder state (structure and case sensitivity)
+      // Ensure structuredQuery is not undefined before setting
+      setQueryStructure(params.structuredQuery ?? null);
+      setQueryCaseSensitive(params.caseSensitive ?? false);
+
+      // Signal that loading is complete
+      onLoadComplete();
+    }
+  }, [historyEntryToLoad, onLoadComplete]);
+  // ----------------------------------------------------
 
   const handleFormChange = (
     e: React.ChangeEvent<
@@ -161,20 +223,21 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       excludeFiles: splitAndClean(formData.excludeFiles),
       excludeFolders: splitAndClean(formData.excludeFolders),
       folderExclusionMode: formData.folderExclusionMode,
+      structuredQuery: queryStructure, // Include the structure for history saving
     };
 
     // Set content search parameters if a query string was generated
     if (contentQueryString) {
       submitParams.contentSearchTerm = contentQueryString;
-      submitParams.contentSearchMode = "boolean"; // Always boolean mode when using builder
-      submitParams.caseSensitive = queryCaseSensitive; // Pass the case sensitivity setting
+      submitParams.contentSearchMode = "boolean";
+      submitParams.caseSensitive = queryCaseSensitive;
     } else {
       submitParams.contentSearchTerm = undefined;
       submitParams.contentSearchMode = undefined;
       submitParams.caseSensitive = undefined;
     }
 
-    // --- Date, Size, Depth handling (remains the same) ---
+    // --- Date, Size, Depth handling ---
     if (formData.modifiedAfter) submitParams.modifiedAfter = formData.modifiedAfter;
     if (formData.modifiedBefore) submitParams.modifiedBefore = formData.modifiedBefore;
     const minSizeNum = parseFloat(formData.minSizeValue);
@@ -189,7 +252,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     if (!isNaN(maxDepthNum) && maxDepthNum > 0) submitParams.maxDepth = maxDepthNum;
     // ---------------------------------
 
-    console.log("Submitting Params:", submitParams); // Log parameters being sent
+    console.log("Submitting Params:", submitParams);
     onSubmit(submitParams);
   };
 
@@ -236,9 +299,12 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
       <div className="form-group">
         <label>{t("contentQueryBuilderLabel")}</label>
         <QueryBuilder
+            // Pass the current structure and sensitivity state
+            initialQuery={queryStructure}
+            initialCaseSensitive={queryCaseSensitive}
+            // Update handlers
             onChange={handleQueryChange}
-            onCaseSensitivityChange={handleQueryCaseSensitivityChange} // Pass handler
-            initialCaseSensitive={queryCaseSensitive} // Pass initial state
+            onCaseSensitivityChange={handleQueryCaseSensitivityChange}
             disabled={isLoading}
         />
       </div>

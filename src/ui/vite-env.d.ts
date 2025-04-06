@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+// --- Query Builder Types ---
+// Re-exporting from the dedicated types file
+export type { QueryGroup as QueryStructure, Condition, TermCondition, RegexCondition, NearCondition } from './queryBuilderTypes';
+import type { QueryGroup as InternalQueryStructure } from './queryBuilderTypes'; // Use internal alias
+
 // --- Data Structures ---
 
 interface ProgressData {
@@ -35,28 +40,49 @@ interface SearchResult {
 
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
-// --- NEW: Define Content Search Mode ---
+// --- Define Content Search Mode ---
 export type ContentSearchMode = "term" | "regex" | "boolean";
 // --------------------------------------
 
-// Updated SearchParams interface
+// Updated SearchParams interface (used for submitting search)
 interface SearchParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
   folderExclusionMode?: FolderExclusionMode;
-  contentSearchTerm?: string;
-  // --- NEW: Add content search mode ---
-  contentSearchMode?: ContentSearchMode;
-  // ------------------------------------
-  caseSensitive?: boolean; // Still used for 'term' mode and potentially 'regex' flags
+  contentSearchTerm?: string; // Generated string query
+  contentSearchMode?: ContentSearchMode; // Likely 'boolean' if term exists
+  caseSensitive?: boolean; // Still used for backend simple term matching
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
   maxSizeBytes?: number;
   maxDepth?: number;
 }
+
+// --- NEW: Search History Entry Structure ---
+export interface SearchHistoryEntry {
+    id: string;
+    timestamp: string; // ISO string
+    searchParams: {
+        searchPaths: string[];
+        extensions: string[];
+        excludeFiles: string[];
+        excludeFolders: string[];
+        folderExclusionMode?: FolderExclusionMode;
+        contentSearchTerm?: string; // The generated string query that was sent
+        contentSearchMode?: ContentSearchMode;
+        structuredQuery?: InternalQueryStructure | null; // The builder state
+        caseSensitive?: boolean;
+        modifiedAfter?: string;
+        modifiedBefore?: string;
+        minSizeBytes?: number;
+        maxSizeBytes?: number;
+        maxDepth?: number;
+    };
+}
+// -----------------------------------------
 
 // --- Electron API Definition ---
 
@@ -69,6 +95,13 @@ export interface IElectronAPI {
   getInitialLanguage: () => Promise<string>;
   setLanguagePreference: (lng: string) => Promise<void>;
   notifyLanguageChanged: (lng: string) => void;
+
+  // --- NEW: History API ---
+  addSearchHistoryEntry: (entry: SearchHistoryEntry) => Promise<void>;
+  getSearchHistory: () => Promise<SearchHistoryEntry[]>;
+  deleteSearchHistoryEntry: (entryId: string) => Promise<void>;
+  clearSearchHistory: () => Promise<void>;
+  // ------------------------
 }
 
 // --- Global Window Augmentation ---
@@ -80,5 +113,5 @@ declare global {
 }
 
 // --- Exports ---
-
+// Keep existing exports and add the new history entry type
 export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode, StructuredItem };

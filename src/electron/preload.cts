@@ -81,6 +81,38 @@ const electronAPI = {
   notifyLanguageChanged: (lng: string): void =>
     ipcRenderer.send("language-changed", lng),
 
+  // --- NEW: Search History Methods ---
+
+  /**
+   * Adds a new entry to the search history.
+   * @param entry - The search history entry object (structure matches SearchHistoryEntry).
+   * @returns Promise<void>
+   */
+  addSearchHistoryEntry: (entry: any): Promise<void> =>
+    ipcRenderer.invoke("add-search-history-entry", entry),
+
+  /**
+   * Retrieves the entire search history.
+   * @returns Promise<any[]> - An array of search history entries.
+   */
+  getSearchHistory: (): Promise<any[]> =>
+    ipcRenderer.invoke("get-search-history"),
+
+  /**
+   * Deletes a specific entry from the search history by its ID.
+   * @param entryId - The unique ID of the history entry to delete.
+   * @returns Promise<void>
+   */
+  deleteSearchHistoryEntry: (entryId: string): Promise<void> =>
+    ipcRenderer.invoke("delete-search-history-entry", entryId),
+
+  /**
+   * Clears the entire search history.
+   * @returns Promise<void>
+   */
+  clearSearchHistory: (): Promise<void> =>
+    ipcRenderer.invoke("clear-search-history"),
+
 };
 
 // --- Expose API ---

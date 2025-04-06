@@ -19,7 +19,7 @@ import { getPreloadPath } from "./pathResolver.js";
 
 import {
   searchFiles,
-  SearchParams,
+  SearchParams, // Keep this for the search function itself
   ProgressData,
   SearchResult,
   FileReadError,
@@ -37,9 +37,57 @@ const APP_PROTOCOL = "app";
 const supportedLngsMain = ['en', 'es', 'de', 'ja', 'fr', 'pt', 'ru', 'it'];
 const fallbackLngMain = 'en';
 
+// --- History Configuration ---
+const MAX_HISTORY_ENTRIES = 50;
+const HISTORY_STORE_KEY = "searchHistory";
+
+// --- Define SearchHistoryEntry structure (mirroring frontend) ---
+// This structure should match what the frontend sends and expects
+interface SearchHistoryEntry {
+    id: string;
+    timestamp: string; // ISO string
+    searchParams: {
+        searchPaths: string[];
+        extensions: string[];
+        excludeFiles: string[];
+        excludeFolders: string[];
+        folderExclusionMode?: 'contains' | 'exact' | 'startsWith' | 'endsWith';
+        contentSearchTerm?: string; // Generated string query
+        contentSearchMode?: 'term' | 'regex' | 'boolean';
+        structuredQuery?: any | null; // Store the raw query builder structure if available
+        caseSensitive?: boolean;
+        modifiedAfter?: string;
+        modifiedBefore?: string;
+        minSizeBytes?: number;
+        maxSizeBytes?: number;
+        maxDepth?: number;
+    };
+}
+// -------------------------------------------------------------
+
 // --- Initialize Electron Store ---
-const schema = { userLanguage: { type: 'string', enum: supportedLngsMain } };
-const store = new Store({ schema });
+// Add history to the schema
+const schema = {
+    userLanguage: { type: 'string', enum: supportedLngsMain },
+    [HISTORY_STORE_KEY]: {
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                id: { type: 'string' },
+                timestamp: { type: 'string', format: 'date-time' },
+                searchParams: { type: 'object' } // Keep params flexible for now
+            },
+            required: ['id', 'timestamp', 'searchParams']
+        },
+        default: []
+    }
+};
+const store = new Store<{
+    userLanguage?: string;
+    searchHistory: SearchHistoryEntry[]; // Add typed history
+}>({ schema });
+// -------------------------------------------------------------
 
 // --- Initialize i18next for Main Process ---
 const i18nMain = i18next.createInstance();
@@ -100,7 +148,7 @@ let mainWindow: BrowserWindow | null = null;
 function registerAppProtocol() {
   protocol.handle(APP_PROTOCOL, async (request) => {
     const originalUrl = request.url;
-    console.log(`[Protocol Handler] Request URL: ${originalUrl}`);
+    // console.log(`[Protocol Handler] Request URL: ${originalUrl}`); // Less verbose logging
 
     try {
       // 1. Decode URL and get path part after 'app://'
@@ -108,49 +156,43 @@ function registerAppProtocol() {
         originalUrl.substring(`${APP_PROTOCOL}://`.length)
       );
 
-      // 2. Normalize the path: Remove leading slashes and resolve potential relative paths.
-      //    Crucially, handle asset paths requested relative to index.html.
-      //    Example: 'index.html/assets/file.css' -> 'assets/file.css'
-      //    Example: '/' or '' -> 'index.html'
+      // 2. Normalize the path
       let requestedPath = urlPath.startsWith('index.html/')
           ? urlPath.substring('index.html/'.length)
           : urlPath;
-      requestedPath = requestedPath.replace(/^\/+/, ''); // Remove leading slashes if any remain
+      requestedPath = requestedPath.replace(/^\/+/, ''); // Remove leading slashes
       if (!requestedPath || requestedPath === '/') {
           requestedPath = 'index.html';
       }
 
-      console.log(`[Protocol Handler] Resolved Requested Path: ${requestedPath}`);
+      // console.log(`[Protocol Handler] Resolved Requested Path: ${requestedPath}`); // Less verbose
 
-      // 3. Construct absolute file path within the application's 'dist-react' directory
-      const appRootPath = app.getAppPath(); // Points to ASAR root in production
+      // 3. Construct absolute file path
+      const appRootPath = app.getAppPath();
       const absoluteFilePath = path.join(appRootPath, "dist-react", requestedPath);
 
-      console.log(`[Protocol Handler] Trying Absolute Path: ${absoluteFilePath}`);
+      // console.log(`[Protocol Handler] Trying Absolute Path: ${absoluteFilePath}`); // Less verbose
 
-      // 4. Security check: Ensure path stays within the expected 'dist-react' directory
+      // 4. Security check
       const expectedBase = path.normalize(path.join(appRootPath, "dist-react"));
-      // Use path.normalize to handle potential separator differences
       if (!path.normalize(absoluteFilePath).startsWith(expectedBase)) {
         console.error(
           `[Protocol Handler] Blocked potentially malicious path traversal: ${requestedPath} resolved to ${absoluteFilePath}`
         );
-        return new Response("Forbidden", { status: 403 }); // Use 403 Forbidden
+        return new Response("Forbidden", { status: 403 });
       }
 
       // 5. Read the file
       let data: Buffer;
       try {
-        console.log(`[Protocol Handler] Attempting fs.readFile for: ${absoluteFilePath}`);
+        // console.log(`[Protocol Handler] Attempting fs.readFile for: ${absoluteFilePath}`); // Less verbose
         data = await fs.readFile(absoluteFilePath);
-        console.log(`[Protocol Handler] Successfully read: ${absoluteFilePath} (Size: ${data.length})`);
+        // console.log(`[Protocol Handler] Successfully read: ${absoluteFilePath} (Size: ${data.length})`); // Less verbose
       } catch (readError: any) {
-        console.error(`[Protocol Handler] *** fs.readFile Error for ${absoluteFilePath}:`, readError);
+        // console.error(`[Protocol Handler] *** fs.readFile Error for ${absoluteFilePath}:`, readError); // Less verbose
         if (readError.code === 'ENOENT') {
-            // If file not found, return 404
             return new Response("Not Found", { status: 404 });
         }
-        // For other read errors (permissions, etc.), re-throw to return 500
         throw readError;
       }
 
@@ -158,35 +200,19 @@ function registerAppProtocol() {
       let resolvedMimeType: string;
       const fileExtension = path.extname(absoluteFilePath).toLowerCase();
 
-      // --- Explicit MIME type checks (prioritize common/critical types) ---
-      if (requestedPath === "index.html" || fileExtension === ".html") {
-        resolvedMimeType = "text/html";
-      } else if (fileExtension === ".css") { // *** Ensure CSS is correctly identified ***
-        resolvedMimeType = "text/css";
-      } else if (fileExtension === ".js") {
-        resolvedMimeType = "application/javascript";
-      } else if (fileExtension === ".json") {
-        resolvedMimeType = "application/json";
-      } else if (fileExtension === ".svg") {
-        resolvedMimeType = "image/svg+xml";
-      } else if (fileExtension === ".png") {
-        resolvedMimeType = "image/png";
-      } else if (fileExtension === ".jpg" || fileExtension === ".jpeg") {
-        resolvedMimeType = "image/jpeg";
-      } else if (fileExtension === ".woff2") {
-        resolvedMimeType = "font/woff2";
-      } else if (fileExtension === ".woff") {
-        resolvedMimeType = "font/woff";
-      } else {
-        // Fallback using the mime library for other types
-        resolvedMimeType =
-          mime.getType(absoluteFilePath) || "application/octet-stream"; // Default fallback
-      }
-      // --------------------------------------------------------------------
+      // Explicit MIME type checks
+      if (requestedPath === "index.html" || fileExtension === ".html") resolvedMimeType = "text/html";
+      else if (fileExtension === ".css") resolvedMimeType = "text/css";
+      else if (fileExtension === ".js") resolvedMimeType = "application/javascript";
+      else if (fileExtension === ".json") resolvedMimeType = "application/json";
+      else if (fileExtension === ".svg") resolvedMimeType = "image/svg+xml";
+      else if (fileExtension === ".png") resolvedMimeType = "image/png";
+      else if (fileExtension === ".jpg" || fileExtension === ".jpeg") resolvedMimeType = "image/jpeg";
+      else if (fileExtension === ".woff2") resolvedMimeType = "font/woff2";
+      else if (fileExtension === ".woff") resolvedMimeType = "font/woff";
+      else resolvedMimeType = mime.getType(absoluteFilePath) || "application/octet-stream";
 
-      console.log(
-        `[Protocol Handler] Serving ${absoluteFilePath} with MIME type: ${resolvedMimeType}`
-      );
+      // console.log(`[Protocol Handler] Serving ${absoluteFilePath} with MIME type: ${resolvedMimeType}`); // Less verbose
 
       // 7. Return the response
       return new Response(data, {
@@ -195,9 +221,7 @@ function registerAppProtocol() {
       });
     } catch (error: any) {
       console.error(`[Protocol Handler] *** Outer Catch Error for ${originalUrl}:`, error);
-      if (error.code) {
-          console.error(`[Protocol Handler] Error Code: ${error.code}`);
-      }
+      if (error.code) console.error(`[Protocol Handler] Error Code: ${error.code}`);
       return new Response("Internal Server Error", { status: 500 });
     }
   });
@@ -217,13 +241,12 @@ function setupCSP() {
       const viteWs = "ws://localhost:5123";
       csp = [
         `default-src ${selfSrc} ${viteServer}`,
-        // Allow worker blob URLs in dev for highlight.worker.ts
-        `script-src ${selfSrc} 'unsafe-inline' 'unsafe-eval' ${viteServer} blob:`,
+        `script-src ${selfSrc} 'unsafe-inline' 'unsafe-eval' ${viteServer} blob:`, // Allow blob: for workers
         `style-src ${selfSrc} 'unsafe-inline'`,
         `connect-src ${selfSrc} ${viteWs} ${viteServer}`,
         `img-src ${selfSrc} data:`,
         `font-src ${selfSrc}`,
-        `worker-src ${selfSrc} blob:`, // Allow blob URLs for workers
+        `worker-src ${selfSrc} blob:`, // Explicitly allow blob URLs for workers
         `object-src 'none'`,
         `frame-ancestors 'none'`,
       ].join("; ");
@@ -231,13 +254,12 @@ function setupCSP() {
       // Production CSP
       csp = [
         `default-src ${appProtoSrc}`,
-        // Allow worker blob URLs in production as well
-        `script-src ${appProtoSrc} blob:`,
-        `style-src ${appProtoSrc} 'unsafe-inline'`, // Keep unsafe-inline if needed by UI libraries, otherwise remove
+        `script-src ${appProtoSrc} blob:`, // Allow blob: for workers
+        `style-src ${appProtoSrc} 'unsafe-inline'`, // Keep unsafe-inline if needed
         `connect-src ${appProtoSrc}`,
         `img-src ${appProtoSrc} data:`,
         `font-src ${appProtoSrc}`,
-        `worker-src ${appProtoSrc} blob:`, // Allow blob URLs for workers
+        `worker-src ${appProtoSrc} blob:`, // Explicitly allow blob URLs for workers
         `object-src 'none'`,
         `frame-ancestors 'none'`,
       ].join("; ");
@@ -288,7 +310,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      corsEnabled: true, // Important for renderer fetching resources
+      corsEnabled: true,
       stream: true,
     },
   },
@@ -333,7 +355,9 @@ function validateSender(senderFrame: Electron.WebFrameMain | null): boolean {
   return false;
 }
 
-// --- IPC Handlers (remain unchanged) ---
+// --- IPC Handlers ---
+
+// Search Files (remains largely the same)
 ipcMain.handle(
   "search-files",
   async (event, params: SearchParams): Promise<SearchResult> => {
@@ -366,6 +390,7 @@ ipcMain.handle(
   }
 );
 
+// Save File Dialog (unchanged)
 ipcMain.handle("save-file-dialog", async (event): Promise<string | undefined> => {
   if (!validateSender(event.senderFrame)) return undefined;
   if (!mainWindow) return undefined;
@@ -389,6 +414,7 @@ ipcMain.handle("save-file-dialog", async (event): Promise<string | undefined> =>
   }
 });
 
+// Write File (unchanged)
 ipcMain.handle(
   "write-file",
   async (event, filePath: string, content: string): Promise<boolean> => {
@@ -405,6 +431,7 @@ ipcMain.handle(
   }
 );
 
+// Copy to Clipboard (unchanged)
 ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
   if (!validateSender(event.senderFrame)) return false;
   try {
@@ -416,7 +443,9 @@ ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
   }
 });
 
+// Language Handlers (unchanged)
 ipcMain.handle("get-initial-language", async (event): Promise<string> => {
+  if (!validateSender(event.senderFrame)) return fallbackLngMain;
   try {
     const storedLang = store.get("userLanguage") as string | undefined;
     if (storedLang && supportedLngsMain.includes(storedLang)) return storedLang;
@@ -429,7 +458,6 @@ ipcMain.handle("get-initial-language", async (event): Promise<string> => {
     return fallbackLngMain;
   }
 });
-
 ipcMain.handle(
   "set-language-preference",
   async (event, lng: string): Promise<void> => {
@@ -449,7 +477,6 @@ ipcMain.handle(
     }
   }
 );
-
 ipcMain.on("language-changed", (event, lng: string) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
       console.warn("Ignoring language-changed from unexpected sender.");
@@ -468,3 +495,71 @@ ipcMain.on("language-changed", (event, lng: string) => {
     console.warn(`Main i18n: Received unsupported language change request: ${lng}`);
   }
 });
+
+// --- NEW: Search History IPC Handlers ---
+ipcMain.handle(
+    "add-search-history-entry",
+    async (event, entry: SearchHistoryEntry): Promise<void> => {
+        if (!validateSender(event.senderFrame)) return;
+        try {
+            const currentHistory = store.get(HISTORY_STORE_KEY, []);
+            // Optional: Prevent adding exact duplicate of the last entry
+            // if (currentHistory.length > 0 && JSON.stringify(currentHistory[0].searchParams) === JSON.stringify(entry.searchParams)) {
+            //     console.log("IPC: Skipping duplicate history entry.");
+            //     return;
+            // }
+            const updatedHistory = [entry, ...currentHistory];
+            // Limit history size
+            if (updatedHistory.length > MAX_HISTORY_ENTRIES) {
+                updatedHistory.length = MAX_HISTORY_ENTRIES; // Truncate older entries
+            }
+            store.set(HISTORY_STORE_KEY, updatedHistory);
+            console.log(`IPC: Added entry ${entry.id} to search history. Total: ${updatedHistory.length}`);
+        } catch (error) {
+            console.error("IPC: Error adding search history entry:", error);
+        }
+    }
+);
+
+ipcMain.handle(
+    "get-search-history",
+    async (event): Promise<SearchHistoryEntry[]> => {
+        if (!validateSender(event.senderFrame)) return [];
+        try {
+            const history = store.get(HISTORY_STORE_KEY, []);
+            return history;
+        } catch (error) {
+            console.error("IPC: Error getting search history:", error);
+            return [];
+        }
+    }
+);
+
+ipcMain.handle(
+    "delete-search-history-entry",
+    async (event, entryId: string): Promise<void> => {
+        if (!validateSender(event.senderFrame)) return;
+        try {
+            const currentHistory = store.get(HISTORY_STORE_KEY, []);
+            const updatedHistory = currentHistory.filter(entry => entry.id !== entryId);
+            store.set(HISTORY_STORE_KEY, updatedHistory);
+            console.log(`IPC: Deleted history entry ${entryId}. Remaining: ${updatedHistory.length}`);
+        } catch (error) {
+            console.error(`IPC: Error deleting search history entry ${entryId}:`, error);
+        }
+    }
+);
+
+ipcMain.handle(
+    "clear-search-history",
+    async (event): Promise<void> => {
+        if (!validateSender(event.senderFrame)) return;
+        try {
+            store.set(HISTORY_STORE_KEY, []); // Set to empty array
+            console.log("IPC: Cleared search history.");
+        } catch (error) {
+            console.error("IPC: Error clearing search history:", error);
+        }
+    }
+);
+// --------------------------------------
