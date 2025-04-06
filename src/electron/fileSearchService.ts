@@ -160,35 +160,153 @@ function createSafeRegex(pattern: string, flags: string): RegExp | null {
     }
 }
 
-// --- Type Guard for Jsep Expression ---
-/**
- * Checks if a node is a valid Jsep Expression object.
- * @param node The node to check.
- * @returns True if the node is a valid Jsep Expression, false otherwise.
- */
+// --- Type Guards for Jsep Nodes ---
+/** Checks if a node is a valid Jsep Expression object. */
 function isJsepExpression(node: any): node is Jsep.Expression {
     return node !== null && typeof node === 'object' && typeof node.type === 'string';
 }
+/** Checks if a node is a Jsep Identifier. */
+function isJsepIdentifier(node: any): node is Jsep.Identifier {
+    // Ensure it's an expression first, then check type and that name exists and is a string
+    return isJsepExpression(node) && node.type === 'Identifier' && typeof (node as Jsep.Identifier).name === 'string';
+}
+/** Checks if a node is a Jsep Literal. */
+function isJsepLiteral(node: any): node is Jsep.Literal {
+    // Ensure it's an expression first, then check type and that value exists
+    return isJsepExpression(node) && node.type === 'Literal' && typeof (node as Jsep.Literal).value !== 'undefined';
+}
+/** Checks if a node is a Jsep CallExpression. */
+function isJsepCallExpression(node: any): node is Jsep.CallExpression {
+    // Ensure it's an expression first, then check type and that callee/arguments exist
+    return isJsepExpression(node) && node.type === 'CallExpression' && !!(node as Jsep.CallExpression).callee && Array.isArray((node as Jsep.CallExpression).arguments);
+}
 // ------------------------------------
 
-// --- Boolean AST Evaluation Function with Regex Support ---
+// --- Proximity Search Helpers ---
+
+/**
+ * Finds all starting indices of a term (string or regex) within content.
+ * @param content The text content to search within.
+ * @param term The string or regex pattern to find.
+ * @param caseSensitive For simple string terms, whether the search is case-sensitive. Ignored for regex.
+ * @param isRegex Indicates if the term is a pre-compiled RegExp object.
+ * @returns An array of starting character indices.
+ */
+function findTermIndices(content: string, term: string | RegExp, caseSensitive: boolean, isRegex: boolean): number[] {
+    const indices: number[] = [];
+    if (!term) return indices;
+
+    if (isRegex && term instanceof RegExp) {
+        // Ensure the regex has the global flag for exec to find all matches
+        const regex = new RegExp(term.source, term.flags.includes('g') ? term.flags : term.flags + 'g');
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+            indices.push(match.index);
+            // Prevent infinite loops with zero-width matches
+            if (match.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+        }
+    } else if (typeof term === 'string') {
+        const searchTerm = caseSensitive ? term : term.toLowerCase();
+        const searchContent = caseSensitive ? content : content.toLowerCase();
+        let i = -1;
+        while ((i = searchContent.indexOf(searchTerm, i + 1)) !== -1) {
+            indices.push(i);
+        }
+    }
+    return indices;
+}
+
+interface WordBoundary {
+    word: string;
+    start: number;
+    end: number;
+}
+
+/**
+ * Finds word boundaries in the content. Words are sequences of alphanumeric characters.
+ * @param content The text content.
+ * @returns An array of WordBoundary objects, sorted by start index.
+ */
+function getWordBoundaries(content: string): WordBoundary[] {
+    const boundaries: WordBoundary[] = [];
+    // Regex to find sequences of alphanumeric characters (words)
+    const wordRegex = /\b[a-zA-Z0-9]+\b/g;
+    let match;
+    while ((match = wordRegex.exec(content)) !== null) {
+        boundaries.push({
+            word: match[0],
+            start: match.index,
+            end: match.index + match[0].length -1 // Inclusive end index
+        });
+    }
+    return boundaries;
+}
+
+/** Cache for word boundaries to avoid recomputing for the same content */
+const wordBoundariesCache = new Map<string, WordBoundary[]>();
+
+/**
+ * Gets the word index corresponding to a character index.
+ * Uses a cache for word boundaries.
+ * @param charIndex The character index within the content.
+ * @param content The full content string.
+ * @returns The 0-based index of the word containing the character index, or -1 if not within a word.
+ */
+function getWordIndexFromCharIndex(charIndex: number, content: string): number {
+    let boundaries = wordBoundariesCache.get(content);
+    if (!boundaries) {
+        boundaries = getWordBoundaries(content);
+        wordBoundariesCache.set(content, boundaries); // Cache the result
+    }
+
+    // Find the word that contains the charIndex
+    // Since boundaries are sorted, we could use binary search for large number of words,
+    // but linear scan is likely fine for typical file content.
+    for (let i = 0; i < boundaries.length; i++) {
+        if (charIndex >= boundaries[i].start && charIndex <= boundaries[i].end) {
+            return i; // Return the 0-based index of the word
+        }
+    }
+    // If the char index is between words, we might need a strategy.
+    // For NEAR, let's associate it with the *preceding* word if it's whitespace,
+    // or return -1 if it's at the beginning or not clearly associated.
+    // Find the word immediately preceding the charIndex
+     for (let i = boundaries.length - 1; i >= 0; i--) {
+        if (boundaries[i].end < charIndex) {
+            // Check if the space between boundary[i].end and charIndex is only whitespace
+            if (/^\s*$/.test(content.substring(boundaries[i].end + 1, charIndex + 1))) {
+                 return i; // Associate with the preceding word
+            }
+            break; // Found the preceding word, no need to check further back
+        }
+    }
+
+    return -1; // Not within or immediately after a word boundary found by the regex
+}
+
+// --- Boolean AST Evaluation Function with Regex and Proximity Support ---
 /**
  * Recursively evaluates a boolean expression AST against file content.
- * Expected Syntax:
- *   - Operators: AND, OR, NOT (case-insensitive during parsing)
- *   - Grouping: Parentheses ()
+ * Supports standard AND, OR, NOT, grouping, simple terms, regex literals,
+ * and a NEAR function call for proximity search.
+ * Syntax:
+ *   - Operators: AND, OR, NOT
+ *   - Grouping: ()
  *   - Terms:
- *     - Unquoted words (Identifiers): Treated as simple strings (e.g., error) OR regex literals (e.g., /error\d+/i).
- *     - Quoted strings (Literals): Treated as simple strings (e.g., "read error") OR regex literals (e.g., "/timeout \d+ms/").
- *   - Case Sensitivity: Controlled by the `caseSensitive` parameter for *simple string* term matching.
- *     Regex terms rely on their own flags (e.g., /pattern/i).
+ *     - Simple strings (unquoted or quoted): `error`, `"database connection"`
+ *     - Regex literals (unquoted or quoted): `/error\d+/i`, `"/timeout \d+ms/"`
+ *   - Proximity: `NEAR("term1", "term2", N)` or `NEAR(/regex1/, "term2", N)` etc.
+ *     where N is the maximum word distance allowed between term1 and term2.
  *
- * @param node The current AST node from jsep (or unknown).
+ * @param node The current AST node from jsep.
  * @param content The file content string.
  * @param caseSensitive Whether *simple string* comparisons should be case-sensitive.
  * @returns True if the expression evaluates to true for the content, false otherwise.
  */
 function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, caseSensitive: boolean): boolean {
+    // Use the primary type guard first
     if (!isJsepExpression(node)) {
         console.warn("evaluateBooleanAst called with non-Expression node:", node);
         return false;
@@ -197,6 +315,8 @@ function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, ca
     try {
         switch (node.type) {
             case 'LogicalExpression':
+                // Standard AND/OR evaluation (short-circuiting)
+                // Ensure children are also valid expressions before recursing
                 if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
                     console.warn("LogicalExpression node missing valid left or right child", node);
                     return false;
@@ -208,6 +328,8 @@ function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, ca
                 return node.operator === 'OR' ? (leftResult || rightResult) : (leftResult && rightResult);
 
             case 'UnaryExpression':
+                // Standard NOT evaluation
+                // Ensure argument is a valid expression
                 if (!isJsepExpression(node.argument)) {
                      console.warn("UnaryExpression node missing valid argument", node);
                      return false;
@@ -218,53 +340,150 @@ function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, ca
                 console.warn(`Unsupported unary operator: ${node.operator}`);
                 return false;
 
-            case 'Identifier': // Unquoted terms (could be simple string or regex literal)
-                const termIdentifier = node.name;
-                if (typeof termIdentifier !== 'string') {
-                    console.warn("Identifier node name is not a string", node);
-                    return false;
-                }
-                // --- Check if it's a regex literal ---
-                const regexFromIdentifier = parseRegexLiteral(termIdentifier);
+            case 'Identifier': // Unquoted term (simple string or regex literal)
+                // Use the specific type guard
+                if (!isJsepIdentifier(node)) return false; // Should not happen in this case, but safe
+                const termIdentifierStr = node.name; // Guaranteed string by guard
+                const regexFromIdentifier = parseRegexLiteral(termIdentifierStr);
                 if (regexFromIdentifier) {
-                    // Use regex test
                     return regexFromIdentifier.test(content);
                 } else {
-                    // Treat as simple string, apply case sensitivity
+                    // It's a simple string
                     return caseSensitive
-                        ? content.includes(termIdentifier)
-                        : content.toLowerCase().includes(termIdentifier.toLowerCase());
+                        ? content.includes(termIdentifierStr)
+                        : content.toLowerCase().includes(termIdentifierStr.toLowerCase());
                 }
-                // ------------------------------------
 
-            case 'Literal': // Quoted terms (could be simple string or regex literal)
+            case 'Literal': // Quoted term (simple string or regex literal) or number/boolean
+                // Use the specific type guard
+                if (!isJsepLiteral(node)) return false; // Should not happen, but safe
                 if (typeof node.value === 'string') {
-                    const termLiteral = node.value;
-                    // --- Check if it's a regex literal ---
-                    const regexFromLiteral = parseRegexLiteral(termLiteral);
+                    const termLiteralStr = node.value; // Guaranteed string
+                    const regexFromLiteral = parseRegexLiteral(termLiteralStr);
                     if (regexFromLiteral) {
-                        // Use regex test
                         return regexFromLiteral.test(content);
                     } else {
-                        // Treat as simple string, apply case sensitivity
+                        // It's a simple string
                         return caseSensitive
-                            ? content.includes(termLiteral)
-                            : content.toLowerCase().includes(termLiteral.toLowerCase());
+                            ? content.includes(termLiteralStr)
+                            : content.toLowerCase().includes(termLiteralStr.toLowerCase());
                     }
-                    // ------------------------------------
                 }
                 if (typeof node.value === 'boolean') {
                     return node.value;
                 }
+                 if (typeof node.value === 'number') {
+                    console.warn(`Numeric literal ${node.value} encountered outside NEAR function.`);
+                    return false;
+                }
                 console.warn(`Unsupported literal type: ${typeof node.value}`);
                 return false;
 
+            case 'CallExpression':
+                // Use the specific type guard for CallExpression
+                if (!isJsepCallExpression(node)) {
+                    console.warn("Node is not a valid CallExpression:", node);
+                    return false;
+                }
+                // Check callee type and name (callee guaranteed by guard)
+                if (!isJsepIdentifier(node.callee) || node.callee.name !== 'NEAR') {
+                    console.warn(`Unsupported function call: ${isJsepIdentifier(node.callee) ? node.callee.name : 'unknown'}`);
+                    return false;
+                }
+
+                // --- NEAR Function Logic ---
+                // Check arguments array length (array guaranteed by guard)
+                if (node.arguments.length !== 3) {
+                    console.warn(`NEAR function requires exactly 3 arguments (term1, term2, distance), got ${node.arguments.length}`);
+                    return false;
+                }
+
+                // Safely access arguments
+                const arg1Node = node.arguments[0];
+                const arg2Node = node.arguments[1];
+                const arg3Node = node.arguments[2];
+
+                // Validate and extract terms (must be string literals or identifiers resolving to strings/regex literals)
+                let term1: string | RegExp | null = null;
+                let term1IsRegex = false;
+                // Check argument types before accessing properties
+                if (isJsepLiteral(arg1Node) && typeof arg1Node.value === 'string') {
+                    const valueStr = arg1Node.value; // Explicitly string
+                    term1 = parseRegexLiteral(valueStr) || valueStr;
+                    term1IsRegex = term1 instanceof RegExp;
+                } else if (isJsepIdentifier(arg1Node)) {
+                     const nameStr = arg1Node.name; // Explicitly string
+                     term1 = parseRegexLiteral(nameStr) || nameStr;
+                     term1IsRegex = term1 instanceof RegExp;
+                }
+
+                let term2: string | RegExp | null = null;
+                let term2IsRegex = false;
+                 if (isJsepLiteral(arg2Node) && typeof arg2Node.value === 'string') {
+                    const valueStr = arg2Node.value; // Explicitly string
+                    term2 = parseRegexLiteral(valueStr) || valueStr;
+                    term2IsRegex = term2 instanceof RegExp;
+                } else if (isJsepIdentifier(arg2Node)) {
+                     const nameStr = arg2Node.name; // Explicitly string
+                     term2 = parseRegexLiteral(nameStr) || nameStr;
+                     term2IsRegex = term2 instanceof RegExp;
+                }
+
+                // Validate and extract distance (must be a number literal)
+                let distance: number | null = null;
+                if (isJsepLiteral(arg3Node) && typeof arg3Node.value === 'number' && arg3Node.value >= 0) {
+                    distance = Math.floor(arg3Node.value); // Ensure integer distance
+                }
+
+                if (term1 === null || term2 === null || distance === null) {
+                    console.warn(`Invalid arguments for NEAR function. term1: ${term1}, term2: ${term2}, distance: ${distance}`);
+                    return false;
+                }
+
+                // Find indices for both terms
+                // Pass caseSensitive flag only for non-regex terms
+                const indices1 = findTermIndices(content, term1, term1IsRegex ? false : caseSensitive, term1IsRegex);
+                const indices2 = findTermIndices(content, term2, term2IsRegex ? false : caseSensitive, term2IsRegex);
+
+                if (indices1.length === 0 || indices2.length === 0) {
+                    return false; // One of the terms not found
+                }
+
+                // Check proximity using word indices
+                // Pre-calculate word boundaries if not already cached for this content
+                if (!wordBoundariesCache.has(content)) {
+                    wordBoundariesCache.set(content, getWordBoundaries(content));
+                }
+
+                for (const index1 of indices1) {
+                    const wordIndex1 = getWordIndexFromCharIndex(index1, content);
+                    if (wordIndex1 === -1) continue; // Skip if index1 isn't within a word
+
+                    for (const index2 of indices2) {
+                        const wordIndex2 = getWordIndexFromCharIndex(index2, content);
+                        if (wordIndex2 === -1) continue; // Skip if index2 isn't within a word
+
+                        // Check word distance (absolute difference)
+                        if (Math.abs(wordIndex1 - wordIndex2) <= distance) {
+                            // Found a pair within the specified word distance
+                            // No need to clear cache here, done after file processing
+                            return true;
+                        }
+                    }
+                }
+                // No pair found within the distance
+                // Cache is cleared after the file is processed in the main loop
+                return false;
+
             default:
-                console.warn(`Unsupported AST node type: ${node.type}`);
+                // Use type assertion for better logging if needed, but guard should catch invalid types
+                console.warn(`Unsupported AST node type: ${(node as Jsep.Expression).type}`);
                 return false;
         }
     } catch (evalError) {
         console.error("Error during boolean AST evaluation:", evalError, "Node:", node);
+        // Clear cache in case of error during evaluation for this content
+        wordBoundariesCache.delete(content);
         return false; // Return false on evaluation error
     }
 }
@@ -284,7 +503,7 @@ export async function searchFiles(
     folderExclusionMode = 'contains',
     contentSearchTerm,
     contentSearchMode = 'term', // Uses local type default
-    caseSensitive = false, // Applies to 'term' mode and non-regex terms in 'boolean' mode
+    caseSensitive = false, // Applies to 'term' mode and non-regex/non-NEAR terms in 'boolean' mode
     modifiedAfter,
     modifiedBefore,
     minSizeBytes,
@@ -468,6 +687,8 @@ export async function searchFiles(
           if (!jsep.binary_ops['AND']) jsep.addBinaryOp('AND', 1);
           if (!jsep.binary_ops['OR']) jsep.addBinaryOp('OR', 0);
           if (!jsep.unary_ops['NOT']) jsep.addUnaryOp('NOT');
+          // Add NEAR as an identifier that our evaluator will handle in CallExpressions
+          // jsep.addIdentifierChar('@'); // Not needed if NEAR is standard identifier format
           // ------------------------------------------------------------------------------------
 
           // --- Parse the boolean query ---
@@ -476,8 +697,17 @@ export async function searchFiles(
           // -----------------------------
 
           // Create the matcher function that uses the evaluator
-          // Pass the AST and the caseSensitive flag (for non-regex terms)
-          contentMatcher = (content) => evaluateBooleanAst(parsedAst, content, caseSensitive);
+          // Pass the AST and the caseSensitive flag (for non-regex/non-NEAR terms)
+          contentMatcher = (content) => {
+              // Clear word boundary cache before evaluating a new file's content
+              // This ensures fresh calculation if the same content string appears later
+              // (though unlikely for full file contents)
+              wordBoundariesCache.delete(content);
+              const result = evaluateBooleanAst(parsedAst, content, caseSensitive);
+              // Cache is cleared *after* processing the file in the main loop below
+              return result;
+          };
+
 
         } catch (parseError: any) {
           parseOrRegexError = true;
@@ -521,22 +751,23 @@ export async function searchFiles(
         limit(async () => {
           const currentFileName = path.basename(file);
           const displayFilePath = file.replace(/\\/g, "/");
+          let fileContent: string | null = null; // Store content temporarily
           let structuredItemResult: StructuredItem | null = null;
           let outputLineResult: string | null = null;
           let fileReadErrorResult: FileReadError | null = null;
           let errorKeyForProgress: string | undefined = undefined;
 
           try {
-            const content = await fs.readFile(file, { encoding: "utf8" });
+            fileContent = await fs.readFile(file, { encoding: "utf8" }); // Read content
 
             // --- Use the prepared contentMatcher function ---
             // If contentMatcher is null (no search term), contentMatches is true
-            let contentMatches = !contentMatcher || contentMatcher(content);
+            let contentMatches = !contentMatcher || contentMatcher(fileContent);
             // ---------------------------------------------
 
             if (contentMatches) {
-              outputLineResult = `${displayFilePath}\n\n${content}\n`;
-              structuredItemResult = { filePath: displayFilePath, content: content, readError: undefined };
+              outputLineResult = `${displayFilePath}\n\n${fileContent}\n`;
+              structuredItemResult = { filePath: displayFilePath, content: fileContent, readError: undefined };
             } else {
               // Still include in structured results if content didn't match, but without content
               structuredItemResult = { filePath: displayFilePath, content: null, readError: undefined };
@@ -551,6 +782,13 @@ export async function searchFiles(
             fileReadErrorResult = { filePath: displayFilePath, reason: reasonKey, detail: error.message || String(error) };
             errorKeyForProgress = reasonKey;
           } finally {
+            // --- Clear word boundary cache for this file's content ---
+            // Do this *after* processing the file, whether successful or not,
+            // but only if content was actually read.
+            if (fileContent !== null) {
+                wordBoundariesCache.delete(fileContent);
+            }
+            // ---------------------------------------------------------
             filesProcessedCounter++;
             progressCallback({
               processed: filesProcessedCounter,

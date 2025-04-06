@@ -21,7 +21,7 @@
   "contentSearchModeBoolean": "Boolean Query",
   "contentSearchPlaceholder": "Enter text to find in file content...",
   "contentSearchPlaceholderRegex": "Enter regex pattern (e.g., Error\\d+)",
-  "contentSearchPlaceholderBooleanRegex": "Query (e.g., error AND (/db\\d+/i OR network) AND NOT timeout)",
+  "contentSearchPlaceholderBooleanRegex": "Query (e.g., error AND NEAR(\"db\", /connect\\d+/i, 5) AND NOT timeout)",
 
   "caseSensitiveLabel": "Case-Sensitive (for simple terms)",
   "modifiedAfterLabel": "Modified After (Optional):",
