@@ -26,11 +26,6 @@ import { cn } from "@/lib/utils";
 
 import "./index.css"; // Keep global styles
 
-// Remove component-specific CSS imports that are no longer needed
-// import "./SettingsModal.css"; // Assuming refactored
-// import "./HistoryModal.css"; // Assuming refactored
-// import "./ResultsFilter.css"; // Assuming refactored
-
 const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 type GroupedErrors = { [reasonKey: string]: string[] };
 interface ItemDisplayState { expanded: boolean; showFull: boolean; }
