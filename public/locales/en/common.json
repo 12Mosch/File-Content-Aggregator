@@ -17,6 +17,7 @@
   "lang_it": "Italian (Italiano)",
 
   "historyButtonLabel": "Search History",
+  "historyDescription": "View, load, manage, or filter your past searches.",
   "historyTitle": "Search History",
   "historyEmpty": "No search history yet.",
   "historyLoadButton": "Load",

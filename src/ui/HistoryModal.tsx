@@ -1,4 +1,3 @@
-// D:/Code/Electron/src/ui/HistoryModal.tsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import HistoryListItem from './HistoryListItem';
@@ -9,6 +8,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription, // <-- Import DialogDescription
     DialogFooter,
     DialogClose,
 } from "@/components/ui/dialog";
@@ -17,7 +17,7 @@ import {
     AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
-    AlertDialogDescription,
+    AlertDialogDescription as AlertDialogDesc, // Alias if needed, but usually fine
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
@@ -77,8 +77,14 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+        {/* Add DialogDescription inside DialogHeader */}
         <DialogHeader className="pr-12">
           <DialogTitle>{t('historyTitle')}</DialogTitle>
+          {/* Add the description here */}
+          <DialogDescription>
+            {t('historyDescription')}
+          </DialogDescription>
+           {/* Filter Input remains below description */}
            <div className="pt-2">
              <Input
                   type="text"
@@ -90,6 +96,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
            </div>
         </DialogHeader>
 
+        {/* Scrollable Body Area */}
         <div className="flex-grow overflow-y-auto py-4 px-1 -mx-1">
           {history.length === 0 ? (
             <p className="text-center text-muted-foreground text-sm">{t('historyEmpty')}</p>
@@ -110,6 +117,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
           )}
         </div>
 
+        {/* DialogFooter with AlertDialog */}
         <DialogFooter className="sm:justify-between gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -124,14 +132,13 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>{t('historyClearConfirmTitle')}</AlertDialogTitle>
-                {/* Modify AlertDialogDescription */}
-                <AlertDialogDescription>
+                {/* Use the specific AlertDialogDesc component here */}
+                <AlertDialogDesc>
                   {t('historyClearConfirmMessage')} <br />
-                  {/* Apply Tailwind classes to the specific part */}
                   <span className="text-destructive font-medium">
                     This action <strong className="font-bold text-lg uppercase tracking-tight">cannot</strong> be undone.
                   </span>
-                </AlertDialogDescription>
+                </AlertDialogDesc>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel asChild>
