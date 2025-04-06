@@ -312,38 +312,23 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-    "clear-search-history",
-    async (event): Promise<boolean> => { // Return boolean for success/failure
-        if (!validateSender(event.senderFrame)) return false;
+  "clear-search-history",
+  async (event): Promise<boolean> => { // Still returns boolean for success/failure
+      if (!validateSender(event.senderFrame)) return false;
 
-        // Confirmation Dialog
-        if (!mainWindow) return false;
-        await i18nMain.loadNamespaces("common"); // Ensure translations are loaded
-        const choice = await dialog.showMessageBox(mainWindow, {
-            type: 'warning',
-            buttons: [i18nMain.t('dialogCancel', { ns: 'common' }), i18nMain.t('dialogConfirm', { ns: 'common' })],
-            defaultId: 0, // Default to Cancel
-            cancelId: 0,
-            title: i18nMain.t('historyClearConfirmTitle', { ns: 'common' }),
-            message: i18nMain.t('historyClearConfirmMessage', { ns: 'common' }),
-            detail: i18nMain.t('historyClearConfirmDetail', { ns: 'common' })
-        });
+      // --- REMOVED Confirmation Dialog ---
+      // The confirmation is now handled in the renderer process using AlertDialog
 
-        if (choice.response === 0) { // User clicked Cancel
-            console.log("IPC: Clear history cancelled by user.");
-            return false;
-        }
-
-        // Proceed with clearing
-        try {
-            store.set(HISTORY_STORE_KEY, []); // Set to empty array
-            console.log("IPC: Cleared search history.");
-            return true;
-        } catch (error) {
-            console.error("IPC: Error clearing search history:", error);
-            return false;
-        }
-    }
+      // Proceed with clearing
+      try {
+          store.set(HISTORY_STORE_KEY, []); // Set to empty array
+          console.log("IPC: Cleared search history.");
+          return true; // Indicate success
+      } catch (error) {
+          console.error("IPC: Error clearing search history:", error);
+          return false; // Indicate failure
+      }
+  }
 );
 
 // --- NEW: Update History Entry IPC Handler ---
