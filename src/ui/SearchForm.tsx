@@ -37,7 +37,7 @@ interface SubmitParams {
   folderExclusionMode?: FolderExclusionMode;
   contentSearchTerm?: string;
   contentSearchMode?: ContentSearchMode;
-  caseSensitive?: boolean;
+  caseSensitive?: boolean; // Applies to 'term' mode and non-regex terms in 'boolean' mode
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
@@ -106,8 +106,15 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
     if (formData.contentSearchTerm.trim()) {
       submitParams.contentSearchTerm = formData.contentSearchTerm.trim();
       submitParams.contentSearchMode = formData.contentSearchMode;
-      submitParams.caseSensitive = formData.caseSensitive;
+      // Only pass caseSensitive if mode is 'term' or 'boolean'
+      // Regex mode relies on flags in the pattern itself
+      if (formData.contentSearchMode === 'term' || formData.contentSearchMode === 'boolean') {
+        submitParams.caseSensitive = formData.caseSensitive;
+      } else {
+        submitParams.caseSensitive = undefined; // Don't pass for regex mode
+      }
     } else {
+      submitParams.contentSearchTerm = undefined;
       submitParams.contentSearchMode = undefined;
       submitParams.caseSensitive = undefined;
     }
@@ -131,13 +138,15 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
   };
 
   const hasContentSearchTerm = !!formData.contentSearchTerm.trim();
-  const isCaseSensitiveDisabled = isLoading || !hasContentSearchTerm;
+  // Case sensitive checkbox is relevant for 'term' and 'boolean' modes
+  const isCaseSensitiveRelevant = formData.contentSearchMode === 'term' || formData.contentSearchMode === 'boolean';
+  const isCaseSensitiveDisabled = isLoading || !hasContentSearchTerm || !isCaseSensitiveRelevant;
 
   // --- Determine placeholder based on mode ---
   const getPlaceholder = () => {
       switch (formData.contentSearchMode) {
           case 'regex': return t("contentSearchPlaceholderRegex");
-          case 'boolean': return t("contentSearchPlaceholderBoolean"); // Use updated key
+          case 'boolean': return t("contentSearchPlaceholderBooleanRegex"); // Use updated key
           case 'term':
           default: return t("contentSearchPlaceholder");
       }
@@ -212,8 +221,8 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSubmit, isLoading }) => {
         </div>
       </div>
 
-      {/* Case Sensitive Checkbox */}
-      {hasContentSearchTerm && (
+      {/* Case Sensitive Checkbox (only shown if relevant) */}
+      {hasContentSearchTerm && isCaseSensitiveRelevant && (
         <div className="form-group form-group-checkbox">
           <input
             type="checkbox"

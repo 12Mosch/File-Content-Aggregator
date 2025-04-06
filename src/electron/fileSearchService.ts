@@ -34,7 +34,7 @@ export interface SearchParams {
   folderExclusionMode?: FolderExclusionMode; // Mode for folder exclusion
   contentSearchTerm?: string;
   contentSearchMode?: ContentSearchMode; // Uses local type
-  caseSensitive?: boolean; // Still used for 'term' mode and potentially 'regex' flags
+  caseSensitive?: boolean; // Used for 'term' mode and non-regex terms in 'boolean' mode
   modifiedAfter?: string; // Date string "YYYY-MM-DD"
   modifiedBefore?: string; // Date string "YYYY-MM-DD"
   minSizeBytes?: number; // Optional: Min size in bytes
@@ -126,6 +126,7 @@ function parseDateEndOfDay(dateString: string | undefined): Date | null {
  */
 function parseRegexLiteral(pattern: string): RegExp | null {
   // Match pattern like /content/flags
+  // Ensure it starts and ends with / and has valid flags
   const regexMatch = pattern.match(/^\/(.+)\/([gimyus]*)$/);
   if (regexMatch) {
     try {
@@ -133,7 +134,7 @@ function parseRegexLiteral(pattern: string): RegExp | null {
       return new RegExp(regexMatch[1], regexMatch[2]);
     } catch (e) {
       // Log error if RegExp creation fails (e.g., invalid pattern/flags)
-      console.warn(`Invalid RegExp pattern: ${pattern}`, e);
+      console.warn(`Invalid RegExp literal format: ${pattern}`, e);
       return null;
     }
   }
@@ -170,24 +171,24 @@ function isJsepExpression(node: any): node is Jsep.Expression {
 }
 // ------------------------------------
 
-// --- Boolean AST Evaluation Function with Refinements ---
+// --- Boolean AST Evaluation Function with Regex Support ---
 /**
  * Recursively evaluates a boolean expression AST against file content.
  * Expected Syntax:
  *   - Operators: AND, OR, NOT (case-insensitive during parsing)
  *   - Grouping: Parentheses ()
  *   - Terms:
- *     - Unquoted words (Identifiers): Treated as simple strings (e.g., error, database).
- *     - Quoted strings (Literals): Treated as simple strings, allows spaces (e.g., "read error", 'database connection').
- *   - Case Sensitivity: Controlled by the `caseSensitive` parameter for all term matching.
+ *     - Unquoted words (Identifiers): Treated as simple strings (e.g., error) OR regex literals (e.g., /error\d+/i).
+ *     - Quoted strings (Literals): Treated as simple strings (e.g., "read error") OR regex literals (e.g., "/timeout \d+ms/").
+ *   - Case Sensitivity: Controlled by the `caseSensitive` parameter for *simple string* term matching.
+ *     Regex terms rely on their own flags (e.g., /pattern/i).
  *
  * @param node The current AST node from jsep (or unknown).
  * @param content The file content string.
- * @param caseSensitive Whether string comparisons should be case-sensitive.
+ * @param caseSensitive Whether *simple string* comparisons should be case-sensitive.
  * @returns True if the expression evaluates to true for the content, false otherwise.
  */
 function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, caseSensitive: boolean): boolean {
-    // Use the type guard at the beginning
     if (!isJsepExpression(node)) {
         console.warn("evaluateBooleanAst called with non-Expression node:", node);
         return false;
@@ -196,61 +197,69 @@ function evaluateBooleanAst(node: Jsep.Expression | unknown, content: string, ca
     try {
         switch (node.type) {
             case 'LogicalExpression':
-                // Use type guard before recursing
                 if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
                     console.warn("LogicalExpression node missing valid left or right child", node);
                     return false;
                 }
                 const leftResult = evaluateBooleanAst(node.left, content, caseSensitive);
-                // Short-circuit evaluation based on custom operators
                 if (node.operator === 'OR' && leftResult) return true;
                 if (node.operator === 'AND' && !leftResult) return false;
                 const rightResult = evaluateBooleanAst(node.right, content, caseSensitive);
-                // Evaluate based on custom operators
                 return node.operator === 'OR' ? (leftResult || rightResult) : (leftResult && rightResult);
 
             case 'UnaryExpression':
-                // Use type guard before recursing
                 if (!isJsepExpression(node.argument)) {
                      console.warn("UnaryExpression node missing valid argument", node);
                      return false;
                 }
-                if (node.operator === 'NOT') { // Check for custom NOT operator
+                if (node.operator === 'NOT') {
                     return !evaluateBooleanAst(node.argument, content, caseSensitive);
                 }
                 console.warn(`Unsupported unary operator: ${node.operator}`);
                 return false;
 
-            case 'Identifier': // Unquoted terms
+            case 'Identifier': // Unquoted terms (could be simple string or regex literal)
                 const termIdentifier = node.name;
-                // Type check remains valid here as .name is expected to be string
                 if (typeof termIdentifier !== 'string') {
                     console.warn("Identifier node name is not a string", node);
                     return false;
                 }
-                // Apply case sensitivity
-                return caseSensitive
-                    ? content.includes(termIdentifier)
-                    : content.toLowerCase().includes(termIdentifier.toLowerCase());
+                // --- Check if it's a regex literal ---
+                const regexFromIdentifier = parseRegexLiteral(termIdentifier);
+                if (regexFromIdentifier) {
+                    // Use regex test
+                    return regexFromIdentifier.test(content);
+                } else {
+                    // Treat as simple string, apply case sensitivity
+                    return caseSensitive
+                        ? content.includes(termIdentifier)
+                        : content.toLowerCase().includes(termIdentifier.toLowerCase());
+                }
+                // ------------------------------------
 
-            case 'Literal': // Quoted terms (strings)
-                // Type check remains valid here
+            case 'Literal': // Quoted terms (could be simple string or regex literal)
                 if (typeof node.value === 'string') {
                     const termLiteral = node.value;
-                    // Apply case sensitivity
-                    return caseSensitive
-                        ? content.includes(termLiteral)
-                        : content.toLowerCase().includes(termLiteral.toLowerCase());
+                    // --- Check if it's a regex literal ---
+                    const regexFromLiteral = parseRegexLiteral(termLiteral);
+                    if (regexFromLiteral) {
+                        // Use regex test
+                        return regexFromLiteral.test(content);
+                    } else {
+                        // Treat as simple string, apply case sensitivity
+                        return caseSensitive
+                            ? content.includes(termLiteral)
+                            : content.toLowerCase().includes(termLiteral.toLowerCase());
+                    }
+                    // ------------------------------------
                 }
                 if (typeof node.value === 'boolean') {
-                    // Allow boolean literals true/false for completeness
                     return node.value;
                 }
                 console.warn(`Unsupported literal type: ${typeof node.value}`);
                 return false;
 
             default:
-                // Handle other potential node types jsep might produce if the grammar expands
                 console.warn(`Unsupported AST node type: ${node.type}`);
                 return false;
         }
@@ -275,7 +284,7 @@ export async function searchFiles(
     folderExclusionMode = 'contains',
     contentSearchTerm,
     contentSearchMode = 'term', // Uses local type default
-    caseSensitive = false, // This flag now applies to boolean term matching too
+    caseSensitive = false, // Applies to 'term' mode and non-regex terms in 'boolean' mode
     modifiedAfter,
     modifiedBefore,
     minSizeBytes,
@@ -350,7 +359,7 @@ export async function searchFiles(
     filesToProcess = filesToProcess.filter((filePath) => {
       const filename = path.basename(filePath);
       const isExcluded = excludeFiles.some((pattern) => {
-        const regex = parseRegexLiteral(pattern);
+        const regex = parseRegexLiteral(pattern); // Use the same regex literal parser here
         if (regex) return regex.test(filename);
         return picomatch.isMatch(filename, pattern, { dot: true });
       });
@@ -434,13 +443,11 @@ export async function searchFiles(
   if (contentSearchTerm) {
     switch (contentSearchMode) { // Uses local type
       case 'regex':
-        // Determine flags based on case sensitivity. 'g' is often not needed for simple existence checks with test().
+        // Determine flags based on case sensitivity.
         const flags = caseSensitive ? '' : 'i';
         const regex = createSafeRegex(contentSearchTerm, flags);
         if (regex) {
           contentMatcher = (content) => regex.test(content);
-          // Note: If using 'g' flag and exec/matchAll, reset regex.lastIndex before each file or create new regex per file.
-          // Using test() avoids this issue.
         } else {
           // Handle invalid regex input from user
           parseOrRegexError = true;
@@ -455,14 +462,11 @@ export async function searchFiles(
       case 'boolean':
         try {
           // --- Configure jsep custom operators (do this once if possible, but here is safe) ---
-          // Remove default operators that might conflict or be confusing
-          // Check if operators exist before adding/removing to prevent errors on re-runs if jsep state persists
           if (jsep.binary_ops['||']) jsep.removeBinaryOp('||');
           if (jsep.binary_ops['&&']) jsep.removeBinaryOp('&&');
           if (jsep.unary_ops['!']) jsep.removeUnaryOp('!');
-          // Add case-insensitive AND, OR, NOT
-          if (!jsep.binary_ops['AND']) jsep.addBinaryOp('AND', 1); // Lower precedence
-          if (!jsep.binary_ops['OR']) jsep.addBinaryOp('OR', 0);  // Lowest precedence
+          if (!jsep.binary_ops['AND']) jsep.addBinaryOp('AND', 1);
+          if (!jsep.binary_ops['OR']) jsep.addBinaryOp('OR', 0);
           if (!jsep.unary_ops['NOT']) jsep.addUnaryOp('NOT');
           // ------------------------------------------------------------------------------------
 
@@ -472,14 +476,13 @@ export async function searchFiles(
           // -----------------------------
 
           // Create the matcher function that uses the evaluator
-          // Pass the potentially unknown AST type, evaluator handles it
+          // Pass the AST and the caseSensitive flag (for non-regex terms)
           contentMatcher = (content) => evaluateBooleanAst(parsedAst, content, caseSensitive);
 
         } catch (parseError: any) {
           parseOrRegexError = true;
           // --- Improved Error Message ---
           let errorDetail = parseError.message || 'Unknown parsing error';
-          // jsep errors often have an 'index' property
           if (typeof parseError.index === 'number') {
               errorDetail += ` near character ${parseError.index + 1}`;
           }
