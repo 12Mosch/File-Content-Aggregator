@@ -39,7 +39,7 @@ A cross-platform desktop application built with Electron and React to efficientl
 
 ## Installation
 
-<!-->Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub Releases**](<./link/to/your/releases/page>) page. <!-- <<< UPDATE THIS LINK -->
+Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub Releases**](<https://github.com/12Mosch/File-Content-Aggregator/releases>) page.
 
 *   **Windows:** Download the `.exe` (portable) or `.msi` (installer).
 *   **macOS:** Download the `.dmg` file. Open it and drag the application to your Applications folder.
