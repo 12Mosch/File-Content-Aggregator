@@ -43,7 +43,7 @@ File Content Aggregator is a desktop application built using Electron, React (wi
 
 1.  Clone the repository:
     ```bash
-    git clone <your-repository-url>
+    git clone <https://github.com/12Mosch/File-Content-Aggregator/>
     cd file-content-aggregator
     ```
 2.  Install dependencies:

@@ -234,7 +234,7 @@ export async function searchFiles(
             }
 
             fileContent = await fs.readFile(file, { encoding: "utf8" });
-            let contentMatches = !contentMatcher || contentMatcher(fileContent);
+            const contentMatches = !contentMatcher || contentMatcher(fileContent);
 
             if (contentMatches) {
               outputLineResult = `${displayFilePath}\n\n${fileContent}\n`;
