@@ -23,6 +23,7 @@
   "filterResultsLabel": "Filter Results:",
   "filterResultsPlaceholder": "Enter text to filter...",
   "filterCaseSensitiveLabel": "Case-Sensitive",
+  "copyFileContentButton": "Copy File Content",
   "highlighting": "Highlighting...",
   "highlightError": "Highlighting Error"
 }

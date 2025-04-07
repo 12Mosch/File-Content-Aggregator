@@ -1,6 +1,13 @@
 {
   "compilerOptions": {
-    //"types": ["./types"],
+    // --- Base URL and Path Alias ---
+    // Defines the root for aliases and maps @/* to ./src/*
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    // --- End Alias Config ---
+
     "target": "ESNext",
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
@@ -11,13 +18,22 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler", // Recommended for Vite
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
+    "noEmit": true, // Correct for Vite projects
     "jsx": "react-jsx"
+    // "noUncheckedSideEffectImports": true, // Keep if no issues, remove if CSS imports cause problems
   },
-  "include": ["src"],
-  "exclude": ["src/electron"],
-  //"references": [{ "path": "./tsconfig.node.json" }]
+  // Include all source code for type checking context, specific includes are in referenced configs
+  "include": ["src", "vite.config.ts"],
+  // Exclude build outputs, node_modules etc.
+  "exclude": [
+    "node_modules",
+    "dist-*", // Excludes dist-react, dist-electron
+    "release",
+    "build",
+    ".tmp" // Exclude build info directory
+    ]
+  // --- REMOVED references array to avoid conflict with noEmit ---
 }
