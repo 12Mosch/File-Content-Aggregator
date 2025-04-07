@@ -1,7 +1,8 @@
 {
-    "saveDialogTitle": "Salvar Resultados da Pesquisa",
-    "saveDialogButtonLabel": "Salvar",
-    "saveDialogFilterText": "Arquivos de Texto",
-    "saveDialogFilterAll": "Todos os Arquivos"
+  "saveDialogTitle": "Salvar Resultados da Pesquisa",
+  "saveDialogButtonLabel": "Salvar",
+  "saveDialogFilterText": "Arquivos de Texto",
+  "saveDialogFilterAll": "Todos os Arquivos",
+  "errorTitle": "Erro de Diálogo",
+  "showError": "Erro ao mostrar diálogo: {{detail}}"
 }
-  

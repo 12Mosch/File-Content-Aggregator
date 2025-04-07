@@ -1,7 +1,8 @@
 {
-    "saveDialogTitle": "Enregistrer les Résultats de la Recherche",
-    "saveDialogButtonLabel": "Enregistrer",
-    "saveDialogFilterText": "Fichiers Texte",
-    "saveDialogFilterAll": "Tous les Fichiers"
-  }
-  
+  "saveDialogTitle": "Enregistrer les Résultats de la Recherche",
+  "saveDialogButtonLabel": "Enregistrer",
+  "saveDialogFilterText": "Fichiers Texte",
+  "saveDialogFilterAll": "Tous les Fichiers",
+  "errorTitle": "Erreur de Dialogue",
+  "showError": "Erreur lors de l'affichage du dialogue : {{detail}}"
+}

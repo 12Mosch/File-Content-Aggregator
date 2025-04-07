@@ -1,7 +1,8 @@
 {
-    "saveDialogTitle": "Сохранить Результаты Поиска",
-    "saveDialogButtonLabel": "Сохранить",
-    "saveDialogFilterText": "Текстовые Файлы",
-    "saveDialogFilterAll": "Все Файлы"
-  }
-  
+  "saveDialogTitle": "Сохранить Результаты Поиска",
+  "saveDialogButtonLabel": "Сохранить",
+  "saveDialogFilterText": "Текстовые Файлы",
+  "saveDialogFilterAll": "Все Файлы",
+  "errorTitle": "Ошибка Диалога",
+  "showError": "Ошибка отображения диалога: {{detail}}"
+}

@@ -1,7 +1,8 @@
 {
-    "saveDialogTitle": "Save Search Results",
-    "saveDialogButtonLabel": "Save",
-    "saveDialogFilterText": "Text Files",
-    "saveDialogFilterAll": "All Files"
-  }
-  
+  "saveDialogTitle": "Save Search Results",
+  "saveDialogButtonLabel": "Save",
+  "saveDialogFilterText": "Text Files",
+  "saveDialogFilterAll": "All Files",
+  "errorTitle": "Dialog Error",
+  "showError": "Error showing dialog: {{detail}}"
+}

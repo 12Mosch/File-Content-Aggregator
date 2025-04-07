@@ -14,7 +14,6 @@
   "folderExclusionModeEndsWith": "Segment Ends With Pattern",
   "maxDepthLabel": "Max Search Depth:",
   "maxDepthPlaceholder": "Blank = unlimited",
-
   "contentQueryBuilderLabel": "Content Query:",
   "queryBuilderAND": "AND",
   "queryBuilderOR": "OR",
@@ -30,7 +29,6 @@
   "queryBuilderNearTerm2Placeholder": "Term 2 (text or /regex/)",
   "queryBuilderNearDistanceLabel": "within",
   "queryBuilderNearWordsLabel": "words of",
-
   "caseSensitiveLabel": "Case-Sensitive (for simple terms)",
   "modifiedAfterLabel": "Modified After (Optional):",
   "modifiedBeforeLabel": "Modified Before (Optional):",

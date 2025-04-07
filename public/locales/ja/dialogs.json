@@ -1,7 +1,8 @@
 {
-    "saveDialogTitle": "検索結果を保存",
-    "saveDialogButtonLabel": "保存",
-    "saveDialogFilterText": "テキストファイル",
-    "saveDialogFilterAll": "すべてのファイル"
-  }
-  
+  "saveDialogTitle": "検索結果を保存",
+  "saveDialogButtonLabel": "保存",
+  "saveDialogFilterText": "テキストファイル",
+  "saveDialogFilterAll": "すべてのファイル",
+  "errorTitle": "ダイアログエラー",
+  "showError": "ダイアログ表示エラー: {{detail}}"
+}
