@@ -12,6 +12,7 @@ interface ProgressData {
   currentFile?: string;
   message?: string;
   error?: string;
+  status?: 'searching' | 'cancelling' | 'cancelled' | 'completed' | 'error';
 }
 
 interface StructuredItem {
@@ -35,6 +36,7 @@ interface SearchResult {
   errorsEncountered: number;
   pathErrors: string[];
   fileReadErrors: FileReadError[];
+  wasCancelled?: boolean; // Flag to indicate cancellation
 }
 
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
@@ -96,10 +98,13 @@ export interface IElectronAPI {
   clearSearchHistory: () => Promise<boolean>;
   updateSearchHistoryEntry: (entryId: string, updates: Partial<Pick<SearchHistoryEntry, 'name' | 'isFavorite'>>) => Promise<boolean>;
 
-  // --- NEW: Theme API ---
+  // Theme API
   getThemePreference: () => Promise<ThemePreference>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
-  // ------------------------
+
+  // --- NEW: Cancellation API ---
+  cancelSearch: () => void; // Send-only, no return value expected
+  // -----------------------------
 }
 
 // --- Global Window Augmentation ---

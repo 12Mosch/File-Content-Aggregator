@@ -12,7 +12,6 @@ const electronAPI = {
   onSearchProgress: (callback: (data: any) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on("search-progress", listener);
-    // Explicitly return the cleanup function
     return () => ipcRenderer.removeListener("search-progress", listener);
   },
 
@@ -31,6 +30,9 @@ const electronAPI = {
   // --- Theme Methods ---
   getThemePreference: (): Promise<string> => ipcRenderer.invoke("get-theme-preference"),
   setThemePreference: (theme: string): Promise<void> => ipcRenderer.invoke("set-theme-preference", theme),
+
+  // --- Cancellation Method ---
+  cancelSearch: (): void => ipcRenderer.send("cancel-search"),
 
 };
 
