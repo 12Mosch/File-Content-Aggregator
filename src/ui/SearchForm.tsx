@@ -1,19 +1,32 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { format, parseISO, isValid } from "date-fns";
 import QueryBuilder from "./QueryBuilder";
 import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
-import type { SearchHistoryEntry, SearchParams, ContentSearchMode } from "./vite-env.d"; // Import types
+import type {
+  SearchHistoryEntry,
+  SearchParams,
+  ContentSearchMode,
+} from "./vite-env.d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarIcon, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Define unit constants for calculations
 const SIZE_UNITS = { Bytes: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
@@ -27,8 +40,9 @@ interface SearchFormData {
   excludeFiles: string;
   excludeFolders: string;
   folderExclusionMode: FolderExclusionMode;
-  modifiedAfter: string;
-  modifiedBefore: string;
+  // Dates are now Date objects or undefined
+  modifiedAfter: Date | undefined;
+  modifiedBefore: Date | undefined;
   minSizeValue: string;
   minSizeUnit: SizeUnit;
   maxSizeValue: string;
@@ -49,12 +63,11 @@ const bytesToSizeForm = (bytes: number | undefined): { value: string; unit: Size
 // Helper function to convert structured query to string (remains the same)
 const convertStructuredQueryToString = (group: QueryStructure): string => { if (!group || group.conditions.length === 0) return ""; const parts = group.conditions.map((item) => { if ("operator" in item) return `(${convertStructuredQueryToString(item)})`; else { switch (item.type) { case "term": return /\s|[()]|AND|OR|NOT|NEAR/i.test(item.value) ? `"${item.value.replace(/"/g, '\\"')}"` : item.value; case "regex": const validFlags = (item.flags || "").replace(/[^gimyus]/g, ""); return `/${item.value}/${validFlags}`; case "near": const formatNearTerm = (term: string) => { if (term.startsWith('/') && term.endsWith('/')) return term; return /\s|[()]|AND|OR|NOT|NEAR/i.test(term) ? `"${term.replace(/"/g, '\\"')}"` : term; }; return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`; default: console.warn("Unknown condition type:", item); return ""; } } }); const validParts = parts.filter(Boolean); if (validParts.length === 0) return ""; if (validParts.length === 1) return validParts[0]; return validParts.join(` ${group.operator} `); };
 
-
 const SearchForm: React.FC<SearchFormProps> = ({
-    onSubmit,
-    isLoading,
-    historyEntryToLoad,
-    onLoadComplete
+  onSubmit,
+  isLoading,
+  historyEntryToLoad,
+  onLoadComplete,
 }) => {
   const { t } = useTranslation(["form"]);
 
@@ -65,8 +78,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
     excludeFiles: "",
     excludeFolders: ".git, node_modules, bin, obj, dist",
     folderExclusionMode: "contains",
-    modifiedAfter: "",
-    modifiedBefore: "",
+    // Initialize dates as undefined
+    modifiedAfter: undefined,
+    modifiedBefore: undefined,
     minSizeValue: "",
     minSizeUnit: "MB",
     maxSizeValue: "",
@@ -75,29 +89,59 @@ const SearchForm: React.FC<SearchFormProps> = ({
   });
 
   // State for the QueryBuilder
-  const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(null);
+  const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(
+    null,
+  );
   const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
 
-  // Effect to load history entry into form state (remains the same logic)
+  // Effect to load history entry into form state
   useEffect(() => {
     if (historyEntryToLoad) {
-      console.log("SearchForm: Loading history entry into state", historyEntryToLoad.id);
+      console.log(
+        "SearchForm: Loading history entry into state",
+        historyEntryToLoad.id,
+      );
       const params = historyEntryToLoad.searchParams;
       const minSize = bytesToSizeForm(params.minSizeBytes);
       const maxSize = bytesToSizeForm(params.maxSizeBytes);
+
+      // Parse date strings from history into Date objects
+      let initialModifiedAfter: Date | undefined = undefined;
+      if (params.modifiedAfter) {
+        try {
+          const parsed = parseISO(params.modifiedAfter);
+          if (isValid(parsed)) {
+            initialModifiedAfter = parsed;
+          }
+        } catch (e) {
+          console.error("Error parsing modifiedAfter from history:", e);
+        }
+      }
+      let initialModifiedBefore: Date | undefined = undefined;
+      if (params.modifiedBefore) {
+        try {
+          const parsed = parseISO(params.modifiedBefore);
+          if (isValid(parsed)) {
+            initialModifiedBefore = parsed;
+          }
+        } catch (e) {
+          console.error("Error parsing modifiedBefore from history:", e);
+        }
+      }
+
       setFormData({
-        searchPaths: params.searchPaths?.join('\n') ?? '',
-        extensions: params.extensions?.join(', ') ?? '',
-        excludeFiles: params.excludeFiles?.join('\n') ?? '',
-        excludeFolders: params.excludeFolders?.join('\n') ?? '',
-        folderExclusionMode: params.folderExclusionMode ?? 'contains',
-        modifiedAfter: params.modifiedAfter ?? '',
-        modifiedBefore: params.modifiedBefore ?? '',
+        searchPaths: params.searchPaths?.join("\n") ?? "",
+        extensions: params.extensions?.join(", ") ?? "",
+        excludeFiles: params.excludeFiles?.join("\n") ?? "",
+        excludeFolders: params.excludeFolders?.join("\n") ?? "",
+        folderExclusionMode: params.folderExclusionMode ?? "contains",
+        modifiedAfter: initialModifiedAfter, // Use parsed Date object
+        modifiedBefore: initialModifiedBefore, // Use parsed Date object
         minSizeValue: minSize.value,
         minSizeUnit: minSize.unit,
         maxSizeValue: maxSize.value,
         maxSizeUnit: maxSize.unit,
-        maxDepthValue: params.maxDepth?.toString() ?? '',
+        maxDepthValue: params.maxDepth?.toString() ?? "",
       });
       setQueryStructure(params.structuredQuery ?? null);
       setQueryCaseSensitive(params.caseSensitive ?? false);
@@ -106,7 +150,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   }, [historyEntryToLoad, onLoadComplete]);
 
   // --- Handlers ---
-  // Generic handler for Input and Textarea changes
+  // Generic handler for Input and Textarea changes (excluding dates now)
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -114,7 +158,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     // Prevent negative numbers for number inputs
     if (e.target.type === "number" && parseFloat(value) < 0) {
       if (value === "" || parseFloat(value) === 0) {
-         setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({ ...prev, [name]: value }));
       }
       return;
     }
@@ -123,7 +167,20 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
   // Specific handler for Select components (shadcn passes value directly)
   const handleSelectChange = (name: keyof SearchFormData) => (value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value as any })); // Use 'as any' for simplicity here
+  };
+
+  // Handlers for Date selection using Calendar
+  const handleDateSelect =
+    (field: "modifiedAfter" | "modifiedBefore") =>
+    (date: Date | undefined) => {
+      setFormData((prev) => ({ ...prev, [field]: date }));
+      // Optionally close popover here if needed, depends on Popover setup
+    };
+
+  // Handlers to clear dates
+  const clearDate = (field: "modifiedAfter" | "modifiedBefore") => {
+    setFormData((prev) => ({ ...prev, [field]: undefined }));
   };
 
   // QueryBuilder change handlers
@@ -137,8 +194,11 @@ const SearchForm: React.FC<SearchFormProps> = ({
   // Form submission handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const splitAndClean = (str: string) => str.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-    const contentQueryString = queryStructure ? convertStructuredQueryToString(queryStructure) : "";
+    const splitAndClean = (str: string) =>
+      str.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+    const contentQueryString = queryStructure
+      ? convertStructuredQueryToString(queryStructure)
+      : "";
 
     // Construct the final parameters object matching the SearchParams type
     const submitParams: SearchParams = {
@@ -152,19 +212,29 @@ const SearchForm: React.FC<SearchFormProps> = ({
       contentSearchTerm: contentQueryString || undefined,
       contentSearchMode: contentQueryString ? "boolean" : undefined,
       caseSensitive: contentQueryString ? queryCaseSensitive : undefined,
-      // Other params
-      modifiedAfter: formData.modifiedAfter || undefined,
-      modifiedBefore: formData.modifiedBefore || undefined,
+      // Format Date objects back to YYYY-MM-DD strings for backend
+      modifiedAfter: formData.modifiedAfter
+        ? format(formData.modifiedAfter, "yyyy-MM-dd")
+        : undefined,
+      modifiedBefore: formData.modifiedBefore
+        ? format(formData.modifiedBefore, "yyyy-MM-dd")
+        : undefined,
       maxDepth: parseInt(formData.maxDepthValue, 10) || undefined,
     };
 
     // Size calculation
     const minSizeNum = parseFloat(formData.minSizeValue);
-    if (!isNaN(minSizeNum) && minSizeNum >= 0) submitParams.minSizeBytes = minSizeNum * SIZE_UNITS[formData.minSizeUnit];
+    if (!isNaN(minSizeNum) && minSizeNum >= 0)
+      submitParams.minSizeBytes = minSizeNum * SIZE_UNITS[formData.minSizeUnit];
     const maxSizeNum = parseFloat(formData.maxSizeValue);
-    if (!isNaN(maxSizeNum) && maxSizeNum >= 0) submitParams.maxSizeBytes = maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
-    if (submitParams.minSizeBytes !== undefined && submitParams.maxSizeBytes !== undefined && submitParams.minSizeBytes > submitParams.maxSizeBytes) {
-      alert(t('errorMinMax')); // Consider using a shadcn Alert Dialog here
+    if (!isNaN(maxSizeNum) && maxSizeNum >= 0)
+      submitParams.maxSizeBytes = maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
+    if (
+      submitParams.minSizeBytes !== undefined &&
+      submitParams.maxSizeBytes !== undefined &&
+      submitParams.minSizeBytes > submitParams.maxSizeBytes
+    ) {
+      alert(t("errorMinMax")); // Consider using a shadcn Alert Dialog here
       return;
     }
 
@@ -175,9 +245,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
   return (
     // Use Tailwind classes for form layout (flex column with gaps)
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-
       {/* Search Paths */}
-      <div className="space-y-1.5"> {/* Use space-y for vertical spacing */}
+      <div className="space-y-1.5">
+        {" "}
+        {/* Use space-y for vertical spacing */}
         <Label htmlFor="searchPaths">{t("searchPathLabel")}</Label>
         <Textarea
           id="searchPaths"
@@ -239,31 +310,51 @@ const SearchForm: React.FC<SearchFormProps> = ({
           />
           {/* Mode Selector Group */}
           <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
-             <Label htmlFor="folderExclusionMode" className="text-xs text-muted-foreground"> {/* Smaller label */}
-                {t("folderExclusionModeLabel")}
-             </Label>
-             <Select
-                name="folderExclusionMode"
-                value={formData.folderExclusionMode}
-                onValueChange={handleSelectChange('folderExclusionMode')}
-                disabled={isLoading}
-             >
-                <SelectTrigger id="folderExclusionMode" className="w-full sm:w-[200px]"> {/* Responsive width */}
-                    <SelectValue placeholder={t("folderExclusionModeLabel")} />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="contains">{t("folderExclusionModeContains")}</SelectItem>
-                    <SelectItem value="exact">{t("folderExclusionModeExact")}</SelectItem>
-                    <SelectItem value="startsWith">{t("folderExclusionModeStartsWith")}</SelectItem>
-                    <SelectItem value="endsWith">{t("folderExclusionModeEndsWith")}</SelectItem>
-                </SelectContent>
-             </Select>
+            <Label
+              htmlFor="folderExclusionMode"
+              className="text-xs text-muted-foreground"
+            >
+              {" "}
+              {/* Smaller label */}
+              {t("folderExclusionModeLabel")}
+            </Label>
+            <Select
+              name="folderExclusionMode"
+              value={formData.folderExclusionMode}
+              onValueChange={handleSelectChange("folderExclusionMode")}
+              disabled={isLoading}
+            >
+              <SelectTrigger
+                id="folderExclusionMode"
+                className="w-full sm:w-[200px]"
+              >
+                {" "}
+                {/* Responsive width */}
+                <SelectValue placeholder={t("folderExclusionModeLabel")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contains">
+                  {t("folderExclusionModeContains")}
+                </SelectItem>
+                <SelectItem value="exact">
+                  {t("folderExclusionModeExact")}
+                </SelectItem>
+                <SelectItem value="startsWith">
+                  {t("folderExclusionModeStartsWith")}
+                </SelectItem>
+                <SelectItem value="endsWith">
+                  {t("folderExclusionModeEndsWith")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
 
       {/* Max Depth */}
-      <div className="space-y-1.5 max-w-[250px]"> {/* Limit width */}
+      <div className="space-y-1.5 max-w-[250px]">
+        {" "}
+        {/* Limit width */}
         <Label htmlFor="maxDepthValue">{t("maxDepthLabel")}</Label>
         <Input
           type="number"
@@ -283,37 +374,112 @@ const SearchForm: React.FC<SearchFormProps> = ({
       <div className="space-y-1.5">
         <Label>{t("contentQueryBuilderLabel")}</Label>
         <QueryBuilder
-            initialQuery={queryStructure}
-            initialCaseSensitive={queryCaseSensitive}
-            onChange={handleQueryChange}
-            onCaseSensitivityChange={handleQueryCaseSensitivityChange}
-            disabled={isLoading}
+          initialQuery={queryStructure}
+          initialCaseSensitive={queryCaseSensitive}
+          onChange={handleQueryChange}
+          onCaseSensitivityChange={handleQueryCaseSensitivityChange}
+          disabled={isLoading}
         />
       </div>
 
-      {/* Date Fields Row */}
+      {/* Date Fields Row - Replaced with Popover/Calendar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Modified After */}
         <div className="space-y-1.5">
-          <Label htmlFor="modifiedAfter">{t("modifiedAfterLabel")}</Label>
-          <Input
-            type="date"
-            id="modifiedAfter"
-            name="modifiedAfter"
-            value={formData.modifiedAfter}
-            onChange={handleInputChange}
-            disabled={isLoading}
-          />
+          <Label htmlFor="modifiedAfterBtn">{t("modifiedAfterLabel")}</Label>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="modifiedAfterBtn"
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal h-9", // Match input height
+                    !formData.modifiedAfter && "text-muted-foreground",
+                  )}
+                  disabled={isLoading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.modifiedAfter ? (
+                    format(formData.modifiedAfter, "PPP") // PPP format e.g., Jul 2, 2024
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={formData.modifiedAfter}
+                  onSelect={handleDateSelect("modifiedAfter")}
+                  initialFocus
+                  disabled={isLoading}
+                />
+              </PopoverContent>
+            </Popover>
+            {/* Clear Button */}
+            {formData.modifiedAfter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => clearDate("modifiedAfter")}
+                disabled={isLoading}
+                className="h-9 w-9" // Match input height
+                aria-label="Clear modified after date"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Modified Before */}
         <div className="space-y-1.5">
-          <Label htmlFor="modifiedBefore">{t("modifiedBeforeLabel")}</Label>
-          <Input
-            type="date"
-            id="modifiedBefore"
-            name="modifiedBefore"
-            value={formData.modifiedBefore}
-            onChange={handleInputChange}
-            disabled={isLoading}
-          />
+          <Label htmlFor="modifiedBeforeBtn">{t("modifiedBeforeLabel")}</Label>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="modifiedBeforeBtn"
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal h-9", // Match input height
+                    !formData.modifiedBefore && "text-muted-foreground",
+                  )}
+                  disabled={isLoading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.modifiedBefore ? (
+                    format(formData.modifiedBefore, "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={formData.modifiedBefore}
+                  onSelect={handleDateSelect("modifiedBefore")}
+                  initialFocus
+                  disabled={isLoading}
+                />
+              </PopoverContent>
+            </Popover>
+            {/* Clear Button */}
+            {formData.modifiedBefore && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => clearDate("modifiedBefore")}
+                disabled={isLoading}
+                className="h-9 w-9" // Match input height
+                aria-label="Clear modified before date"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -336,17 +502,23 @@ const SearchForm: React.FC<SearchFormProps> = ({
               className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <Select
-                name="minSizeUnit"
-                value={formData.minSizeUnit}
-                onValueChange={handleSelectChange('minSizeUnit')}
-                disabled={isLoading}
+              name="minSizeUnit"
+              value={formData.minSizeUnit}
+              onValueChange={handleSelectChange("minSizeUnit")}
+              disabled={isLoading}
             >
-                <SelectTrigger className="w-[80px] shrink-0"> {/* Fixed width for unit */}
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    {Object.keys(SIZE_UNITS).map((unit) => (<SelectItem key={unit} value={unit}>{t(`sizeUnit${unit}` as any)}</SelectItem>))}
-                </SelectContent>
+              <SelectTrigger className="w-[80px] shrink-0">
+                {" "}
+                {/* Fixed width for unit */}
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(SIZE_UNITS).map((unit) => (
+                  <SelectItem key={unit} value={unit}>
+                    {t(`sizeUnit${unit}` as any)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
@@ -367,25 +539,37 @@ const SearchForm: React.FC<SearchFormProps> = ({
               className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <Select
-                name="maxSizeUnit"
-                value={formData.maxSizeUnit}
-                onValueChange={handleSelectChange('maxSizeUnit')}
-                disabled={isLoading}
+              name="maxSizeUnit"
+              value={formData.maxSizeUnit}
+              onValueChange={handleSelectChange("maxSizeUnit")}
+              disabled={isLoading}
             >
-                <SelectTrigger className="w-[80px] shrink-0">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    {Object.keys(SIZE_UNITS).map((unit) => (<SelectItem key={unit} value={unit}>{t(`sizeUnit${unit}` as any)}</SelectItem>))}
-                </SelectContent>
+              <SelectTrigger className="w-[80px] shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(SIZE_UNITS).map((unit) => (
+                  <SelectItem key={unit} value={unit}>
+                    {t(`sizeUnit${unit}` as any)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
       </div>
 
       {/* Submit Button */}
-      <div className="pt-2"> {/* Add some top padding before the button */}
-        <Button type="submit" disabled={isLoading} className="w-full sm:w-auto"> {/* Full width on small screens */}
+      <div className="pt-2">
+        {" "}
+        {/* Add some top padding before the button */}
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full sm:w-auto"
+        >
+          {" "}
+          {/* Full width on small screens */}
           {isLoading ? t("searchButtonLoading") : t("searchButton")}
         </Button>
       </div>
