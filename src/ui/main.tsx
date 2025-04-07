@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState } from "react"; // Ensure useState is imported
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import i18n from "./i18n";
@@ -13,42 +13,41 @@ const root = createRoot(rootElement);
 
 /** Applies the theme class based on preference and system settings */
 const applyTheme = (preference: ThemePreference) => {
-    const root = window.document.documentElement;
+    const rootEl = window.document.documentElement;
     const isDarkSystem = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-    root.classList.remove('light', 'dark'); // Remove existing theme classes
+    rootEl.classList.remove('light', 'dark'); // Remove existing theme classes
 
     if (preference === 'system') {
         console.log(`Applying theme: system -> ${isDarkSystem ? 'dark' : 'light'}`);
         if (isDarkSystem) {
-            root.classList.add('dark');
+            rootEl.classList.add('dark');
         } else {
-            root.classList.add('light'); // Explicitly add light for clarity if needed
+            // Explicitly add light for clarity if needed, but default is usually light
+            // rootEl.classList.add('light');
         }
     } else {
          console.log(`Applying theme: ${preference}`);
-         root.classList.add(preference);
+         rootEl.classList.add(preference);
     }
 };
 
 /** Component to handle initial theme load and system listener */
 const ThemeHandler = () => {
-    // useState was missing from import
+    // State to hold the *current* preference (initially fetched or updated via IPC)
     const [currentPreference, setCurrentPreference] = useState<ThemePreference>('system');
 
-    // Effect to fetch initial theme and set up listener
+    // Effect 1: Fetch initial theme preference on mount
     useEffect(() => {
         let isMounted = true;
-        let mediaQueryList: MediaQueryList | null = null;
-        let preferenceListenerCleanup: (() => void) | null = null;
-
-        const fetchAndApplyInitialTheme = async () => {
+        const fetchInitialTheme = async () => {
             try {
                 if (window.electronAPI?.getThemePreference) {
                     const pref = await window.electronAPI.getThemePreference();
                     if (isMounted) {
-                        setCurrentPreference(pref);
-                        applyTheme(pref); // Apply initial theme
+                        console.log("ThemeHandler: Fetched initial preference:", pref);
+                        setCurrentPreference(pref); // Update state
+                        applyTheme(pref); // Apply initial theme based on fetched pref
                     }
                 } else {
                     console.warn("ThemeHandler: getThemePreference API not available.");
@@ -59,52 +58,66 @@ const ThemeHandler = () => {
                  if (isMounted) applyTheme('system'); // Fallback
             }
         };
+        fetchInitialTheme();
+        return () => { isMounted = false; };
+    }, []); // Empty dependency array: runs only once on mount
 
-        fetchAndApplyInitialTheme();
-
-        // Listener for system changes (only active if preference is 'system')
-        const handleSystemThemeChange = (event: MediaQueryListEvent) => {
-            console.log("System theme changed, re-applying 'system' preference.");
-            // Check currentPreference again inside the handler, in case it changed
-            // This check might be better placed where the preference is set (SettingsModal)
-            // For simplicity here, we just re-apply 'system' if that's the current state.
-            // A more robust solution might involve a global state or context.
-            if (currentPreference === 'system') {
-                 applyTheme('system');
-            }
-        };
-
-        // Function to manage the media query listener based on preference
-        const setupMediaQueryListener = (preference: ThemePreference) => {
-            // Clean up existing listener first
-            if (mediaQueryList && preferenceListenerCleanup) {
-                mediaQueryList.removeEventListener('change', handleSystemThemeChange);
-                preferenceListenerCleanup = null;
-                mediaQueryList = null;
-                console.log("ThemeHandler: Removed system theme listener.");
-            }
-            // Add listener only if preference is 'system'
-            if (preference === 'system') {
-                mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
-                mediaQueryList.addEventListener('change', handleSystemThemeChange);
-                preferenceListenerCleanup = () => {
-                    mediaQueryList?.removeEventListener('change', handleSystemThemeChange);
-                };
-                 console.log("ThemeHandler: Added system theme listener.");
-            }
-        };
-
-        // Set up listener based on initial preference state
-        setupMediaQueryListener(currentPreference);
-
-        // Cleanup on unmount
+    // Effect 2: Listen for preference changes from main process
+    useEffect(() => {
+        let cleanupListener: (() => void) | null = null;
+        if (window.electronAPI?.onThemePreferenceChanged) {
+            console.log("ThemeHandler: Setting up preference change listener.");
+            cleanupListener = window.electronAPI.onThemePreferenceChanged((newTheme) => {
+                console.log("ThemeHandler: Received theme preference update:", newTheme);
+                setCurrentPreference(newTheme); // Update state when preference changes
+                // applyTheme(newTheme); // Apply theme immediately based on new pref
+            });
+        } else {
+            console.warn("ThemeHandler: onThemePreferenceChanged API not available.");
+        }
+        // Cleanup listener on unmount
         return () => {
-            isMounted = false;
-            preferenceListenerCleanup?.(); // Clean up listener
+            if (cleanupListener) {
+                console.log("ThemeHandler: Cleaning up preference change listener.");
+                cleanupListener();
+            }
         };
-    // Rerun listener setup if preference changes
-    }, [currentPreference]);
+    }, []); // Empty dependency array: setup listener once on mount
 
+    // Effect 3: Manage system theme listener based on currentPreference state
+    useEffect(() => {
+        let mediaQueryList: MediaQueryList | null = null;
+        let systemChangeListener: ((event: MediaQueryListEvent) => void) | null = null;
+
+        // Function to handle system theme changes
+        const handleSystemThemeChange = (event: MediaQueryListEvent) => {
+            console.log(`ThemeHandler: System theme changed (matches dark: ${event.matches}). Re-applying 'system' preference.`);
+            applyTheme('system'); // Re-apply based on the *new* system state
+        };
+
+        // Setup listener only if preference is 'system'
+        if (currentPreference === 'system') {
+            console.log("ThemeHandler: Preference is 'system', adding system theme listener.");
+            mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
+            systemChangeListener = handleSystemThemeChange; // Assign handler
+            mediaQueryList.addEventListener('change', systemChangeListener);
+            // Apply theme initially *again* in case the system changed *while* pref was not 'system'
+            applyTheme('system');
+        } else {
+            console.log(`ThemeHandler: Preference is '${currentPreference}', ensuring no system listener.`);
+             // Apply the specific theme if not system
+             applyTheme(currentPreference);
+        }
+
+        // Cleanup function for this effect
+        return () => {
+            if (mediaQueryList && systemChangeListener) {
+                console.log("ThemeHandler: Cleaning up system theme listener.");
+                mediaQueryList.removeEventListener('change', systemChangeListener);
+            }
+        };
+    // Re-run this effect whenever currentPreference changes
+    }, [currentPreference]);
 
     return null; // This component doesn't render anything visual
 };
@@ -144,5 +157,5 @@ const initializeApp = async () => {
 
 initializeApp();
 
-// Export applyTheme if SettingsModal needs to call it directly
+// Export applyTheme if SettingsModal needs to call it directly (still useful)
 export { applyTheme };

@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require("electron");
 import type { IpcRendererEvent } from "electron";
 
+// Define ThemePreference type here or import if possible (simpler to define here)
+type ThemePreference = "light" | "dark" | "system";
+
 const electronAPI = {
   // --- Invoke Handlers ---
   invokeSearch: (params: any): Promise<any> => ipcRenderer.invoke("search-files", params),
@@ -28,8 +31,16 @@ const electronAPI = {
   updateSearchHistoryEntry: (entryId: string, updates: any): Promise<boolean> => ipcRenderer.invoke("update-search-history-entry", entryId, updates),
 
   // --- Theme Methods ---
-  getThemePreference: (): Promise<string> => ipcRenderer.invoke("get-theme-preference"),
-  setThemePreference: (theme: string): Promise<void> => ipcRenderer.invoke("set-theme-preference", theme),
+  getThemePreference: (): Promise<ThemePreference> => ipcRenderer.invoke("get-theme-preference"),
+  setThemePreference: (theme: ThemePreference): Promise<void> => ipcRenderer.invoke("set-theme-preference", theme),
+  // --- NEW: Theme Change Listener ---
+  onThemePreferenceChanged: (callback: (theme: ThemePreference) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, theme: ThemePreference) => callback(theme);
+      ipcRenderer.on('theme-preference-changed', listener);
+      // Return cleanup function
+      return () => ipcRenderer.removeListener('theme-preference-changed', listener);
+  },
+  // -----------------------------
 
   // --- Cancellation Method ---
   cancelSearch: (): void => ipcRenderer.send("cancel-search"),

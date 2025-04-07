@@ -135,5 +135,27 @@ ipcMain.handle("clear-search-history", async (event): Promise<boolean> => { /* .
 ipcMain.handle("update-search-history-entry", async (event, entryId: string, updates: Partial<Pick<SearchHistoryEntry, 'name' | 'isFavorite'>>): Promise<boolean> => { /* ... */ if (!validateSender(event.senderFrame)) return false; if (!entryId || !updates || (updates.name === undefined && updates.isFavorite === undefined)) return false; try { const currentHistory = store.get(HISTORY_STORE_KEY, []); let updated = false; const updatedHistory = currentHistory.map(entry => { if (entry.id === entryId) { updated = true; return { ...entry, ...(updates.name !== undefined && { name: updates.name }), ...(updates.isFavorite !== undefined && { isFavorite: updates.isFavorite }), }; } return entry; }); if (updated) { store.set(HISTORY_STORE_KEY, updatedHistory); console.log(`IPC: Updated history entry ${entryId} with:`, updates); return true; } else { console.warn(`IPC: History entry ${entryId} not found for update.`); return false; } } catch (error) { console.error(`IPC: Error updating search history entry ${entryId}:`, error); return false; } });
 // Theme Preference IPC Handlers
 ipcMain.handle("get-theme-preference", async (event): Promise<ThemePreference> => { /* ... */ if (!validateSender(event.senderFrame)) return 'system'; try { const preference = store.get(THEME_PREFERENCE_KEY, 'system'); return preference; } catch (error) { console.error("IPC: Error getting theme preference:", error); return 'system'; } });
-ipcMain.handle("set-theme-preference", async (event, theme: ThemePreference): Promise<void> => { /* ... */ if (!validateSender(event.senderFrame)) return; if (['light', 'dark', 'system'].includes(theme)) { try { store.set(THEME_PREFERENCE_KEY, theme); nativeTheme.themeSource = theme; console.log(`IPC: Theme preference saved and nativeTheme.themeSource set to "${theme}"`); } catch (error) { console.error(`IPC: Error setting theme preference to "${theme}":`, error); } } else { console.warn(`IPC: Attempted to save invalid theme preference: ${theme}`); } });
+
+ipcMain.handle("set-theme-preference", async (event, theme: ThemePreference): Promise<void> => {
+  if (!validateSender(event.senderFrame)) return;
+  if (['light', 'dark', 'system'].includes(theme)) {
+    try {
+      store.set(THEME_PREFERENCE_KEY, theme);
+      nativeTheme.themeSource = theme;
+      console.log(`IPC: Theme preference saved and nativeTheme.themeSource set to "${theme}"`);
+
+      // --- Notify the renderer about the change ---
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('theme-preference-changed', theme);
+        console.log(`IPC: Sent theme-preference-changed event with theme: ${theme}`);
+      }
+      // ------------------------------------------
+
+    } catch (error) {
+      console.error(`IPC: Error setting theme preference to "${theme}":`, error);
+    }
+  } else {
+    console.warn(`IPC: Attempted to save invalid theme preference: ${theme}`);
+  }
+});
 // --------------------------------------

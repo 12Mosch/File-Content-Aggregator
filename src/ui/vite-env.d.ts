@@ -21,7 +21,6 @@ interface StructuredItem {
   readError?: string;
 }
 
-// Mirrored from backend
 interface FileReadError {
   filePath: string;
   reason: string;
@@ -36,31 +35,23 @@ interface SearchResult {
   errorsEncountered: number;
   pathErrors: string[];
   fileReadErrors: FileReadError[];
-  wasCancelled?: boolean; // Flag to indicate cancellation
+  wasCancelled?: boolean;
 }
 
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
-
-// --- Define Content Search Mode ---
 export type ContentSearchMode = "term" | "regex" | "boolean";
-// --------------------------------------
-
-// --- Theme Preference Type ---
 export type ThemePreference = "light" | "dark" | "system";
-// ---------------------------
 
-// Updated SearchParams interface (used for submitting search AND storing in history)
-// This is the structure that will be saved in history entries.
 interface SearchParams {
   searchPaths: string[];
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
   folderExclusionMode?: FolderExclusionMode;
-  contentSearchTerm?: string; // Generated string query
-  contentSearchMode?: ContentSearchMode; // Likely 'boolean' if term exists
-  structuredQuery?: InternalQueryStructure | null; // Include the raw structure for history saving
-  caseSensitive?: boolean; // Still used for backend simple term matching
+  contentSearchTerm?: string;
+  contentSearchMode?: ContentSearchMode;
+  structuredQuery?: InternalQueryStructure | null;
+  caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
   minSizeBytes?: number;
@@ -68,17 +59,13 @@ interface SearchParams {
   maxDepth?: number;
 }
 
-// --- Search History Entry Structure ---
-// Added name and isFavorite
 export interface SearchHistoryEntry {
     id: string;
-    timestamp: string; // ISO string
-    name?: string; // Optional user-defined name
-    isFavorite?: boolean; // Optional favorite flag
-    // Use the SearchParams interface directly for the parameters
+    timestamp: string;
+    name?: string;
+    isFavorite?: boolean;
     searchParams: SearchParams;
 }
-// -----------------------------------------
 
 // --- Electron API Definition ---
 export interface IElectronAPI {
@@ -101,10 +88,12 @@ export interface IElectronAPI {
   // Theme API
   getThemePreference: () => Promise<ThemePreference>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
-
-  // --- NEW: Cancellation API ---
-  cancelSearch: () => void; // Send-only, no return value expected
+  // --- NEW: Theme Change Listener ---
+  onThemePreferenceChanged: (callback: (theme: ThemePreference) => void) => () => void;
   // -----------------------------
+
+  // Cancellation API
+  cancelSearch: () => void;
 }
 
 // --- Global Window Augmentation ---
