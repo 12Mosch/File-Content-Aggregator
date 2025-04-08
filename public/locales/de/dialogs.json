@@ -1,9 +1,8 @@
 {
-    "saveDialogTitle": "Suchergebnisse speichern",
-    "saveDialogButtonLabel": "Speichern",
-    "saveDialogFilterText": "Textdateien",
-    "saveDialogFilterAll": "Alle Dateien",
-    "errorTitle": "Dialogfehler",
-    "showError": "Fehler beim Anzeigen des Dialogs: {{detail}}"
-  }
-  
+  "saveDialogTitle": "Suchergebnisse speichern",
+  "saveDialogButtonLabel": "Speichern",
+  "saveDialogFilterText": "Textdateien",
+  "saveDialogFilterAll": "Alle Dateien",
+  "errorTitle": "Dialogfehler",
+  "showError": "Fehler beim Anzeigen des Dialogs: {{detail}}"
+}

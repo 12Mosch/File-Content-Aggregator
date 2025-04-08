@@ -12,10 +12,14 @@ const require = module.createRequire(import.meta.url);
 // Type the required function correctly
 const fg: (
   patterns: string | readonly string[],
-  options?: FastGlobOptions  ,
+  options?: FastGlobOptions
 ) => Promise<string[]> = require("fast-glob");
-const pLimitModule = require("p-limit") as { default?: typeof PLimit; __esModule?: boolean; };
-const pLimit: typeof PLimit = pLimitModule.default ?? (pLimitModule as typeof PLimit);
+const pLimitModule = require("p-limit") as {
+  default?: typeof PLimit;
+  __esModule?: boolean;
+};
+const pLimit: typeof PLimit =
+  pLimitModule.default ?? (pLimitModule as typeof PLimit);
 
 // --- Require jsep and import its types with a different alias ---
 import type * as Jsep from "jsep";
@@ -91,7 +95,7 @@ function parseDateStartOfDay(dateString: string | undefined): Date | null {
   try {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       console.warn(
-        `Invalid date format for parsing: ${dateString}. Expected YYYY-MM-DD.`,
+        `Invalid date format for parsing: ${dateString}. Expected YYYY-MM-DD.`
       );
       return null;
     }
@@ -142,7 +146,7 @@ function createSafeRegex(pattern: string, flags: string): RegExp | null {
     const message = e instanceof Error ? e.message : String(e);
     console.warn(
       `Invalid RegExp pattern created: "${pattern}" with flags "${flags}"`,
-      message,
+      message
     );
     return null;
   }
@@ -179,8 +183,13 @@ function isJsepCallExpression(node: unknown): node is Jsep.CallExpression {
 }
 // --- Fix: Use Jsep namespace for type guard ---
 function isJsepLogicalExpression(
-  node: unknown,
-): node is Jsep.Expression & { type: "LogicalExpression"; operator: string; left: Jsep.Expression; right: Jsep.Expression } {
+  node: unknown
+): node is Jsep.Expression & {
+  type: "LogicalExpression";
+  operator: string;
+  left: Jsep.Expression;
+  right: Jsep.Expression;
+} {
   return (
     isJsepExpression(node) &&
     node.type === "LogicalExpression" &&
@@ -203,14 +212,14 @@ function findTermIndices(
   content: string,
   term: string | RegExp,
   caseSensitive: boolean,
-  isRegex: boolean,
+  isRegex: boolean
 ): number[] {
   const indices: number[] = [];
   if (!term) return indices;
   if (isRegex && term instanceof RegExp) {
     const regex = new RegExp(
       term.source,
-      term.flags.includes("g") ? term.flags : term.flags + "g",
+      term.flags.includes("g") ? term.flags : term.flags + "g"
     );
     let match;
     while ((match = regex.exec(content)) !== null) {
@@ -262,7 +271,9 @@ function getWordIndexFromCharIndex(charIndex: number, content: string): number {
   }
   for (let i = boundaries.length - 1; i >= 0; i--) {
     if (boundaries[i].end < charIndex) {
-      if (/^\s*$/.test(content.substring(boundaries[i].end + 1, charIndex + 1))) {
+      if (
+        /^\s*$/.test(content.substring(boundaries[i].end + 1, charIndex + 1))
+      ) {
         return i;
       }
       break;
@@ -274,7 +285,7 @@ function getWordIndexFromCharIndex(charIndex: number, content: string): number {
 function evaluateBooleanAst(
   node: Jsep.Expression | unknown,
   content: string,
-  caseSensitive: boolean,
+  caseSensitive: boolean
 ): boolean {
   if (!isJsepExpression(node)) {
     console.warn("evaluateBooleanAst called with non-Expression node:", node);
@@ -287,14 +298,22 @@ function evaluateBooleanAst(
         if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
           console.warn(
             "LogicalExpression node missing valid left or right child",
-            node,
+            node
           );
           return false;
         }
-        const leftResult = evaluateBooleanAst(node.left, content, caseSensitive);
+        const leftResult = evaluateBooleanAst(
+          node.left,
+          content,
+          caseSensitive
+        );
         if (node.operator === "OR" && leftResult) return true;
         if (node.operator === "AND" && !leftResult) return false;
-        const rightResult = evaluateBooleanAst(node.right, content, caseSensitive);
+        const rightResult = evaluateBooleanAst(
+          node.right,
+          content,
+          caseSensitive
+        );
         return node.operator === "OR"
           ? leftResult || rightResult
           : leftResult && rightResult;
@@ -341,7 +360,7 @@ function evaluateBooleanAst(
         }
         if (typeof node.value === "number") {
           console.warn(
-            `Numeric literal ${node.value} encountered outside NEAR function.`,
+            `Numeric literal ${node.value} encountered outside NEAR function.`
           );
           return false;
         }
@@ -355,13 +374,13 @@ function evaluateBooleanAst(
         }
         if (!isJsepIdentifier(node.callee) || node.callee.name !== "NEAR") {
           console.warn(
-            `Unsupported function call: ${isJsepIdentifier(node.callee) ? node.callee.name : "unknown"}`,
+            `Unsupported function call: ${isJsepIdentifier(node.callee) ? node.callee.name : "unknown"}`
           );
           return false;
         }
         if (node.arguments.length !== 3) {
           console.warn(
-            `NEAR function requires exactly 3 arguments (term1, term2, distance), got ${node.arguments.length}`,
+            `NEAR function requires exactly 3 arguments (term1, term2, distance), got ${node.arguments.length}`
           );
           return false;
         }
@@ -400,7 +419,7 @@ function evaluateBooleanAst(
         }
         if (term1 === null || term2 === null || distance === null) {
           console.warn(
-            `Invalid arguments for NEAR function. term1: ${String(term1)}, term2: ${String(term2)}, distance: ${String(distance)}`,
+            `Invalid arguments for NEAR function. term1: ${String(term1)}, term2: ${String(term2)}, distance: ${String(distance)}`
           );
           return false;
         }
@@ -408,13 +427,13 @@ function evaluateBooleanAst(
           content,
           term1,
           term1IsRegex ? false : caseSensitive,
-          term1IsRegex,
+          term1IsRegex
         );
         const indices2 = findTermIndices(
           content,
           term2,
           term2IsRegex ? false : caseSensitive,
-          term2IsRegex,
+          term2IsRegex
         );
         if (indices1.length === 0 || indices2.length === 0) {
           return false;
@@ -441,8 +460,14 @@ function evaluateBooleanAst(
       }
     }
   } catch (evalError: unknown) {
-    const message = evalError instanceof Error ? evalError.message : String(evalError);
-    console.error("Error during boolean AST evaluation:", message, "Node:", node);
+    const message =
+      evalError instanceof Error ? evalError.message : String(evalError);
+    console.error(
+      "Error during boolean AST evaluation:",
+      message,
+      "Node:",
+      node
+    );
     if (typeof content === "string") {
       wordBoundariesCache.delete(content);
     }
@@ -455,7 +480,7 @@ function evaluateBooleanAst(
 export async function searchFiles(
   params: SearchParams,
   progressCallback: ProgressCallback,
-  checkCancellation: CancellationChecker,
+  checkCancellation: CancellationChecker
 ): Promise<SearchResult> {
   const {
     searchPaths,
@@ -484,7 +509,7 @@ export async function searchFiles(
       "pLimit was not loaded correctly. Type:",
       typeof pLimit,
       "Value:",
-      pLimit,
+      pLimit
     );
     pathErrors.push("Internal error: Concurrency limiter failed to load.");
     return {
@@ -505,7 +530,9 @@ export async function searchFiles(
     message: "Scanning directories...",
     status: "searching",
   });
-  const includePatterns = extensions.map((ext) => `**/*.${ext.replace(/^\./, "")}`);
+  const includePatterns = extensions.map(
+    (ext) => `**/*.${ext.replace(/^\./, "")}`
+  );
   const allFoundFiles = new Set<string>();
   let initialFileCount = 0;
   const globDepth = maxDepth && maxDepth > 0 ? maxDepth : Infinity;
@@ -606,9 +633,11 @@ export async function searchFiles(
           return;
         }
         // --- Fix: Add explicit type to 'file' ---
-        found.forEach((file: string) => allFoundFiles.add(file.replace(/\\/g, "/")));
+        found.forEach((file: string) =>
+          allFoundFiles.add(file.replace(/\\/g, "/"))
+        );
         // --- End Fix ---
-      }),
+      })
     );
 
     if (wasCancelled) {
@@ -728,7 +757,11 @@ export async function searchFiles(
     };
   }
 
-  if (excludeFolders && excludeFolders.length > 0 && filesToProcess.length > 0) {
+  if (
+    excludeFolders &&
+    excludeFolders.length > 0 &&
+    filesToProcess.length > 0
+  ) {
     progressCallback({
       processed: 0,
       total: currentTotal,
@@ -759,7 +792,7 @@ export async function searchFiles(
       const dirPath = path.dirname(filePath);
       const segments = dirPath.split(/[\\/]/).filter(Boolean);
       const isExcluded = folderMatchers.some((isMatch) =>
-        segments.some((segment) => isMatch(segment)),
+        segments.some((segment) => isMatch(segment))
       );
       return !isExcluded;
     });
@@ -793,7 +826,8 @@ export async function searchFiles(
 
   const afterDate = parseDateStartOfDay(modifiedAfter);
   const beforeDate = parseDateEndOfDay(modifiedBefore);
-  const hasSizeFilter = minSizeBytes !== undefined || maxSizeBytes !== undefined;
+  const hasSizeFilter =
+    minSizeBytes !== undefined || maxSizeBytes !== undefined;
   const hasDateFilter = !!afterDate || !!beforeDate;
   if ((hasSizeFilter || hasDateFilter) && filesToProcess.length > 0) {
     const initialCountForStatFilter = filesToProcess.length;
@@ -820,14 +854,15 @@ export async function searchFiles(
               (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
           return passSizeCheck && passDateCheck ? filePath : null;
         } catch (statError: unknown) {
-          const message = statError instanceof Error ? statError.message : String(statError);
+          const message =
+            statError instanceof Error ? statError.message : String(statError);
           console.warn(
             `Could not get stats for file during size/date filter: ${filePath}`,
-            message,
+            message
           );
           return null;
         }
-      }),
+      })
     );
     const statResults = await Promise.all(statCheckPromises);
     if (checkCancellation()) {
@@ -849,7 +884,9 @@ export async function searchFiles(
         wasCancelled,
       };
     }
-    filesToProcess = statResults.filter((result): result is string => result !== null);
+    filesToProcess = statResults.filter(
+      (result): result is string => result !== null
+    );
     currentTotal = filesToProcess.length;
     progressCallback({
       processed: initialCountForStatFilter,
@@ -922,10 +959,17 @@ export async function searchFiles(
           if (!jsep.binary_ops["OR"]) jsep.addBinaryOp("OR", 0);
           if (!jsep.unary_ops["NOT"]) jsep.addUnaryOp("NOT");
           const parsedAst = jsep(contentSearchTerm);
-          console.log("Parsed Boolean AST:", JSON.stringify(parsedAst, null, 2));
+          console.log(
+            "Parsed Boolean AST:",
+            JSON.stringify(parsedAst, null, 2)
+          );
           contentMatcher = (content) => {
             wordBoundariesCache.delete(content);
-            const result = evaluateBooleanAst(parsedAst, content, caseSensitive);
+            const result = evaluateBooleanAst(
+              parsedAst,
+              content,
+              caseSensitive
+            );
             return result;
           };
         } catch (parseError: unknown) {
@@ -1058,7 +1102,8 @@ export async function searchFiles(
             };
           }
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           console.error(`Error reading file '${file}':`, message);
           let reasonKey = "readError";
           const code = (error as { code?: string })?.code;
@@ -1104,7 +1149,7 @@ export async function searchFiles(
         return checkCancellation()
           ? null
           : { structuredItemResult, outputLineResult, fileReadErrorResult };
-      }),
+      })
     );
 
     const resultsFromPromises = await Promise.all(processingPromises);

@@ -21,7 +21,8 @@
     "dist:win": "npm run build && electron-builder --win --x64",
     "dist:linux": "npm run build && electron-builder --linux --x64",
     "dist": "npm run build && electron-builder",
-    "postinstall": "electron-fuses disable:runAsNode disable:nodeCliInspect"
+    "postinstall": "electron-fuses disable:runAsNode disable:nodeCliInspect",
+    "format": "prettier . --write"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.6",

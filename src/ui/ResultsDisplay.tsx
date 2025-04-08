@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next"; // Import TFunction type
 import {
@@ -104,7 +110,7 @@ interface TreeRowData {
     filePath: string,
     code: string,
     language: string,
-    forceUpdate?: boolean,
+    forceUpdate?: boolean
   ) => void;
   onCopyContent: (content: string) => void;
 }
@@ -195,7 +201,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   const showFull = displayState?.showFull ?? false;
   const language = useMemo(
     () => (item ? getLanguageFromPath(item.filePath) : "plaintext"),
-    [item],
+    [item]
   );
   const wasPreviewHighlightedRef = useRef(false);
 
@@ -204,7 +210,9 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     const totalLines = lines.length;
     const large = item?.content ? totalLines > MAX_PREVIEW_LINES : false;
     const preview =
-      large && !showFull ? lines.slice(0, MAX_PREVIEW_LINES).join("\n") : item?.content;
+      large && !showFull
+        ? lines.slice(0, MAX_PREVIEW_LINES).join("\n")
+        : item?.content;
     if (large && !showFull) {
       wasPreviewHighlightedRef.current = true;
     }
@@ -216,11 +224,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   }, [item?.content, showFull]);
 
   const highlightInfo: HighlightCacheEntry = item
-    ? highlightCache.get(item.filePath) ?? {
+    ? (highlightCache.get(item.filePath) ?? {
         status: "idle",
         html: undefined,
         error: undefined,
-      }
+      })
     : { status: "idle", html: undefined, error: undefined };
 
   // Effect for requesting highlighting
@@ -229,7 +237,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     const currentCacheEntry = highlightCache.get(item.filePath);
     let needsHighlighting = false;
     let forceUpdate = false;
-    if (isExpanded && typeof contentPreview === "string" && language !== "plaintext") {
+    if (
+      isExpanded &&
+      typeof contentPreview === "string" &&
+      language !== "plaintext"
+    ) {
       if (!currentCacheEntry || currentCacheEntry.status === "idle") {
         needsHighlighting = true;
       } else if (
@@ -279,7 +291,10 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   };
 
   return (
-    <div style={style} className="border-b border-border overflow-hidden box-border">
+    <div
+      style={style}
+      className="border-b border-border overflow-hidden box-border"
+    >
       {/* Header */}
       <div
         className="flex items-center px-2 py-1 cursor-pointer bg-muted/50 hover:bg-muted h-[32px] box-border transition-colors"
@@ -392,21 +407,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   const isOriginalResultLarge = useMemo(
     () => results.split("\n").length > LARGE_RESULT_LINE_THRESHOLD,
-    [results],
+    [results]
   );
 
   const textItemData: TextRowData = useMemo(
     () => ({ lines: filteredTextLines, filterTerm, filterCaseSensitive }),
-    [filteredTextLines, filterTerm, filterCaseSensitive],
+    [filteredTextLines, filterTerm, filterCaseSensitive]
   );
 
   const requestHighlighting = useCallback(
-    (
-      filePath: string,
-      code: string,
-      language: string,
-      forceUpdate = false,
-    ) => {
+    (filePath: string, code: string, language: string, forceUpdate = false) => {
       const currentCache = highlightCacheRef.current.get(filePath);
       if (!forceUpdate && currentCache?.status === "done") return;
       if (currentCache?.status === "pending") return;
@@ -415,11 +425,14 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         highlightCacheRef.current.set(filePath, { status: "pending" });
         setHighlightUpdateCounter((prev) => prev + 1);
         console.log(
-          `[RequestHighlighting] Posting message for ${filePath} (Force: ${forceUpdate})`,
+          `[RequestHighlighting] Posting message for ${filePath} (Force: ${forceUpdate})`
         );
         workerRef.current.postMessage({ filePath, code, language });
       } else {
-        console.warn("Highlight worker not available to process request for:", filePath);
+        console.warn(
+          "Highlight worker not available to process request for:",
+          filePath
+        );
         highlightCacheRef.current.set(filePath, {
           status: "error",
           error: "Worker not available",
@@ -427,7 +440,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         setHighlightUpdateCounter((prev) => prev + 1);
       }
     },
-    [],
+    []
   );
 
   const handleCopyFileContent = useCallback(
@@ -436,11 +449,13 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       if (window.electronAPI?.copyToClipboard) {
         try {
           const success = await window.electronAPI.copyToClipboard(content);
-          setCopyFileStatus(success ? t("copyButtonSuccess") : t("copyButtonFailed"));
+          setCopyFileStatus(
+            success ? t("copyButtonSuccess") : t("copyButtonFailed")
+          );
         } catch (err: unknown) {
           console.error(
             "Failed to copy file content:",
-            err instanceof Error ? err.message : err,
+            err instanceof Error ? err.message : err
           );
           setCopyFileStatus(t("copyButtonFailed"));
         } finally {
@@ -451,7 +466,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         setTimeout(() => setCopyFileStatus(""), 3000);
       }
     },
-    [t],
+    [t]
   );
 
   const treeItemData: TreeRowData | null = useMemo(() => {
@@ -504,7 +519,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       }
 
       const highlightInfo = highlightCacheRef.current.get(item.filePath);
-      if (highlightInfo?.status === "pending" || highlightInfo?.status === "error") {
+      if (
+        highlightInfo?.status === "pending" ||
+        highlightInfo?.status === "error"
+      ) {
         contentLineCount += 1;
       }
 
@@ -512,21 +530,29 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         item.content &&
         item.content.split("\n").length > MAX_PREVIEW_LINES &&
         !showFull;
-      const showMoreButtonHeight = showShowMoreButton ? SHOW_MORE_BUTTON_HEIGHT : 0;
+      const showMoreButtonHeight = showShowMoreButton
+        ? SHOW_MORE_BUTTON_HEIGHT
+        : 0;
 
       const contentHeight = contentLineCount * TREE_ITEM_CONTENT_LINE_HEIGHT;
       return (
-        TREE_ITEM_HEADER_HEIGHT + contentHeight + showMoreButtonHeight + TREE_ITEM_PADDING_Y
+        TREE_ITEM_HEADER_HEIGHT +
+        contentHeight +
+        showMoreButtonHeight +
+        TREE_ITEM_PADDING_Y
       );
     },
-    [filteredStructuredItems, itemDisplayStates],
+    [filteredStructuredItems, itemDisplayStates]
   );
 
   // Effect for initializing and terminating the worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL("./highlight.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    workerRef.current = new Worker(
+      new URL("./highlight.worker.ts", import.meta.url),
+      {
+        type: "module",
+      }
+    );
 
     const handleWorkerMessage = (event: MessageEvent) => {
       // Type the expected structure of event.data
@@ -617,7 +643,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         setSaveStatus(t("saveButtonInitiated"));
       })
       .catch((error: unknown) => {
-        console.error("Save failed:", error instanceof Error ? error.message : error);
+        console.error(
+          "Save failed:",
+          error instanceof Error ? error.message : error
+        );
         setSaveStatus(t("saveButtonFailed"));
       })
       .finally(() => {
@@ -634,7 +663,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const summaryCount =
     viewMode === "text"
       ? filteredTextLines.length
-      : filteredStructuredItems?.length ?? 0;
+      : (filteredStructuredItems?.length ?? 0);
 
   return (
     <div className="mt-6 p-4 border border-border rounded-lg bg-card flex flex-col flex-grow min-h-[300px] overflow-hidden">
@@ -658,7 +687,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <p
           className={cn(
             "p-3 rounded-md border text-sm mb-4 shrink-0 flex items-center",
-            "bg-amber-100 border-amber-300 text-amber-800",
+            "bg-amber-100 border-amber-300 text-amber-800"
           )}
         >
           <AlertTriangle className="inline h-4 w-4 mr-2 shrink-0" />
@@ -703,10 +732,17 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         </AutoSizer>
       </div>
       <div className="mt-4 flex gap-4 shrink-0">
-        <Button onClick={handleCopyAllResults} disabled={!results || !!copyStatus}>
+        <Button
+          onClick={handleCopyAllResults}
+          disabled={!results || !!copyStatus}
+        >
           {copyStatus || t("copyButton")}
         </Button>
-        <Button onClick={handleSave} disabled={!results || !!saveStatus} variant="secondary">
+        <Button
+          onClick={handleSave}
+          disabled={!results || !!saveStatus}
+          variant="secondary"
+        >
           {saveStatus || t("saveButton")}
         </Button>
       </div>

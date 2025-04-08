@@ -115,12 +115,12 @@ async function initializeMainI18nLanguage() {
         initialLang = baseLang;
       }
     }
-  // --- Fix: Remove redundant Error type ---
+    // --- Fix: Remove redundant Error type ---
   } catch (error: unknown) {
-  // --- End Fix ---
+    // --- End Fix ---
     console.error(
       "Main i18n: Error getting initial language:",
-      error instanceof Error ? error.message : error,
+      error instanceof Error ? error.message : error
     );
   }
   if (!i18nMain.isInitialized) {
@@ -130,7 +130,7 @@ async function initializeMainI18nLanguage() {
     } catch (initError: unknown) {
       console.error(
         "Main i18n: Failed to initialize or load namespaces:",
-        initError instanceof Error ? initError.message : initError,
+        initError instanceof Error ? initError.message : initError
       );
     }
   }
@@ -143,7 +143,7 @@ async function initializeMainI18nLanguage() {
         `Main i18n: Failed to change language to ${initialLang}:`,
         changeLangError instanceof Error
           ? changeLangError.message
-          : changeLangError,
+          : changeLangError
       );
     }
   } else {
@@ -159,7 +159,7 @@ function registerAppProtocol() {
     const originalUrl = request.url;
     try {
       const urlPath = decodeURIComponent(
-        originalUrl.substring(`${APP_PROTOCOL}://`.length),
+        originalUrl.substring(`${APP_PROTOCOL}://`.length)
       );
       let requestedPath = urlPath.startsWith("index.html/")
         ? urlPath.substring("index.html/".length)
@@ -172,12 +172,12 @@ function registerAppProtocol() {
       const absoluteFilePath = path.join(
         appRootPath,
         "dist-react",
-        requestedPath,
+        requestedPath
       );
       const expectedBase = path.normalize(path.join(appRootPath, "dist-react"));
       if (!path.normalize(absoluteFilePath).startsWith(expectedBase)) {
         console.error(
-          `[Protocol Handler] Blocked path traversal: ${requestedPath}`,
+          `[Protocol Handler] Blocked path traversal: ${requestedPath}`
         );
         return new Response("Forbidden", { status: 403 });
       }
@@ -200,7 +200,8 @@ function registerAppProtocol() {
       if (requestedPath === "index.html" || fileExtension === ".html")
         resolvedMimeType = "text/html";
       else if (fileExtension === ".css") resolvedMimeType = "text/css";
-      else if (fileExtension === ".js") resolvedMimeType = "application/javascript";
+      else if (fileExtension === ".js")
+        resolvedMimeType = "application/javascript";
       else if (fileExtension === ".json") resolvedMimeType = "application/json";
       else if (fileExtension === ".svg") resolvedMimeType = "image/svg+xml";
       else if (fileExtension === ".png") resolvedMimeType = "image/png";
@@ -212,12 +213,14 @@ function registerAppProtocol() {
 
       return new Response(data, {
         status: 200,
-        headers: { "Content-Type": resolvedMimeType ?? "application/octet-stream" },
+        headers: {
+          "Content-Type": resolvedMimeType ?? "application/octet-stream",
+        },
       });
     } catch (error: unknown) {
       console.error(
         `[Protocol Handler] Error for ${originalUrl}:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
       return new Response("Internal Server Error", { status: 500 });
     }
@@ -306,12 +309,12 @@ void app.whenReady().then(async () => {
     const storedTheme = store.get(THEME_PREFERENCE_KEY, "system");
     nativeTheme.themeSource = storedTheme;
     console.log(
-      `Main: Initial nativeTheme.themeSource set to "${storedTheme}"`,
+      `Main: Initial nativeTheme.themeSource set to "${storedTheme}"`
     );
   } catch (error: unknown) {
     console.error(
       "Main: Error setting initial theme source:",
-      error instanceof Error ? error.message : error,
+      error instanceof Error ? error.message : error
     );
   }
   setupCSP();
@@ -326,7 +329,9 @@ app.on("window-all-closed", () => {
 });
 app.on("web-contents-created", (_event, contents) => {
   contents.on("will-navigate", (event, navigationUrl) => {
-    const allowedOrigin = isDev() ? "http://localhost:5123" : `${APP_PROTOCOL}://`;
+    const allowedOrigin = isDev()
+      ? "http://localhost:5123"
+      : `${APP_PROTOCOL}://`;
     if (!navigationUrl.startsWith(allowedOrigin)) {
       console.warn(`Security: Blocked navigation to ${navigationUrl}`);
       event.preventDefault();
@@ -374,7 +379,11 @@ ipcMain.handle(
     };
 
     try {
-      const results = await searchFiles(params, progressCallback, checkCancellation);
+      const results = await searchFiles(
+        params,
+        progressCallback,
+        checkCancellation
+      );
       return results;
     } catch (error: unknown) {
       const errorMsg = `Search failed: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -395,7 +404,7 @@ ipcMain.handle(
         fileReadErrors: [],
       };
     }
-  },
+  }
 );
 
 ipcMain.on("cancel-search", (event) => {
@@ -417,30 +426,47 @@ ipcMain.on("cancel-search", (event) => {
 });
 
 ipcMain.handle("save-file-dialog", (event): Promise<string | undefined> => {
-  if (!validateSender(event.senderFrame) || !mainWindow) return Promise.resolve(undefined);
+  if (!validateSender(event.senderFrame) || !mainWindow)
+    return Promise.resolve(undefined);
   // --- Fix: Prefix unused reject parameter ---
   return new Promise((resolve, _reject) => {
-  // --- End Fix ---
-      i18nMain.loadNamespaces("dialogs")
-          .then(() => dialog.showSaveDialog(mainWindow!, {
-              title: i18nMain.t("dialogs:saveDialogTitle"),
-              buttonLabel: i18nMain.t("dialogs:saveDialogButtonLabel"),
-              defaultPath: `file-content-aggregator-results.txt`,
-              filters: [
-                  { name: i18nMain.t("dialogs:saveDialogFilterText"), extensions: ["txt"] },
-                  { name: i18nMain.t("dialogs:saveDialogFilterAll"), extensions: ["*"] }
-              ]
-          }))
-          .then(({ canceled, filePath }) => {
-              resolve(canceled || !filePath ? undefined : filePath);
-          })
-          .catch((error: unknown) => {
-              const errorMsg = i18nMain.isInitialized
-                  ? i18nMain.t('dialogs:showError', { detail: error instanceof Error ? error.message : String(error) })
-                  : `Error showing save dialog: ${error instanceof Error ? error.message : String(error)}`;
-              dialog.showErrorBox(i18nMain.isInitialized ? i18nMain.t('dialogs:errorTitle') : 'Dialog Error', errorMsg);
-              resolve(undefined);
-          });
+    // --- End Fix ---
+    i18nMain
+      .loadNamespaces("dialogs")
+      .then(() =>
+        dialog.showSaveDialog(mainWindow!, {
+          title: i18nMain.t("dialogs:saveDialogTitle"),
+          buttonLabel: i18nMain.t("dialogs:saveDialogButtonLabel"),
+          defaultPath: `file-content-aggregator-results.txt`,
+          filters: [
+            {
+              name: i18nMain.t("dialogs:saveDialogFilterText"),
+              extensions: ["txt"],
+            },
+            {
+              name: i18nMain.t("dialogs:saveDialogFilterAll"),
+              extensions: ["*"],
+            },
+          ],
+        })
+      )
+      .then(({ canceled, filePath }) => {
+        resolve(canceled || !filePath ? undefined : filePath);
+      })
+      .catch((error: unknown) => {
+        const errorMsg = i18nMain.isInitialized
+          ? i18nMain.t("dialogs:showError", {
+              detail: error instanceof Error ? error.message : String(error),
+            })
+          : `Error showing save dialog: ${error instanceof Error ? error.message : String(error)}`;
+        dialog.showErrorBox(
+          i18nMain.isInitialized
+            ? i18nMain.t("dialogs:errorTitle")
+            : "Dialog Error",
+          errorMsg
+        );
+        resolve(undefined);
+      });
   });
 });
 
@@ -454,11 +480,11 @@ ipcMain.handle(
     } catch (error: unknown) {
       dialog.showErrorBox(
         "File Write Error",
-        `Failed to write file: ${filePath}\nError: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to write file: ${filePath}\nError: ${error instanceof Error ? error.message : String(error)}`
       );
       return false;
     }
-  },
+  }
 );
 ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
   if (!validateSender(event.senderFrame)) return false;
@@ -468,89 +494,122 @@ ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
   } catch (error: unknown) {
     console.error(
       "IPC: Error copying to clipboard:",
-      error instanceof Error ? error.message : error,
+      error instanceof Error ? error.message : error
     );
     return false;
   }
 });
 ipcMain.handle("get-initial-language", (event): Promise<string> => {
-  if (!validateSender(event.senderFrame)) return Promise.resolve(fallbackLngMain);
+  if (!validateSender(event.senderFrame))
+    return Promise.resolve(fallbackLngMain);
   return new Promise((resolve) => {
-      try {
-          const storedLang = store.get("userLanguage");
-          if (storedLang && supportedLngsMain.includes(storedLang)) {
-              resolve(storedLang);
-              return;
-          }
-          const osLocale = app.getLocale() || app.getSystemLocale();
-          const baseLang = osLocale.split('-')[0];
-          if (supportedLngsMain.includes(baseLang)) {
-              resolve(baseLang);
-              return;
-          }
-          resolve(fallbackLngMain);
-      } catch (error: unknown) {
-          console.error("IPC: Error getting initial language:", error instanceof Error ? error.message : error);
-          resolve(fallbackLngMain);
+    try {
+      const storedLang = store.get("userLanguage");
+      if (storedLang && supportedLngsMain.includes(storedLang)) {
+        resolve(storedLang);
+        return;
       }
+      const osLocale = app.getLocale() || app.getSystemLocale();
+      const baseLang = osLocale.split("-")[0];
+      if (supportedLngsMain.includes(baseLang)) {
+        resolve(baseLang);
+        return;
+      }
+      resolve(fallbackLngMain);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting initial language:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(fallbackLngMain);
+    }
   });
 });
 
-ipcMain.handle("set-language-preference", (event, lng: string): Promise<void> => {
-  if (!validateSender(event.senderFrame)) return Promise.resolve();
-  return new Promise((resolve) => {
+ipcMain.handle(
+  "set-language-preference",
+  (event, lng: string): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
       if (supportedLngsMain.includes(lng)) {
-          try {
-              store.set("userLanguage", lng);
-          } catch (error: unknown) {
-              console.error("IPC: Error saving language preference:", error instanceof Error ? error.message : error);
-          }
+        try {
+          store.set("userLanguage", lng);
+        } catch (error: unknown) {
+          console.error(
+            "IPC: Error saving language preference:",
+            error instanceof Error ? error.message : error
+          );
+        }
       } else {
-          console.warn(`IPC: Attempted to save unsupported language: ${lng}`);
+        console.warn(`IPC: Attempted to save unsupported language: ${lng}`);
       }
       resolve();
-  });
-});
+    });
+  }
+);
 
 ipcMain.on("language-changed", (event, lng: string) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return;
   if (supportedLngsMain.includes(lng))
     void i18nMain
       .changeLanguage(lng)
-      .catch((err) => console.error("Main i18n: Error changing language:", err));
-  else console.warn(`Main i18n: Received unsupported language change request: ${lng}`);
+      .catch((err) =>
+        console.error("Main i18n: Error changing language:", err)
+      );
+  else
+    console.warn(
+      `Main i18n: Received unsupported language change request: ${lng}`
+    );
 });
 ipcMain.handle(
   "add-search-history-entry",
   (event, entry: SearchHistoryEntry): Promise<void> => {
     if (!validateSender(event.senderFrame)) return Promise.resolve();
     return new Promise((resolve) => {
-        try {
-            const currentHistory = store.get(HISTORY_STORE_KEY, []);
-            const entryWithDefaults = { ...entry, name: entry.name ?? '', isFavorite: entry.isFavorite ?? false };
-            const updatedHistory = [entryWithDefaults, ...currentHistory];
-            if (updatedHistory.length > MAX_HISTORY_ENTRIES) {
-                updatedHistory.length = MAX_HISTORY_ENTRIES;
-            }
-            store.set(HISTORY_STORE_KEY, updatedHistory);
-            console.log(`IPC: Added entry ${entry.id} to search history. Total: ${updatedHistory.length}`);
-        } catch (error: unknown) {
-            console.error("IPC: Error adding search history entry:", error instanceof Error ? error.message : error);
+      try {
+        const currentHistory = store.get(HISTORY_STORE_KEY, []);
+        const entryWithDefaults = {
+          ...entry,
+          name: entry.name ?? "",
+          isFavorite: entry.isFavorite ?? false,
+        };
+        const updatedHistory = [entryWithDefaults, ...currentHistory];
+        if (updatedHistory.length > MAX_HISTORY_ENTRIES) {
+          updatedHistory.length = MAX_HISTORY_ENTRIES;
         }
-        resolve();
+        store.set(HISTORY_STORE_KEY, updatedHistory);
+        console.log(
+          `IPC: Added entry ${entry.id} to search history. Total: ${updatedHistory.length}`
+        );
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error adding search history entry:",
+          error instanceof Error ? error.message : error
+        );
+      }
+      resolve();
     });
-  },
+  }
 );
 ipcMain.handle("get-search-history", (event): Promise<SearchHistoryEntry[]> => {
   if (!validateSender(event.senderFrame)) return Promise.resolve([]);
   return new Promise((resolve) => {
-      try {
-          const history = store.get(HISTORY_STORE_KEY, []);
-          resolve(history.map(entry => ({ ...entry, name: entry.name ?? '', isFavorite: entry.isFavorite ?? false })));
-      } catch (error: unknown) {
-          console.error("IPC: Error getting search history:", error instanceof Error ? error.message : error);
-          resolve([]);
-      }
+    try {
+      const history = store.get(HISTORY_STORE_KEY, []);
+      resolve(
+        history.map((entry) => ({
+          ...entry,
+          name: entry.name ?? "",
+          isFavorite: entry.isFavorite ?? false,
+        }))
+      );
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting search history:",
+        error instanceof Error ? error.message : error
+      );
+      resolve([]);
+    }
   });
 });
 ipcMain.handle(
@@ -558,29 +617,39 @@ ipcMain.handle(
   (event, entryId: string): Promise<void> => {
     if (!validateSender(event.senderFrame)) return Promise.resolve();
     return new Promise((resolve) => {
-        try {
-            const currentHistory = store.get(HISTORY_STORE_KEY, []);
-            const updatedHistory = currentHistory.filter(entry => entry.id !== entryId);
-            store.set(HISTORY_STORE_KEY, updatedHistory);
-            console.log(`IPC: Deleted history entry ${entryId}. Remaining: ${updatedHistory.length}`);
-        } catch (error: unknown) {
-            console.error(`IPC: Error deleting search history entry ${entryId}:`, error instanceof Error ? error.message : error);
-        }
-        resolve();
+      try {
+        const currentHistory = store.get(HISTORY_STORE_KEY, []);
+        const updatedHistory = currentHistory.filter(
+          (entry) => entry.id !== entryId
+        );
+        store.set(HISTORY_STORE_KEY, updatedHistory);
+        console.log(
+          `IPC: Deleted history entry ${entryId}. Remaining: ${updatedHistory.length}`
+        );
+      } catch (error: unknown) {
+        console.error(
+          `IPC: Error deleting search history entry ${entryId}:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+      resolve();
     });
-  },
+  }
 );
 ipcMain.handle("clear-search-history", (event): Promise<boolean> => {
   if (!validateSender(event.senderFrame)) return Promise.resolve(false);
   return new Promise((resolve) => {
-      try {
-          store.set(HISTORY_STORE_KEY, []);
-          console.log("IPC: Cleared search history.");
-          resolve(true);
-      } catch (error: unknown) {
-          console.error("IPC: Error clearing search history:", error instanceof Error ? error.message : error);
-          resolve(false);
-      }
+    try {
+      store.set(HISTORY_STORE_KEY, []);
+      console.log("IPC: Cleared search history.");
+      resolve(true);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error clearing search history:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(false);
+    }
   });
 });
 ipcMain.handle(
@@ -588,68 +657,97 @@ ipcMain.handle(
   (
     event,
     entryId: string,
-    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>,
+    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
   ): Promise<boolean> => {
     if (!validateSender(event.senderFrame)) return Promise.resolve(false);
-    if (!entryId || !updates || (updates.name === undefined && updates.isFavorite === undefined)) return Promise.resolve(false);
+    if (
+      !entryId ||
+      !updates ||
+      (updates.name === undefined && updates.isFavorite === undefined)
+    )
+      return Promise.resolve(false);
     return new Promise((resolve) => {
-        try {
-            const currentHistory = store.get(HISTORY_STORE_KEY, []);
-            let updated = false;
-            const updatedHistory = currentHistory.map(entry => {
-                if (entry.id === entryId) {
-                    updated = true;
-                    return { ...entry, ...(updates.name !== undefined && { name: updates.name }), ...(updates.isFavorite !== undefined && { isFavorite: updates.isFavorite }) };
-                }
-                return entry;
-            });
-            if (updated) {
-                store.set(HISTORY_STORE_KEY, updatedHistory);
-                console.log(`IPC: Updated history entry ${entryId} with:`, updates);
-                resolve(true);
-            } else {
-                console.warn(`IPC: History entry ${entryId} not found for update.`);
-                resolve(false);
-            }
-        } catch (error: unknown) {
-            console.error(`IPC: Error updating search history entry ${entryId}:`, error instanceof Error ? error.message : error);
-            resolve(false);
+      try {
+        const currentHistory = store.get(HISTORY_STORE_KEY, []);
+        let updated = false;
+        const updatedHistory = currentHistory.map((entry) => {
+          if (entry.id === entryId) {
+            updated = true;
+            return {
+              ...entry,
+              ...(updates.name !== undefined && { name: updates.name }),
+              ...(updates.isFavorite !== undefined && {
+                isFavorite: updates.isFavorite,
+              }),
+            };
+          }
+          return entry;
+        });
+        if (updated) {
+          store.set(HISTORY_STORE_KEY, updatedHistory);
+          console.log(`IPC: Updated history entry ${entryId} with:`, updates);
+          resolve(true);
+        } else {
+          console.warn(`IPC: History entry ${entryId} not found for update.`);
+          resolve(false);
         }
+      } catch (error: unknown) {
+        console.error(
+          `IPC: Error updating search history entry ${entryId}:`,
+          error instanceof Error ? error.message : error
+        );
+        resolve(false);
+      }
     });
-  },
+  }
 );
 ipcMain.handle("get-theme-preference", (event): Promise<ThemePreference> => {
   if (!validateSender(event.senderFrame)) return Promise.resolve("system");
   return new Promise((resolve) => {
-      try {
-          const preference = store.get(THEME_PREFERENCE_KEY, 'system');
-          resolve(preference);
-      } catch (error: unknown) {
-          console.error("IPC: Error getting theme preference:", error instanceof Error ? error.message : error);
-          resolve('system');
-      }
+    try {
+      const preference = store.get(THEME_PREFERENCE_KEY, "system");
+      resolve(preference);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting theme preference:",
+        error instanceof Error ? error.message : error
+      );
+      resolve("system");
+    }
   });
 });
 
-ipcMain.handle("set-theme-preference", (event, theme: ThemePreference): Promise<void> => {
-  if (!validateSender(event.senderFrame)) return Promise.resolve();
-  return new Promise((resolve) => {
-      if (['light', 'dark', 'system'].includes(theme)) {
-          try {
-              store.set(THEME_PREFERENCE_KEY, theme);
-              nativeTheme.themeSource = theme;
-              console.log(`IPC: Theme preference saved and nativeTheme.themeSource set to "${theme}"`);
+ipcMain.handle(
+  "set-theme-preference",
+  (event, theme: ThemePreference): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      if (["light", "dark", "system"].includes(theme)) {
+        try {
+          store.set(THEME_PREFERENCE_KEY, theme);
+          nativeTheme.themeSource = theme;
+          console.log(
+            `IPC: Theme preference saved and nativeTheme.themeSource set to "${theme}"`
+          );
 
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('theme-preference-changed', theme);
-                  console.log(`IPC: Sent theme-preference-changed event with theme: ${theme}`);
-              }
-          } catch (error: unknown) {
-              console.error(`IPC: Error setting theme preference to "${theme}":`, error instanceof Error ? error.message : error);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("theme-preference-changed", theme);
+            console.log(
+              `IPC: Sent theme-preference-changed event with theme: ${theme}`
+            );
           }
+        } catch (error: unknown) {
+          console.error(
+            `IPC: Error setting theme preference to "${theme}":`,
+            error instanceof Error ? error.message : error
+          );
+        }
       } else {
-          console.warn(`IPC: Attempted to save invalid theme preference: ${theme}`);
+        console.warn(
+          `IPC: Attempted to save invalid theme preference: ${theme}`
+        );
       }
       resolve();
-  });
-});
+    });
+  }
+);

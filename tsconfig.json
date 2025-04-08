@@ -34,6 +34,6 @@
     "release",
     "build",
     ".tmp" // Exclude build info directory
-    ]
+  ]
   // --- REMOVED references array to avoid conflict with noEmit ---
 }

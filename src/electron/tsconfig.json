@@ -25,13 +25,7 @@
     // "jsx": "react-jsx"
   },
   // Include only files within the current directory (src/electron) and its subdirectories
-  "include": [
-    "./**/*"
-  ],
+  "include": ["./**/*"],
   // Exclude node_modules and build outputs
-  "exclude": [
-      "../../node_modules",
-      "../../dist-electron",
-      "../../dist-react"
-  ]
+  "exclude": ["../../node_modules", "../../dist-electron", "../../dist-react"]
 }

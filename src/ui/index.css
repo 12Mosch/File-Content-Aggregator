@@ -114,7 +114,9 @@
   body {
     @apply bg-background text-foreground;
     /* Add font smoothing etc. if desired */
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }
 

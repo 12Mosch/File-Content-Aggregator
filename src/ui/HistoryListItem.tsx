@@ -13,7 +13,7 @@ interface HistoryListItemProps {
   onDelete: (entryId: string) => void;
   onUpdate: (
     entryId: string,
-    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>,
+    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
   ) => void;
 }
 
@@ -26,7 +26,8 @@ const formatTimestamp = (isoString: string): string => {
       dateStyle: "short",
       timeStyle: "short",
     });
-  } catch (_e) { // Prefix unused 'e' with underscore
+  } catch (_e) {
+    // Prefix unused 'e' with underscore
     return isoString;
   }
 };
@@ -126,7 +127,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
       className={cn(
         "flex items-center gap-2 px-2 py-2 border-b border-border", // Base layout and border
         "hover:bg-muted/50 transition-colors duration-150", // Hover effect
-        entry.isFavorite && "bg-primary/10 hover:bg-primary/20", // Favorite background
+        entry.isFavorite && "bg-primary/10 hover:bg-primary/20" // Favorite background
       )}
     >
       {/* Favorite Toggle Button */}
@@ -136,7 +137,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
         onClick={handleToggleFavorite}
         className={cn(
           "h-7 w-7 shrink-0 text-muted-foreground hover:text-amber-500", // Base style
-          entry.isFavorite && "text-amber-400 hover:text-amber-600", // Style when favorited
+          entry.isFavorite && "text-amber-400 hover:text-amber-600" // Style when favorited
         )}
         title={entry.isFavorite ? t("historyUnfavorite") : t("historyFavorite")}
         aria-label={
@@ -187,7 +188,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
             <span
               className={cn(
                 "text-sm font-medium text-foreground truncate cursor-pointer hover:underline decoration-dotted", // Base style
-                !entry.name && "italic text-muted-foreground", // Style for untitled
+                !entry.name && "italic text-muted-foreground" // Style for untitled
               )}
               onClick={handleEditNameClick}
               title={t("historyEditNameTooltip")}

@@ -11,7 +11,7 @@ import type {
 const electronAPI = {
   // --- Invoke Handlers ---
   invokeSearch: (
-    params: Omit<SearchParams, "structuredQuery">,
+    params: Omit<SearchParams, "structuredQuery">
   ): Promise<SearchResult> => ipcRenderer.invoke("search-files", params),
   showSaveDialog: (): Promise<string | undefined> =>
     ipcRenderer.invoke("save-file-dialog"),
@@ -47,7 +47,7 @@ const electronAPI = {
     ipcRenderer.invoke("clear-search-history"),
   updateSearchHistoryEntry: (
     entryId: string,
-    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>,
+    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
   ): Promise<boolean> =>
     ipcRenderer.invoke("update-search-history-entry", entryId, updates),
 
@@ -58,13 +58,14 @@ const electronAPI = {
     ipcRenderer.invoke("set-theme-preference", theme),
   // --- NEW: Theme Change Listener ---
   onThemePreferenceChanged: (
-    callback: (theme: ThemePreference) => void,
+    callback: (theme: ThemePreference) => void
   ): (() => void) => {
     const listener = (_event: IpcRendererEvent, theme: ThemePreference) =>
       callback(theme);
     ipcRenderer.on("theme-preference-changed", listener);
     // Return cleanup function
-    return () => ipcRenderer.removeListener("theme-preference-changed", listener);
+    return () =>
+      ipcRenderer.removeListener("theme-preference-changed", listener);
   },
   // -----------------------------
 

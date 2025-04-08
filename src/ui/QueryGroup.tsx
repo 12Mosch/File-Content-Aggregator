@@ -1,18 +1,21 @@
-import React, { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import QueryCondition from './QueryCondition'; // Child component
-import type { QueryGroup as QueryStructure, Condition } from './queryBuilderTypes';
-import { generateId } from './queryBuilderUtils';
+import React, { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import QueryCondition from "./QueryCondition"; // Child component
+import type {
+  QueryGroup as QueryStructure,
+  Condition,
+} from "./queryBuilderTypes";
+import { generateId } from "./queryBuilderUtils";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Group } from 'lucide-react';
+import { Plus, Trash2, Group } from "lucide-react";
 
 interface QueryGroupProps {
   group: QueryStructure;
@@ -31,10 +34,10 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
   isRoot = false,
   disabled = false,
 }) => {
-  const { t } = useTranslation(['form']);
+  const { t } = useTranslation(["form"]);
 
   // Handler for shadcn Select's onValueChange
-  const handleOperatorChange = (value: 'AND' | 'OR') => {
+  const handleOperatorChange = (value: "AND" | "OR") => {
     if (disabled) return;
     onChange({ ...group, operator: value });
   };
@@ -43,8 +46,8 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
     if (disabled) return;
     const newCondition: Condition = {
       id: generateId(),
-      type: 'term', // Default to term
-      value: '',
+      type: "term", // Default to term
+      value: "",
       caseSensitive: false, // Default case sensitivity for term
     };
     onChange({ ...group, conditions: [...group.conditions, newCondition] });
@@ -54,25 +57,31 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
     if (disabled) return;
     const newGroup: QueryStructure = {
       id: generateId(),
-      operator: 'AND',
+      operator: "AND",
       conditions: [],
     };
     onChange({ ...group, conditions: [...group.conditions, newGroup] });
   };
 
   // Callbacks for child changes (remain the same logic)
-  const handleConditionChange = useCallback((index: number, updatedItem: Condition | QueryStructure) => {
-    if (disabled) return;
-    const newConditions = [...group.conditions];
-    newConditions[index] = updatedItem;
-    onChange({ ...group, conditions: newConditions });
-  }, [group, onChange, disabled]);
+  const handleConditionChange = useCallback(
+    (index: number, updatedItem: Condition | QueryStructure) => {
+      if (disabled) return;
+      const newConditions = [...group.conditions];
+      newConditions[index] = updatedItem;
+      onChange({ ...group, conditions: newConditions });
+    },
+    [group, onChange, disabled]
+  );
 
-  const handleRemoveItem = useCallback((index: number) => {
-    if (disabled) return;
-    const newConditions = group.conditions.filter((_, i) => i !== index);
-    onChange({ ...group, conditions: newConditions });
-  }, [group, onChange, disabled]);
+  const handleRemoveItem = useCallback(
+    (index: number) => {
+      if (disabled) return;
+      const newConditions = group.conditions.filter((_, i) => i !== index);
+      onChange({ ...group, conditions: newConditions });
+    },
+    [group, onChange, disabled]
+  );
 
   const canRemove = !isRoot && onRemove; // Can remove if not root and handler exists
 
@@ -85,48 +94,49 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
       )}
     >
       {/* Controls Section */}
-      <div className="flex items-center gap-2 flex-wrap"> {/* Flex layout for controls */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {" "}
+        {/* Flex layout for controls */}
         {/* Operator Select */}
         <Select
           value={group.operator}
           onValueChange={handleOperatorChange} // Use onValueChange
           disabled={disabled || group.conditions.length < 2}
         >
-          <SelectTrigger className="w-[80px] h-8 text-xs shrink-0"> {/* Smaller trigger */}
+          <SelectTrigger className="w-[80px] h-8 text-xs shrink-0">
+            {" "}
+            {/* Smaller trigger */}
             <SelectValue placeholder="Operator" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="AND">{t('queryBuilderAND')}</SelectItem>
-            <SelectItem value="OR">{t('queryBuilderOR')}</SelectItem>
+            <SelectItem value="AND">{t("queryBuilderAND")}</SelectItem>
+            <SelectItem value="OR">{t("queryBuilderOR")}</SelectItem>
           </SelectContent>
         </Select>
-
         {/* Add Condition Button */}
         <Button
-            type="button"
-            variant="ghost" // Use ghost for less emphasis
-            size="sm" // Smaller size
-            onClick={handleAddCondition}
-            disabled={disabled}
-            className="h-8 px-2 text-xs" // Adjust padding/height
+          type="button"
+          variant="ghost" // Use ghost for less emphasis
+          size="sm" // Smaller size
+          onClick={handleAddCondition}
+          disabled={disabled}
+          className="h-8 px-2 text-xs" // Adjust padding/height
         >
-            <Plus className="h-3 w-3 mr-1" /> {/* Icon */}
-            {t('queryBuilderAddCondition')}
+          <Plus className="h-3 w-3 mr-1" /> {/* Icon */}
+          {t("queryBuilderAddCondition")}
         </Button>
-
         {/* Add Group Button */}
         <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleAddGroup}
-            disabled={disabled}
-            className="h-8 px-2 text-xs"
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleAddGroup}
+          disabled={disabled}
+          className="h-8 px-2 text-xs"
         >
-            <Group className="h-3 w-3 mr-1" /> {/* Icon */}
-            {t('queryBuilderAddGroup')}
+          <Group className="h-3 w-3 mr-1" /> {/* Icon */}
+          {t("queryBuilderAddGroup")}
         </Button>
-
         {/* Remove Group Button (Conditional) */}
         {canRemove && (
           <Button
@@ -149,11 +159,13 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
         {group.conditions.map((item, index) => (
           // Container for each item (condition or subgroup)
           <div key={item.id}>
-            {'operator' in item ? (
+            {"operator" in item ? (
               // Render nested QueryGroup
               <QueryGroup
                 group={item}
-                onChange={(updatedSubGroup) => handleConditionChange(index, updatedSubGroup)}
+                onChange={(updatedSubGroup) =>
+                  handleConditionChange(index, updatedSubGroup)
+                }
                 onRemove={() => handleRemoveItem(index)}
                 level={level + 1} // Increment level for nesting
                 disabled={disabled}
@@ -162,7 +174,9 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
               // Render QueryCondition
               <QueryCondition
                 condition={item}
-                onChange={(updatedCondition) => handleConditionChange(index, updatedCondition)}
+                onChange={(updatedCondition) =>
+                  handleConditionChange(index, updatedCondition)
+                }
                 onRemove={() => handleRemoveItem(index)}
                 level={level} // Pass level
                 isFirstInGroup={index === 0}

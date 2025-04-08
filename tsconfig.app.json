@@ -4,9 +4,7 @@
     // --- Base URL and Path Alias (Mirrors root config) ---
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     },
     // --- End Alias Config ---
 
@@ -41,11 +39,11 @@
     "src/ui/queryBuilderTypes.ts", // Your custom types if outside src/ui
     "src/components", // Include shadcn components directory
     "src/lib" // Include shadcn utils directory
-    ],
+  ],
   // --- Exclude non-app code ---
   "exclude": [
     "node_modules",
     "dist-*",
     "src/electron" // Exclude main process code
-    ]
+  ]
 }

@@ -40,7 +40,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         .getThemePreference()
         .then((pref) => setCurrentTheme(pref))
         .catch((err) =>
-          console.error("Error fetching theme pref in modal:", err),
+          console.error("Error fetching theme pref in modal:", err)
         );
     }
   }, [isOpen]);
@@ -132,19 +132,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="light" id="theme-light" />
-                <Label htmlFor="theme-light" className="cursor-pointer font-normal">
+                <Label
+                  htmlFor="theme-light"
+                  className="cursor-pointer font-normal"
+                >
                   {t("themeLight")}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="dark" id="theme-dark" />
-                <Label htmlFor="theme-dark" className="cursor-pointer font-normal">
+                <Label
+                  htmlFor="theme-dark"
+                  className="cursor-pointer font-normal"
+                >
                   {t("themeDark")}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="system" id="theme-system" />
-                <Label htmlFor="theme-system" className="cursor-pointer font-normal">
+                <Label
+                  htmlFor="theme-system"
+                  className="cursor-pointer font-normal"
+                >
                   {t("themeSystem")}
                 </Label>
               </div>

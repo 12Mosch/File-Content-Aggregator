@@ -24,15 +24,10 @@ function CustomCaption(
     onMonthChange: (date: Date) => void;
     currentView: CalendarView;
     locale?: Locale;
-  },
+  }
 ) {
-  const {
-    displayMonth,
-    onViewChange,
-    onMonthChange,
-    currentView,
-    locale,
-  } = props;
+  const { displayMonth, onViewChange, onMonthChange, currentView, locale } =
+    props;
 
   const handleMonthClick = () => {
     if (currentView === "days") {
@@ -66,7 +61,7 @@ function CustomCaption(
           "size-7 bg-transparent p-0 absolute left-1", // Position absolute
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
-            : "opacity-50 hover:opacity-100",
+            : "opacity-50 hover:opacity-100"
         )}
         aria-label="Previous year"
       >
@@ -83,7 +78,7 @@ function CustomCaption(
           "size-7 bg-transparent p-0 absolute left-9", // Position absolute
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
-            : "opacity-50 hover:opacity-100",
+            : "opacity-50 hover:opacity-100"
         )}
         aria-label="Previous month"
       >
@@ -110,7 +105,7 @@ function CustomCaption(
               className={cn(
                 buttonVariants({ variant: "ghost" }),
                 "h-auto px-2 py-1 text-sm font-medium", // Keep styling
-                currentView === "months" && "text-primary underline",
+                currentView === "months" && "text-primary underline"
               )}
             >
               {format(displayMonth, "MMMM", { locale })}
@@ -122,7 +117,7 @@ function CustomCaption(
                 buttonVariants({ variant: "ghost" }),
                 "h-auto px-2 py-1 text-sm font-medium", // Keep styling
                 // @ts-expect-error - TS overly strict, comparison is valid for styling intent
-                currentView === "years" && "text-primary underline",
+                currentView === "years" && "text-primary underline"
               )}
             >
               {format(displayMonth, "yyyy", { locale })}
@@ -141,7 +136,7 @@ function CustomCaption(
           "size-7 bg-transparent p-0 absolute right-9", // Position absolute
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
-            : "opacity-50 hover:opacity-100",
+            : "opacity-50 hover:opacity-100"
         )}
         aria-label="Next month"
       >
@@ -158,7 +153,7 @@ function CustomCaption(
           "size-7 bg-transparent p-0 absolute right-1", // Position absolute
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
-            : "opacity-50 hover:opacity-100",
+            : "opacity-50 hover:opacity-100"
         )}
         aria-label="Next year"
       >
@@ -189,7 +184,7 @@ function Calendar({
 }: CalendarProps) {
   const [view, setView] = React.useState<CalendarView>("days");
   const [displayDate, setDisplayDate] = React.useState<Date>(
-    initialMonth || (selected as Date) || defaultMonth || new Date(),
+    initialMonth || (selected as Date) || defaultMonth || new Date()
   );
 
   React.useEffect(() => {
@@ -202,7 +197,7 @@ function Calendar({
     day,
     selectedDay,
     activeModifiers,
-    e,
+    e
   ) => {
     onSelect?.(day, selectedDay, activeModifiers, e);
     if (day) {
@@ -222,13 +217,15 @@ function Calendar({
 
   const monthNames = React.useMemo(() => {
     return Array.from({ length: 12 }).map((_, i) =>
-      format(new Date(2000, i, 1), "MMMM", { locale }),
+      format(new Date(2000, i, 1), "MMMM", { locale })
     );
   }, [locale]);
 
   const currentYear = displayDate.getFullYear();
   const startDecadeYear = Math.floor(currentYear / 10) * 10;
-  const years = Array.from({ length: 12 }).map((_, i) => startDecadeYear + i - 1);
+  const years = Array.from({ length: 12 }).map(
+    (_, i) => startDecadeYear + i - 1
+  );
 
   return (
     <div className={cn("p-3", className)}>
@@ -238,7 +235,7 @@ function Calendar({
         onMonthChange={setDisplayDate}
         currentView={view}
         locale={locale}
-        {...(props)}
+        {...props}
       />
 
       {view === "days" && (
@@ -264,11 +261,11 @@ function Calendar({
             row: "flex w-full mt-1 justify-around",
             cell: cn(
               "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
-              "[&:has([aria-selected])]:rounded-md",
+              "[&:has([aria-selected])]:rounded-md"
             ),
             day: cn(
               buttonVariants({ variant: "ghost" }),
-              "size-8 p-0 font-normal aria-selected:opacity-100 rounded-md",
+              "size-8 p-0 font-normal aria-selected:opacity-100 rounded-md"
             ),
             day_selected:
               "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-md",
@@ -298,7 +295,7 @@ function Calendar({
                 buttonVariants({ variant: "ghost" }),
                 "w-full justify-center text-sm h-9",
                 displayDate.getMonth() === index &&
-                  "bg-accent text-accent-foreground",
+                  "bg-accent text-accent-foreground"
               )}
             >
               {monthName}
@@ -318,7 +315,7 @@ function Calendar({
                 buttonVariants({ variant: "ghost" }),
                 "w-full justify-center text-sm h-9",
                 displayDate.getFullYear() === year &&
-                  "bg-accent text-accent-foreground",
+                  "bg-accent text-accent-foreground"
               )}
             >
               {year}

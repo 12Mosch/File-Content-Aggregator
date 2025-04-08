@@ -6,5 +6,5 @@
  * In a real application, consider using a more robust library like uuid.
  */
 export const generateId = (): string => {
-    return `qb_${Math.random().toString(36).substring(2, 9)}`;
+  return `qb_${Math.random().toString(36).substring(2, 9)}`;
 };

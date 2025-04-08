@@ -35,7 +35,7 @@ interface HistoryModalProps {
   onClear: () => void;
   onUpdateEntry: (
     entryId: string,
-    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>,
+    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
   ) => void;
 }
 
@@ -77,7 +77,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
     /* ... */ const lowerCaseFilter = debouncedFilterTerm.toLowerCase().trim();
     const filtered = lowerCaseFilter
       ? history.filter((entry) =>
-          createSearchableString(entry).includes(lowerCaseFilter),
+          createSearchableString(entry).includes(lowerCaseFilter)
         )
       : history;
     return filtered.sort((a, b) => {
@@ -162,7 +162,9 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>{t("historyClearConfirmTitle")}</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {t("historyClearConfirmTitle")}
+                </AlertDialogTitle>
                 {/* Use the specific AlertDialogDesc component here */}
                 <AlertDialogDesc>
                   {t("historyClearConfirmMessage")} <br />

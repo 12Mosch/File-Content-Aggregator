@@ -1,8 +1,14 @@
 /// <reference types="vite/client" />
 
 // --- Query Builder Types ---
-export type { QueryGroup as QueryStructure, Condition, TermCondition, RegexCondition, NearCondition } from './queryBuilderTypes';
-import type { QueryGroup as InternalQueryStructure } from './queryBuilderTypes';
+export type {
+  QueryGroup as QueryStructure,
+  Condition,
+  TermCondition,
+  RegexCondition,
+  NearCondition,
+} from "./queryBuilderTypes";
+import type { QueryGroup as InternalQueryStructure } from "./queryBuilderTypes";
 
 // --- Data Structures ---
 
@@ -12,7 +18,7 @@ interface ProgressData {
   currentFile?: string;
   message?: string;
   error?: string;
-  status?: 'searching' | 'cancelling' | 'cancelled' | 'completed' | 'error';
+  status?: "searching" | "cancelling" | "cancelled" | "completed" | "error";
 }
 
 interface StructuredItem {
@@ -60,16 +66,18 @@ interface SearchParams {
 }
 
 export interface SearchHistoryEntry {
-    id: string;
-    timestamp: string;
-    name?: string;
-    isFavorite?: boolean;
-    searchParams: SearchParams;
+  id: string;
+  timestamp: string;
+  name?: string;
+  isFavorite?: boolean;
+  searchParams: SearchParams;
 }
 
 // --- Electron API Definition ---
 export interface IElectronAPI {
-  invokeSearch: (params: Omit<SearchParams, 'structuredQuery'>) => Promise<SearchResult>;
+  invokeSearch: (
+    params: Omit<SearchParams, "structuredQuery">
+  ) => Promise<SearchResult>;
   showSaveDialog: () => Promise<string | undefined>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
   copyToClipboard: (content: string) => Promise<boolean>;
@@ -83,13 +91,18 @@ export interface IElectronAPI {
   getSearchHistory: () => Promise<SearchHistoryEntry[]>;
   deleteSearchHistoryEntry: (entryId: string) => Promise<void>;
   clearSearchHistory: () => Promise<boolean>;
-  updateSearchHistoryEntry: (entryId: string, updates: Partial<Pick<SearchHistoryEntry, 'name' | 'isFavorite'>>) => Promise<boolean>;
+  updateSearchHistoryEntry: (
+    entryId: string,
+    updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
+  ) => Promise<boolean>;
 
   // Theme API
   getThemePreference: () => Promise<ThemePreference>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
   // --- NEW: Theme Change Listener ---
-  onThemePreferenceChanged: (callback: (theme: ThemePreference) => void) => () => void;
+  onThemePreferenceChanged: (
+    callback: (theme: ThemePreference) => void
+  ) => () => void;
   // -----------------------------
 
   // Cancellation API
@@ -104,4 +117,11 @@ declare global {
 }
 
 // --- Exports ---
-export type { ProgressData, SearchResult, FileReadError, SearchParams, FolderExclusionMode, StructuredItem };
+export type {
+  ProgressData,
+  SearchResult,
+  FileReadError,
+  SearchParams,
+  FolderExclusionMode,
+  StructuredItem,
+};

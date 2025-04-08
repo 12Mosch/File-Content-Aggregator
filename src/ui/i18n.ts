@@ -4,8 +4,8 @@ import HttpApi from "i18next-http-backend";
 
 const isDevelopment = import.meta.env.DEV;
 
-export const supportedLngs = ['en', 'es', 'de', 'ja', 'fr', 'pt', 'ru', 'it'];
-export const fallbackLng = 'en';
+export const supportedLngs = ["en", "es", "de", "ja", "fr", "pt", "ru", "it"];
+export const fallbackLng = "en";
 
 // Use void operator for floating promise
 void i18n
@@ -14,11 +14,11 @@ void i18n
   .init({
     fallbackLng: fallbackLng,
     supportedLngs: supportedLngs,
-    ns: ['common', 'form', 'results', 'errors', 'dialogs'],
-    defaultNS: 'common',
-    load: 'languageOnly',
+    ns: ["common", "form", "results", "errors", "dialogs"],
+    defaultNS: "common",
+    load: "languageOnly",
     backend: {
-      loadPath: '/locales/{{lng}}/{{ns}}.json',
+      loadPath: "/locales/{{lng}}/{{ns}}.json",
     },
     debug: isDevelopment,
     react: {

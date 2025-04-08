@@ -1,9 +1,9 @@
 // D:/Code/Electron/src/ui/QueryBuilder.tsx
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-import QueryGroup from './QueryGroup'; // Child component
-import type { QueryGroup as QueryStructure } from './queryBuilderTypes';
-import { generateId } from './queryBuilderUtils';
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import QueryGroup from "./QueryGroup"; // Child component
+import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
+import { generateId } from "./queryBuilderUtils";
 import { Checkbox } from "@/components/ui/checkbox"; // Import shadcn Checkbox
 import { Label } from "@/components/ui/label"; // Import shadcn Label
 import { cn } from "@/lib/utils"; // Import cn utility
@@ -21,10 +21,10 @@ interface QueryBuilderProps {
 
 // Helper to create a default empty root group
 const createDefaultRootGroup = (): QueryStructure => ({
-    id: generateId(),
-    operator: 'AND',
-    conditions: [],
-    isRoot: true,
+  id: generateId(),
+  operator: "AND",
+  conditions: [],
+  isRoot: true,
 });
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
@@ -34,7 +34,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   initialCaseSensitive = false,
   disabled = false,
 }) => {
-  const { t } = useTranslation(['form']);
+  const { t } = useTranslation(["form"]);
   // Initialize state with props or default empty group
   const [rootGroup, setRootGroup] = useState<QueryStructure>(
     initialQuery || createDefaultRootGroup()
@@ -48,21 +48,21 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   useEffect(() => {
     const newQueryId = initialQuery?.id ?? null;
     if (initialQuery === null && loadedQueryIdRef.current !== null) {
-        setRootGroup(createDefaultRootGroup());
-        setIsCaseSensitive(initialCaseSensitive);
-        loadedQueryIdRef.current = null;
+      setRootGroup(createDefaultRootGroup());
+      setIsCaseSensitive(initialCaseSensitive);
+      loadedQueryIdRef.current = null;
     } else if (initialQuery && newQueryId !== loadedQueryIdRef.current) {
-        console.log(`QueryBuilder: Loading new initialQuery (ID: ${newQueryId})`);
-        setRootGroup(initialQuery);
-        setIsCaseSensitive(initialCaseSensitive);
-        loadedQueryIdRef.current = newQueryId;
+      console.log(`QueryBuilder: Loading new initialQuery (ID: ${newQueryId})`);
+      setRootGroup(initialQuery);
+      setIsCaseSensitive(initialCaseSensitive);
+      loadedQueryIdRef.current = newQueryId;
     }
   }, [initialQuery, initialCaseSensitive]);
 
   // Notify parent about query changes (made internally by the user)
   useEffect(() => {
     if (rootGroup.id !== loadedQueryIdRef.current || !initialQuery) {
-         onChange(rootGroup.conditions.length > 0 ? rootGroup : null);
+      onChange(rootGroup.conditions.length > 0 ? rootGroup : null);
     }
   }, [rootGroup, onChange, initialQuery]);
 
@@ -71,12 +71,11 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   //   onCaseSensitivityChange(isCaseSensitive);
   // }, [isCaseSensitive, onCaseSensitivityChange]);
 
-
   const handleRootGroupChange = useCallback((updatedGroup: QueryStructure) => {
     setRootGroup(updatedGroup);
   }, []);
 
-  const handleCaseSensitiveToggle = (checked: boolean | 'indeterminate') => {
+  const handleCaseSensitiveToggle = (checked: boolean | "indeterminate") => {
     // Checkbox onCheckedChange provides boolean or 'indeterminate'
     const newSensitivity = Boolean(checked);
     setIsCaseSensitive(newSensitivity);
@@ -87,17 +86,16 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   // Determine if the case sensitive checkbox should be shown
   const hasTermCondition = (group: QueryStructure): boolean => {
     if (!group?.conditions) return false;
-    return group.conditions.some(item => {
+    return group.conditions.some((item) => {
       if (!item) return false;
-      if ('operator' in item) {
+      if ("operator" in item) {
         return hasTermCondition(item);
       } else {
-        return item.type === 'term';
+        return item.type === "term";
       }
     });
   };
   const showCaseSensitiveCheckbox = hasTermCondition(rootGroup);
-
 
   return (
     // Apply Tailwind classes for container styling
@@ -118,25 +116,25 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       />
       {/* Render options like case sensitivity only if relevant */}
       {showCaseSensitiveCheckbox && (
-         // Apply Tailwind classes for options section layout/styling
-         <div className="mt-2 pt-3 border-t border-border/60">
-            {/* Use flex layout for checkbox and label */}
-            <div className="flex items-center space-x-2">
-                <Checkbox
-                    id="queryBuilderCaseSensitive"
-                    checked={isCaseSensitive}
-                    onCheckedChange={handleCaseSensitiveToggle} // Use onCheckedChange
-                    disabled={disabled}
-                    aria-label={t('caseSensitiveLabel')} // Add aria-label
-                />
-                <Label
-                    htmlFor="queryBuilderCaseSensitive"
-                    // Apply Tailwind classes for label appearance and cursor
-                    className="text-sm font-medium leading-none text-muted-foreground cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                    {t('caseSensitiveLabel')}
-                </Label>
-            </div>
+        // Apply Tailwind classes for options section layout/styling
+        <div className="mt-2 pt-3 border-t border-border/60">
+          {/* Use flex layout for checkbox and label */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="queryBuilderCaseSensitive"
+              checked={isCaseSensitive}
+              onCheckedChange={handleCaseSensitiveToggle} // Use onCheckedChange
+              disabled={disabled}
+              aria-label={t("caseSensitiveLabel")} // Add aria-label
+            />
+            <Label
+              htmlFor="queryBuilderCaseSensitive"
+              // Apply Tailwind classes for label appearance and cursor
+              className="text-sm font-medium leading-none text-muted-foreground cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              {t("caseSensitiveLabel")}
+            </Label>
+          </div>
         </div>
       )}
     </div>

@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist-*/
+release/
+build/
+.tmp/
+
+# Lockfiles (usually don't need formatting)
+package-lock.json
+yarn.lock
+
+# Optional: Coverage reports
+coverage/
+
+# Optional: VS Code specific settings
+.vscode/
+
+# Optional: OS generated files
+.DS_Store
+Thumbs.db

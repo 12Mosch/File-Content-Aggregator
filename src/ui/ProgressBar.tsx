@@ -15,13 +15,16 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   message,
   error,
 }) => {
-  const { t } = useTranslation(['common']);
+  const { t } = useTranslation(["common"]);
 
   // Calculate percentage (ensure it's between 0 and 100)
-  const percentage = total > 0 ? Math.min(100, Math.max(0, Math.round((processed / total) * 100))) : 0;
+  const percentage =
+    total > 0
+      ? Math.min(100, Math.max(0, Math.round((processed / total) * 100)))
+      : 0;
 
   // Determine the display message
-  const displayMessage = message || t('progressDefault', { processed, total });
+  const displayMessage = message || t("progressDefault", { processed, total });
 
   return (
     // Main container with vertical spacing
@@ -35,7 +38,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         {/* Display error message if present */}
         {error && (
           <span className="ml-4 font-semibold text-destructive">
-            {t('progressErrorPrefix')} {error}
+            {t("progressErrorPrefix")} {error}
           </span>
         )}
       </div>

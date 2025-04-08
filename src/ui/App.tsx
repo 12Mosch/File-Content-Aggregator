@@ -54,7 +54,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"text" | "tree">("text");
   const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(
-    new Map(),
+    new Map()
   );
   const [itemDisplayVersion, setItemDisplayVersion] = useState(0);
   const [resultsFilterTerm, setResultsFilterTerm] = useState<string>("");
@@ -62,7 +62,7 @@ function App() {
     useState<boolean>(false);
   const debouncedFilterTerm = useDebounce(
     resultsFilterTerm,
-    FILTER_DEBOUNCE_DELAY,
+    FILTER_DEBOUNCE_DELAY
   );
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
@@ -70,23 +70,20 @@ function App() {
     useState<SearchHistoryEntry | null>(null);
 
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
-    return fileReadErrors.reduce(
-      (acc, error) => {
-        const reasonKey = error.reason || "unknownError";
-        if (!acc[reasonKey]) {
-          acc[reasonKey] = [];
-        }
-        acc[reasonKey].push(error.filePath);
-        return acc;
-      },
-      {} as GroupedErrors,
-    );
+    return fileReadErrors.reduce((acc, error) => {
+      const reasonKey = error.reason || "unknownError";
+      if (!acc[reasonKey]) {
+        acc[reasonKey] = [];
+      }
+      acc[reasonKey].push(error.filePath);
+      return acc;
+    }, {} as GroupedErrors);
   }, [fileReadErrors]);
 
   useEffect(() => {
     if (window.electronAPI?.onSearchProgress) {
       const unsubscribe = window.electronAPI.onSearchProgress(
-        (data: ProgressData) => setProgress(data),
+        (data: ProgressData) => setProgress(data)
       );
       return unsubscribe;
     } else {
@@ -103,7 +100,7 @@ function App() {
       } catch (err: unknown) {
         console.error(
           "UI: Failed to fetch search history:",
-          err instanceof Error ? err.message : err,
+          err instanceof Error ? err.message : err
         );
         setGeneralError(t("errors:historyFetchFailed"));
         return [];
@@ -122,10 +119,13 @@ function App() {
 
   const closeHistoryModal = () => setIsHistoryOpen(false);
 
-  const handleLoadSearchFromHistory = useCallback((entry: SearchHistoryEntry) => {
-    setHistoryEntryToLoad(entry);
-    closeHistoryModal();
-  }, []);
+  const handleLoadSearchFromHistory = useCallback(
+    (entry: SearchHistoryEntry) => {
+      setHistoryEntryToLoad(entry);
+      closeHistoryModal();
+    },
+    []
+  );
 
   const handleHistoryLoadComplete = useCallback(() => {
     setHistoryEntryToLoad(null);
@@ -136,11 +136,13 @@ function App() {
       if (window.electronAPI?.deleteSearchHistoryEntry) {
         try {
           await window.electronAPI.deleteSearchHistoryEntry(entryId);
-          setSearchHistory((prev) => prev.filter((entry) => entry.id !== entryId));
+          setSearchHistory((prev) =>
+            prev.filter((entry) => entry.id !== entryId)
+          );
         } catch (err: unknown) {
           console.error(
             "UI: Failed to delete history entry:",
-            err instanceof Error ? err.message : err,
+            err instanceof Error ? err.message : err
           );
           setGeneralError(t("errors:historyDeleteFailed"));
         }
@@ -148,7 +150,7 @@ function App() {
         setGeneralError(t("errors:historyApiNA"));
       }
     },
-    [t],
+    [t]
   );
 
   const handleClearHistory = useCallback(async () => {
@@ -159,12 +161,14 @@ function App() {
           setSearchHistory([]);
           console.log("UI: History cleared successfully.");
         } else {
-          console.log("UI: History clear cancelled by user or failed in backend.");
+          console.log(
+            "UI: History clear cancelled by user or failed in backend."
+          );
         }
       } catch (err: unknown) {
         console.error(
           "UI: Failed to clear history:",
-          err instanceof Error ? err.message : err,
+          err instanceof Error ? err.message : err
         );
         setGeneralError(t("errors:historyClearFailed"));
       }
@@ -176,28 +180,30 @@ function App() {
   const handleUpdateHistoryEntry = useCallback(
     async (
       entryId: string,
-      updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>,
+      updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
     ) => {
       if (window.electronAPI?.updateSearchHistoryEntry) {
         try {
           const success = await window.electronAPI.updateSearchHistoryEntry(
             entryId,
-            updates,
+            updates
           );
           if (success) {
             setSearchHistory((prev) =>
               prev.map((entry) =>
-                entry.id === entryId ? { ...entry, ...updates } : entry,
-              ),
+                entry.id === entryId ? { ...entry, ...updates } : entry
+              )
             );
           } else {
-            console.warn(`UI: Failed to update history entry ${entryId} in backend.`);
+            console.warn(
+              `UI: Failed to update history entry ${entryId} in backend.`
+            );
             setGeneralError(t("errors:historyUpdateFailed"));
           }
         } catch (err: unknown) {
           console.error(
             `UI: Error updating history entry ${entryId}:`,
-            err instanceof Error ? err.message : err,
+            err instanceof Error ? err.message : err
           );
           setGeneralError(t("errors:historyUpdateFailed"));
         }
@@ -206,7 +212,7 @@ function App() {
         setGeneralError(t("errors:historyApiNA"));
       }
     },
-    [t],
+    [t]
   );
 
   const handleSearchSubmit = useCallback(
@@ -223,7 +229,10 @@ function App() {
       setGeneralError(null);
       setResultsFilterTerm("");
 
-      if (window.electronAPI?.addSearchHistoryEntry && params.searchPaths.length > 0) {
+      if (
+        window.electronAPI?.addSearchHistoryEntry &&
+        params.searchPaths.length > 0
+      ) {
         const historyEntry: SearchHistoryEntry = {
           id: generateId(),
           timestamp: new Date().toISOString(),
@@ -234,7 +243,7 @@ function App() {
         } catch (err: unknown) {
           console.error(
             "UI: Failed to save search to history:",
-            err instanceof Error ? err.message : err,
+            err instanceof Error ? err.message : err
           );
         }
       }
@@ -261,15 +270,21 @@ function App() {
             });
           if (err.startsWith("Search path is not a directory:"))
             return t("errors:pathNotDir", {
-              path: err.substring("Search path is not a directory:".length).trim(),
+              path: err
+                .substring("Search path is not a directory:".length)
+                .trim(),
             });
           if (err.startsWith("Permission denied for search path:"))
             return t("errors:pathPermissionDenied", {
-              path: err.substring("Permission denied for search path:".length).trim(),
+              path: err
+                .substring("Permission denied for search path:".length)
+                .trim(),
             });
           if (err.startsWith("Invalid boolean query syntax:"))
             return t("errors:invalidBooleanQuery", {
-              detail: err.substring("Invalid boolean query syntax:".length).trim(),
+              detail: err
+                .substring("Invalid boolean query syntax:".length)
+                .trim(),
             });
           if (err.startsWith("Invalid regular expression pattern:"))
             return t("errors:invalidRegexPattern", {
@@ -287,7 +302,7 @@ function App() {
           total:
             searchResult.filesProcessed > 0
               ? searchResult.filesProcessed
-              : prev?.total ?? 0,
+              : (prev?.total ?? 0),
           message: `Search complete. Processed ${searchResult.filesProcessed} files.`,
         }));
       } catch (err: unknown) {
@@ -295,14 +310,14 @@ function App() {
         setGeneralError(
           t("errors:generalSearchFailed", {
             detail: err instanceof Error ? err.message : "Unknown error",
-          }),
+          })
         );
         setProgress(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [t],
+    [t]
   );
 
   const handleCopyResults = useCallback(async (): Promise<{
@@ -312,7 +327,8 @@ function App() {
     let potentiallyTruncated = false;
     if (results) {
       const lineCount = results.split("\n").length;
-      if (lineCount > LARGE_RESULT_LINE_THRESHOLD_APP) potentiallyTruncated = true;
+      if (lineCount > LARGE_RESULT_LINE_THRESHOLD_APP)
+        potentiallyTruncated = true;
       if (window.electronAPI?.copyToClipboard) {
         try {
           const success = await window.electronAPI.copyToClipboard(results);
@@ -321,7 +337,7 @@ function App() {
           setGeneralError(
             t("errors:copyFailed", {
               detail: err instanceof Error ? err.message : String(err),
-            }),
+            })
           );
           return { success: false, potentiallyTruncated };
         }
@@ -347,7 +363,7 @@ function App() {
         setGeneralError(
           t("errors:saveFailed", {
             detail: err instanceof Error ? err.message : String(err),
-          }),
+          })
         );
       }
     }
@@ -367,7 +383,7 @@ function App() {
         return prevMap;
       });
     },
-    [],
+    []
   );
 
   const handleToggleExpand = useCallback(
@@ -380,7 +396,7 @@ function App() {
         return newMap;
       });
     },
-    [updateItemDisplayState],
+    [updateItemDisplayState]
   );
 
   const handleShowFullContent = useCallback(
@@ -395,7 +411,7 @@ function App() {
         return prevMap;
       });
     },
-    [updateItemDisplayState],
+    [updateItemDisplayState]
   );
 
   const isFilterActive = debouncedFilterTerm.trim().length > 0;
@@ -409,9 +425,14 @@ function App() {
     return lines.filter((line) =>
       caseSensitive
         ? line.includes(term)
-        : line.toLowerCase().includes(term.toLowerCase()),
+        : line.toLowerCase().includes(term.toLowerCase())
     );
-  }, [results, debouncedFilterTerm, resultsFilterCaseSensitive, isFilterActive]);
+  }, [
+    results,
+    debouncedFilterTerm,
+    resultsFilterCaseSensitive,
+    isFilterActive,
+  ]);
 
   const filteredStructuredResults = useMemo(() => {
     if (!structuredResults) return null;
@@ -443,7 +464,12 @@ function App() {
           {t("common:appName")}
         </h1>
         <div className="flex items-center gap-2">
-          <HistoryButton onClick={() => { void openHistoryModal(); }} disabled={isLoading} />
+          <HistoryButton
+            onClick={() => {
+              void openHistoryModal();
+            }}
+            disabled={isLoading}
+          />
           <Button
             variant="outline"
             size="icon"
@@ -460,7 +486,9 @@ function App() {
 
       <main className="flex flex-col gap-6">
         <SearchForm
-          onSubmit={(params) => { void handleSearchSubmit(params); }}
+          onSubmit={(params) => {
+            void handleSearchSubmit(params);
+          }}
           isLoading={isLoading}
           historyEntryToLoad={historyEntryToLoad}
           onLoadComplete={handleHistoryLoadComplete}
@@ -469,14 +497,18 @@ function App() {
         {generalError && (
           <div className="p-4 rounded-md bg-destructive/10 border border-destructive/30 text-destructive">
             <p>
-              <span className="font-medium">{t("errors:generalErrorPrefix")}</span>{" "}
+              <span className="font-medium">
+                {t("errors:generalErrorPrefix")}
+              </span>{" "}
               {generalError}
             </p>
           </div>
         )}
         {pathErrors.length > 0 && (
           <div className="p-4 rounded-md bg-yellow-900/10 border border-yellow-700/30 text-yellow-200">
-            <h4 className="font-medium mb-2">{t("errors:pathErrorsHeading")}</h4>
+            <h4 className="font-medium mb-2">
+              {t("errors:pathErrorsHeading")}
+            </h4>
             <ul className="list-disc list-inside space-y-1 text-sm">
               {pathErrors.map((err, i) => (
                 <li key={`path-err-${i}`}>{err}</li>
@@ -487,10 +519,15 @@ function App() {
         {fileReadErrors.length > 0 && (
           <div className="p-4 rounded-md bg-destructive/10 border border-destructive/30 text-destructive">
             <h4 className="font-medium mb-2">
-              {t("errors:fileReadErrorsHeading", { count: fileReadErrors.length })}
+              {t("errors:fileReadErrorsHeading", {
+                count: fileReadErrors.length,
+              })}
             </h4>
             {Object.entries(groupedFileReadErrors).map(([key, paths]) => (
-              <div key={key} className="mt-2 pl-2 border-l-2 border-destructive/50">
+              <div
+                key={key}
+                className="mt-2 pl-2 border-l-2 border-destructive/50"
+              >
                 <h5 className="font-medium text-sm mb-1">
                   {t(`errors:${key}`, {
                     defaultValue: key,
@@ -568,7 +605,7 @@ function App() {
                   htmlFor="viewModeTree"
                   className={cn(
                     "text-sm text-muted-foreground cursor-pointer",
-                    !structuredResults && "opacity-50 cursor-not-allowed",
+                    !structuredResults && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   {t("results:viewModeTree")}
@@ -602,9 +639,15 @@ function App() {
         onClose={closeHistoryModal}
         history={searchHistory}
         onLoad={handleLoadSearchFromHistory}
-        onDelete={(id) => { void handleDeleteHistoryEntry(id); }}
-        onClear={() => { void handleClearHistory(); }}
-        onUpdateEntry={(id, updates) => { void handleUpdateHistoryEntry(id, updates); }}
+        onDelete={(id) => {
+          void handleDeleteHistoryEntry(id);
+        }}
+        onClear={() => {
+          void handleClearHistory();
+        }}
+        onUpdateEntry={(id, updates) => {
+          void handleUpdateHistoryEntry(id, updates);
+        }}
       />
     </div>
   );

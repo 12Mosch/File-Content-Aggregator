@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface HighlightMatchesProps {
   text: string | null | undefined;
@@ -9,7 +9,7 @@ interface HighlightMatchesProps {
 
 // Helper function to escape special characters for RegExp (remains the same)
 function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
 }
 
 const HighlightMatches: React.FC<HighlightMatchesProps> = ({
@@ -18,7 +18,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
   caseSensitive,
 }) => {
   if (!text) {
-    return <>{''}</>; // Return empty fragment if text is null/undefined/empty
+    return <>{""}</>; // Return empty fragment if text is null/undefined/empty
   }
   if (!term.trim()) {
     return <>{text}</>; // Return original text if term is empty
@@ -28,7 +28,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
     // Create RegExp safely escaping the term
     const regex = new RegExp(
       `(${escapeRegExp(term)})`, // Capture the term itself
-      caseSensitive ? 'g' : 'gi', // Global, case-insensitive optional
+      caseSensitive ? "g" : "gi" // Global, case-insensitive optional
     );
 
     const parts = text.split(regex);
@@ -51,7 +51,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
           ) : (
             // Use React.Fragment for non-highlighted parts
             <React.Fragment key={index}>{part}</React.Fragment>
-          ),
+          )
         )}
       </>
     );

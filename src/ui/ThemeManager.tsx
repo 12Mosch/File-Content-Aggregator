@@ -4,7 +4,9 @@ import type { ThemePreference } from "./vite-env.d";
 /** Applies the theme class based on preference and system settings */
 export const applyTheme = (preference: ThemePreference) => {
   const rootEl = window.document.documentElement;
-  const isDarkSystem = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDarkSystem = window.matchMedia(
+    "(prefers-color-scheme: dark)"
+  ).matches;
 
   rootEl.classList.remove("light", "dark");
 
@@ -44,7 +46,7 @@ export const ThemeHandler = () => {
       } catch (error: unknown) {
         console.error(
           "ThemeHandler: Error fetching theme preference:",
-          error instanceof Error ? error.message : error,
+          error instanceof Error ? error.message : error
         );
         if (isMounted) applyTheme("system");
       }
@@ -60,10 +62,15 @@ export const ThemeHandler = () => {
     let cleanupListener: (() => void) | null = null;
     if (window.electronAPI?.onThemePreferenceChanged) {
       console.log("ThemeHandler: Setting up preference change listener.");
-      cleanupListener = window.electronAPI.onThemePreferenceChanged((newTheme) => {
-        console.log("ThemeHandler: Received theme preference update:", newTheme);
-        setCurrentPreference(newTheme);
-      });
+      cleanupListener = window.electronAPI.onThemePreferenceChanged(
+        (newTheme) => {
+          console.log(
+            "ThemeHandler: Received theme preference update:",
+            newTheme
+          );
+          setCurrentPreference(newTheme);
+        }
+      );
     } else {
       console.warn("ThemeHandler: onThemePreferenceChanged API not available.");
     }
@@ -77,11 +84,13 @@ export const ThemeHandler = () => {
 
   useEffect(() => {
     let mediaQueryList: MediaQueryList | null = null;
-    let systemChangeListener: ((event: MediaQueryListEvent) => void) | null = null;
+    let systemChangeListener: ((event: MediaQueryListEvent) => void) | null =
+      null;
 
-    const handleSystemThemeChange = (_event: MediaQueryListEvent) => { // Prefix unused event
+    const handleSystemThemeChange = (_event: MediaQueryListEvent) => {
+      // Prefix unused event
       console.log(
-        `ThemeHandler: System theme changed (matches dark: ${_event.matches}). Re-applying 'system' preference.`,
+        `ThemeHandler: System theme changed (matches dark: ${_event.matches}). Re-applying 'system' preference.`
       );
       applyTheme("system");
     };
@@ -90,14 +99,14 @@ export const ThemeHandler = () => {
 
     if (currentPreference === "system") {
       console.log(
-        "ThemeHandler: Preference is 'system', adding system theme listener.",
+        "ThemeHandler: Preference is 'system', adding system theme listener."
       );
       mediaQueryList = window.matchMedia("(prefers-color-scheme: dark)");
       systemChangeListener = handleSystemThemeChange;
       mediaQueryList.addEventListener("change", systemChangeListener);
     } else {
       console.log(
-        `ThemeHandler: Preference is '${currentPreference}', ensuring no system listener.`,
+        `ThemeHandler: Preference is '${currentPreference}', ensuring no system listener.`
       );
     }
 

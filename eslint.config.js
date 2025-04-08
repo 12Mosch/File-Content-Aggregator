@@ -144,5 +144,5 @@ export default tseslint.config(
       "no-undef": "off", // Allow module/require
     },
   },
-  eslintConfigPrettier,
+  eslintConfigPrettier
 );

@@ -25,7 +25,12 @@ import {
 import { Calendar as CalendarIcon, X, Loader2 } from "lucide-react";
 
 // Define unit constants for calculations
-const SIZE_UNITS = { Bytes: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
+const SIZE_UNITS = {
+  Bytes: 1,
+  KB: 1024,
+  MB: 1024 * 1024,
+  GB: 1024 * 1024 * 1024,
+};
 type SizeUnit = keyof typeof SIZE_UNITS;
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 // Type for keys used in handleSelectChange
@@ -58,7 +63,7 @@ interface SearchFormProps {
 
 // Helper to convert size in bytes back to value and unit for the form
 const bytesToSizeForm = (
-  bytes: number | undefined,
+  bytes: number | undefined
 ): { value: string; unit: SizeUnit } => {
   if (bytes === undefined || bytes < 0) return { value: "", unit: "Bytes" };
   if (bytes === 0) return { value: "0", unit: "Bytes" };
@@ -168,7 +173,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
     maxSizeUnit: "MB",
     maxDepthValue: "",
   });
-  const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(null);
+  const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(
+    null
+  );
   const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
   const [isAfterPopoverOpen, setIsAfterPopoverOpen] = useState(false);
   const [isBeforePopoverOpen, setIsBeforePopoverOpen] = useState(false);
@@ -189,7 +196,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
             const parsedISO = parseISO(params.modifiedAfter);
             if (isValid(parsedISO)) initialModifiedAfter = parsedISO;
           }
-        } catch (_e) { // Prefix unused 'e'
+        } catch (_e) {
+          // Prefix unused 'e'
           console.error("Error parsing modifiedAfter from history:", _e);
         }
       }
@@ -202,7 +210,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
             const parsedISO = parseISO(params.modifiedBefore);
             if (isValid(parsedISO)) initialModifiedBefore = parsedISO;
           }
-        } catch (_e) { // Prefix unused 'e'
+        } catch (_e) {
+          // Prefix unused 'e'
           console.error("Error parsing modifiedBefore from history:", _e);
         }
       }
@@ -225,14 +234,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
           ? format(initialModifiedAfter, DISPLAY_DATE_FORMAT, {
               locale: currentLocale,
             })
-          : "",
+          : ""
       );
       setRawBeforeDate(
         initialModifiedBefore
           ? format(initialModifiedBefore, DISPLAY_DATE_FORMAT, {
               locale: currentLocale,
             })
-          : "",
+          : ""
       );
       setQueryStructure(params.structuredQuery ?? null);
       setQueryCaseSensitive(params.caseSensitive ?? false);
@@ -241,7 +250,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   }, [historyEntryToLoad, onLoadComplete, currentLocale]);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     // Allow negative numbers for potential future use, but maybe validate later
@@ -254,11 +263,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
   };
 
   // --- Fix: Use specific type for name ---
-  const handleSelectChange =
-    (name: SelectFieldName) => (value: string) => {
-      // Type assertion is okay here as we know the possible values
-      setFormData((prev) => ({ ...prev, [name]: value as SizeUnit | FolderExclusionMode }));
-    };
+  const handleSelectChange = (name: SelectFieldName) => (value: string) => {
+    // Type assertion is okay here as we know the possible values
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value as SizeUnit | FolderExclusionMode,
+    }));
+  };
   // --- End Fix ---
 
   const parseDateString = (dateString: string): Date | undefined => {
@@ -267,7 +278,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
       try {
         const parsedDate = parse(dateString, fmt, new Date());
         if (isValid(parsedDate)) return parsedDate;
-      } catch (_e) { // Prefix unused 'e'
+      } catch (_e) {
+        // Prefix unused 'e'
         /* ignore */
       }
     }
@@ -276,7 +288,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
   const handleRawDateChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    field: "modifiedAfter" | "modifiedBefore",
+    field: "modifiedAfter" | "modifiedBefore"
   ) => {
     const value = e.target.value;
     if (field === "modifiedAfter") setRawAfterDate(value);
@@ -293,7 +305,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
   const handleDateInputKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    field: "modifiedAfter" | "modifiedBefore",
+    field: "modifiedAfter" | "modifiedBefore"
   ) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -304,11 +316,11 @@ const SearchForm: React.FC<SearchFormProps> = ({
         // Update raw value to formatted valid date
         if (field === "modifiedAfter")
           setRawAfterDate(
-            format(parsedDate, DISPLAY_DATE_FORMAT, { locale: currentLocale }),
+            format(parsedDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
           );
         else
           setRawBeforeDate(
-            format(parsedDate, DISPLAY_DATE_FORMAT, { locale: currentLocale }),
+            format(parsedDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
           );
       } else if (!rawValue) {
         // If input was cleared, ensure state is undefined
@@ -319,14 +331,18 @@ const SearchForm: React.FC<SearchFormProps> = ({
         if (field === "modifiedAfter")
           setRawAfterDate(
             lastValidDate
-              ? format(lastValidDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
-              : "",
+              ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
+                  locale: currentLocale,
+                })
+              : ""
           );
         else
           setRawBeforeDate(
             lastValidDate
-              ? format(lastValidDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
-              : "",
+              ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
+                  locale: currentLocale,
+                })
+              : ""
           );
       }
       // Close popover on Enter
@@ -338,14 +354,18 @@ const SearchForm: React.FC<SearchFormProps> = ({
       if (field === "modifiedAfter")
         setRawAfterDate(
           lastValidDate
-            ? format(lastValidDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
-            : "",
+            ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
+                locale: currentLocale,
+              })
+            : ""
         );
       else
         setRawBeforeDate(
           lastValidDate
-            ? format(lastValidDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
-            : "",
+            ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
+                locale: currentLocale,
+              })
+            : ""
         );
       // Close popover on Escape
       if (field === "modifiedAfter") setIsAfterPopoverOpen(false);
@@ -403,12 +423,18 @@ const SearchForm: React.FC<SearchFormProps> = ({
     e.preventDefault(); // Keep preventDefault
     // Ensure latest raw date input is parsed on submit attempt
     handleDateInputKeyDown(
-      { key: "Enter", preventDefault: () => {} } as React.KeyboardEvent<HTMLInputElement>,
-      "modifiedAfter",
+      {
+        key: "Enter",
+        preventDefault: () => {},
+      } as React.KeyboardEvent<HTMLInputElement>,
+      "modifiedAfter"
     );
     handleDateInputKeyDown(
-      { key: "Enter", preventDefault: () => {} } as React.KeyboardEvent<HTMLInputElement>,
-      "modifiedBefore",
+      {
+        key: "Enter",
+        preventDefault: () => {},
+      } as React.KeyboardEvent<HTMLInputElement>,
+      "modifiedBefore"
     );
 
     // Use setTimeout to allow state updates from keydown handlers to settle
@@ -443,10 +469,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
       const minSizeNum = parseFloat(formData.minSizeValue);
       if (!isNaN(minSizeNum) && minSizeNum >= 0)
-        submitParams.minSizeBytes = minSizeNum * SIZE_UNITS[formData.minSizeUnit];
+        submitParams.minSizeBytes =
+          minSizeNum * SIZE_UNITS[formData.minSizeUnit];
       const maxSizeNum = parseFloat(formData.maxSizeValue);
       if (!isNaN(maxSizeNum) && maxSizeNum >= 0)
-        submitParams.maxSizeBytes = maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
+        submitParams.maxSizeBytes =
+          maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
 
       if (
         submitParams.minSizeBytes !== undefined &&
@@ -534,14 +562,19 @@ const SearchForm: React.FC<SearchFormProps> = ({
               onValueChange={handleSelectChange("folderExclusionMode")}
               disabled={isLoading}
             >
-              <SelectTrigger id="folderExclusionMode" className="w-full sm:w-[200px]">
+              <SelectTrigger
+                id="folderExclusionMode"
+                className="w-full sm:w-[200px]"
+              >
                 <SelectValue placeholder={t("folderExclusionModeLabel")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="contains">
                   {t("folderExclusionModeContains")}
                 </SelectItem>
-                <SelectItem value="exact">{t("folderExclusionModeExact")}</SelectItem>
+                <SelectItem value="exact">
+                  {t("folderExclusionModeExact")}
+                </SelectItem>
                 <SelectItem value="startsWith">
                   {t("folderExclusionModeStartsWith")}
                 </SelectItem>
@@ -587,7 +620,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
         <div className="space-y-1.5">
           <Label htmlFor="modifiedAfterInput">{t("modifiedAfterLabel")}</Label>
           <div className="flex items-center gap-1">
-            <Popover open={isAfterPopoverOpen} onOpenChange={setIsAfterPopoverOpen}>
+            <Popover
+              open={isAfterPopoverOpen}
+              onOpenChange={setIsAfterPopoverOpen}
+            >
               <PopoverTrigger asChild>
                 <div className="relative flex-grow">
                   <Input
@@ -595,7 +631,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     type="text"
                     value={rawAfterDate}
                     onChange={(e) => handleRawDateChange(e, "modifiedAfter")}
-                    onKeyDown={(e) => handleDateInputKeyDown(e, "modifiedAfter")}
+                    onKeyDown={(e) =>
+                      handleDateInputKeyDown(e, "modifiedAfter")
+                    }
                     placeholder={DISPLAY_DATE_FORMAT}
                     disabled={isLoading}
                     className="pl-8 h-9 pr-8" // Add padding for icons
@@ -632,9 +670,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
         </div>
         {/* Modified Before */}
         <div className="space-y-1.5">
-          <Label htmlFor="modifiedBeforeInput">{t("modifiedBeforeLabel")}</Label>
+          <Label htmlFor="modifiedBeforeInput">
+            {t("modifiedBeforeLabel")}
+          </Label>
           <div className="flex items-center gap-1">
-            <Popover open={isBeforePopoverOpen} onOpenChange={setIsBeforePopoverOpen}>
+            <Popover
+              open={isBeforePopoverOpen}
+              onOpenChange={setIsBeforePopoverOpen}
+            >
               <PopoverTrigger asChild>
                 <div className="relative flex-grow">
                   <Input
@@ -642,7 +685,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     type="text"
                     value={rawBeforeDate}
                     onChange={(e) => handleRawDateChange(e, "modifiedBefore")}
-                    onKeyDown={(e) => handleDateInputKeyDown(e, "modifiedBefore")}
+                    onKeyDown={(e) =>
+                      handleDateInputKeyDown(e, "modifiedBefore")
+                    }
                     placeholder={DISPLAY_DATE_FORMAT}
                     disabled={isLoading}
                     className="pl-8 h-9 pr-8" // Add padding for icons
@@ -712,7 +757,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     {/* --- Fix: Use specific type for translation key --- */}
                     {t(
                       `sizeUnit${unit}` as SizeUnitTranslationKey,
-                      unit as SizeUnit,
+                      unit as SizeUnit
                     )}
                   </SelectItem>
                 ))}
@@ -751,7 +796,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     {/* --- Fix: Use specific type for translation key --- */}
                     {t(
                       `sizeUnit${unit}` as SizeUnitTranslationKey,
-                      unit as SizeUnit,
+                      unit as SizeUnit
                     )}
                   </SelectItem>
                 ))}
