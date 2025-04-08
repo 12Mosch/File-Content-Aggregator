@@ -7,25 +7,32 @@ import {
 } from "lucide-react";
 import {
   DayPicker,
-  CaptionProps,
-  DayPickerSingleProps,
-  SelectSingleEventHandler,
+  type CaptionProps,
+  type PropsSingle,
+  type CalendarMonth,
+  type DayProps,
+  type RowProps,
+  type FooterProps,
+  type WeekNumberProps,
+  type DayPickerProps,
+  type Matcher,
 } from "react-day-picker";
-import { format, addMonths, addYears, Locale } from "date-fns";
+import { format, addMonths, addYears, type Locale } from "date-fns";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 type CalendarView = "days" | "months" | "years";
 
-function CustomCaption(
-  props: CaptionProps & {
-    onViewChange: (view: CalendarView) => void;
-    onMonthChange: (date: Date) => void;
-    currentView: CalendarView;
-    locale?: Locale;
-  }
-) {
+interface CustomCaptionProps {
+  displayMonth: Date;
+  onViewChange: (view: CalendarView) => void;
+  onMonthChange: (date: Date) => void;
+  currentView: CalendarView;
+  locale?: Locale;
+}
+
+function CustomCaption(props: CustomCaptionProps) {
   const { displayMonth, onViewChange, onMonthChange, currentView, locale } =
     props;
 
@@ -49,16 +56,15 @@ function CustomCaption(
   const handleNextYear = () => onMonthChange(addYears(displayMonth, 1));
 
   return (
-    // Keep parent flex justify-between to define overall space
     <div className="flex justify-between items-center pt-1 relative w-full h-10 mb-2">
-      {/* Year Navigation (Absolute) */}
+      {/* Year Navigation */}
       <button
         type="button"
         onClick={handlePrevYear}
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute left-1", // Position absolute
+          "size-7 bg-transparent p-0 absolute left-1",
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
             : "opacity-50 hover:opacity-100"
@@ -68,14 +74,14 @@ function CustomCaption(
         <ChevronsLeft className="size-4" />
       </button>
 
-      {/* Month Navigation (Absolute) */}
+      {/* Month Navigation */}
       <button
         type="button"
         onClick={handlePrevMonth}
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute left-9", // Position absolute
+          "size-7 bg-transparent p-0 absolute left-9",
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
             : "opacity-50 hover:opacity-100"
@@ -86,25 +92,23 @@ function CustomCaption(
       </button>
 
       {/* Centered Month/Year Label Container */}
-      {/* Make this div grow and center its content */}
       <div className="flex flex-grow justify-center items-center text-sm font-medium">
         {currentView === "years" ? (
           <button
             type="button"
-            onClick={() => onViewChange("years")} // No action needed if already in years view
-            className="cursor-default px-2 py-1" // Style as non-interactive text
+            onClick={() => onViewChange("years")}
+            className="cursor-default px-2 py-1"
           >
             {format(displayMonth, "yyyy", { locale })}
           </button>
         ) : (
-          // Keep buttons inside for clickability
           <>
             <button
               type="button"
               onClick={handleMonthClick}
               className={cn(
                 buttonVariants({ variant: "ghost" }),
-                "h-auto px-2 py-1 text-sm font-medium", // Keep styling
+                "h-auto px-2 py-1 text-sm font-medium",
                 currentView === "months" && "text-primary underline"
               )}
             >
@@ -115,8 +119,8 @@ function CustomCaption(
               onClick={handleYearClick}
               className={cn(
                 buttonVariants({ variant: "ghost" }),
-                "h-auto px-2 py-1 text-sm font-medium", // Keep styling
-                // @ts-expect-error - TS overly strict, comparison is valid for styling intent
+                "h-auto px-2 py-1 text-sm font-medium",
+                // @ts-expect-error - Comparison is intentional for styling
                 currentView === "years" && "text-primary underline"
               )}
             >
@@ -126,14 +130,14 @@ function CustomCaption(
         )}
       </div>
 
-      {/* Month Navigation (Absolute) */}
+      {/* Month Navigation */}
       <button
         type="button"
         onClick={handleNextMonth}
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute right-9", // Position absolute
+          "size-7 bg-transparent p-0 absolute right-9",
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
             : "opacity-50 hover:opacity-100"
@@ -143,14 +147,14 @@ function CustomCaption(
         <ChevronRight className="size-4" />
       </button>
 
-      {/* Year Navigation (Absolute) */}
+      {/* Year Navigation */}
       <button
         type="button"
         onClick={handleNextYear}
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute right-1", // Position absolute
+          "size-7 bg-transparent p-0 absolute right-1",
           currentView !== "days"
             ? "opacity-30 cursor-not-allowed"
             : "opacity-50 hover:opacity-100"
@@ -163,37 +167,70 @@ function CustomCaption(
   );
 }
 
-// --- Main Calendar Component (No changes needed below this line for this fix) ---
-type CalendarProps = Omit<DayPickerSingleProps, "mode"> & {
+// --- Main Calendar Component ---
+interface CalendarProps
+  extends Omit<
+    DayPickerProps,
+    | "mode"
+    | "selected"
+    | "onSelect"
+    | "month"
+    | "onMonthChange"
+    | "captionLayout"
+    | "components"
+    // --- Fix: Explicitly omit disabled here if we add it below ---
+    // | "disabled" // Optional: Omit if adding explicitly below
+    // -----------------------------------------------------------
+  > {
+  mode?: "single";
+  selected?: PropsSingle["selected"];
+  onSelect?: PropsSingle["onSelect"];
   locale?: Locale;
-  className?: string;
-  classNames?: Partial<React.ComponentProps<typeof DayPicker>["classNames"]>;
-  showOutsideDays?: boolean;
-};
+  initialMonth?: Date;
+  // --- Fix: Explicitly add the disabled prop ---
+  disabled?: Matcher | Matcher[];
+  // ------------------------------------------
+}
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
   locale,
-  month: initialMonth,
-  defaultMonth,
+  initialMonth,
   selected,
   onSelect,
-  ...props
+  mode = "single",
+  disabled, // Destructure the explicitly added disabled prop
+  ...props // Pass remaining DayPicker props down
 }: CalendarProps) {
   const [view, setView] = React.useState<CalendarView>("days");
   const [displayDate, setDisplayDate] = React.useState<Date>(
-    initialMonth || (selected as Date) || defaultMonth || new Date()
+    initialMonth || (selected as Date) || new Date()
   );
 
   React.useEffect(() => {
     if (initialMonth) {
       setDisplayDate(initialMonth);
     }
-  }, [initialMonth]);
+    if (!selected) {
+      setView("days");
+    }
+  }, [initialMonth, selected]);
 
-  const handleDaySelect: SelectSingleEventHandler = (
+  React.useEffect(() => {
+    if (selected instanceof Date && !isNaN(selected.getTime())) {
+      if (
+        selected.getFullYear() !== displayDate.getFullYear() ||
+        selected.getMonth() !== displayDate.getMonth()
+      ) {
+        setDisplayDate(selected);
+        setView("days");
+      }
+    }
+  }, [selected, displayDate]);
+
+  const handleDaySelect: PropsSingle["onSelect"] = (
     day,
     selectedDay,
     activeModifiers,
@@ -224,66 +261,66 @@ function Calendar({
   const currentYear = displayDate.getFullYear();
   const startDecadeYear = Math.floor(currentYear / 10) * 10;
   const years = Array.from({ length: 12 }).map(
-    (_, i) => startDecadeYear + i - 1
+    (_, i) => startDecadeYear + i
   );
 
   return (
     <div className={cn("p-3", className)}>
+      {/* Render CustomCaption directly */}
       <CustomCaption
         displayMonth={displayDate}
         onViewChange={setView}
         onMonthChange={setDisplayDate}
         currentView={view}
         locale={locale}
-        {...props}
       />
 
+      {/* Conditional rendering based on the current view */}
       {view === "days" && (
         <DayPicker
-          mode="single"
+          mode={mode}
           showOutsideDays={showOutsideDays}
           month={displayDate}
           onMonthChange={setDisplayDate}
           selected={selected}
           onSelect={handleDaySelect}
           locale={locale}
-          captionLayout="buttons"
+          // --- Fix: Pass the explicit disabled prop ---
+          disabled={disabled}
+          // ------------------------------------------
           classNames={{
             caption: "hidden",
+            nav: "hidden",
             months: "flex flex-col sm:flex-row gap-2",
             month: "flex flex-col gap-4",
             caption_label: "text-sm font-medium",
-            nav: "hidden",
             table: "w-full border-collapse",
             head_row: "flex justify-around mb-2",
             head_cell:
               "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem] uppercase",
             row: "flex w-full mt-1 justify-around",
-            cell: cn(
+            day: cn(
               "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
               "[&:has([aria-selected])]:rounded-md"
             ),
-            day: cn(
+            day_button: cn(
               buttonVariants({ variant: "ghost" }),
               "size-8 p-0 font-normal aria-selected:opacity-100 rounded-md"
             ),
-            day_selected:
+            selected:
               "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-md",
-            day_today: "bg-accent text-accent-foreground rounded-md",
-            day_outside:
+            today: "bg-accent text-accent-foreground rounded-md",
+            outside:
               "day-outside text-muted-foreground/50 opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-            day_disabled: "text-muted-foreground opacity-50",
-            day_hidden: "invisible",
+            disabled: "text-muted-foreground opacity-50",
+            hidden: "invisible",
             ...classNames,
           }}
-          components={{
-            IconLeft: () => null,
-            IconRight: () => null,
-          }}
-          {...props}
+          {...props} // Pass down other remaining props
         />
       )}
 
+      {/* Month View */}
       {view === "months" && (
         <div className="grid grid-cols-3 gap-2 mt-4">
           {monthNames.map((monthName, index) => (
@@ -304,8 +341,32 @@ function Calendar({
         </div>
       )}
 
+      {/* Year View */}
       {view === "years" && (
         <div className="grid grid-cols-4 gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => setDisplayDate(addYears(displayDate, -10))}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-muted-foreground"
+            )}
+            aria-label="Previous decade"
+          >
+            «
+          </button>
+          <div className="col-span-2"></div>
+          <button
+            type="button"
+            onClick={() => setDisplayDate(addYears(displayDate, 10))}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-muted-foreground"
+            )}
+            aria-label="Next decade"
+          >
+            »
+          </button>
           {years.map((year) => (
             <button
               key={year}

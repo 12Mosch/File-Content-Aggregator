@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { format, parseISO, isValid, parse } from "date-fns";
-import { de } from "date-fns/locale";
+import { format, parseISO, isValid, parse, type Locale } from "date-fns";
+import { enUS, de, es, fr, it, ja, pt, ru } from "date-fns/locale";
 import QueryBuilder from "./QueryBuilder";
 import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
 import type { SearchHistoryEntry, SearchParams } from "./vite-env.d";
@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, X, Loader2 } from "lucide-react";
+import type { Matcher } from "react-day-picker";
 
 // Define unit constants for calculations
 const SIZE_UNITS = {
@@ -79,6 +80,7 @@ const bytesToSizeForm = (
   if (bytes >= kb && bytes % kb === 0) {
     return { value: (bytes / kb).toString(), unit: "KB" };
   }
+  // Show decimals for non-exact conversions above KB
   if (bytes >= mb) {
     return { value: (bytes / mb).toFixed(2).replace(/\.?0+$/, ""), unit: "MB" };
   }
@@ -93,21 +95,27 @@ const convertStructuredQueryToString = (group: QueryStructure): string => {
   if (!group || group.conditions.length === 0) return "";
   const parts = group.conditions.map((item) => {
     if ("operator" in item) {
-      return `(${convertStructuredQueryToString(item)})`;
+      // Recursively convert subgroup, wrap in parentheses if not empty
+      const subQuery = convertStructuredQueryToString(item);
+      return subQuery ? `(${subQuery})` : "";
     } else {
+      // Convert condition
       switch (item.type) {
         case "term": {
+          // Quote if contains spaces, parentheses, or boolean/near keywords
           return /\s|[()]|AND|OR|NOT|NEAR/i.test(item.value)
-            ? `"${item.value.replace(/"/g, '\\"')}"`
+            ? `"${item.value.replace(/"/g, '\\"')}"` // Escape existing quotes
             : item.value;
         }
         case "regex": {
+          // Ensure flags are valid and format as /pattern/flags
           const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
           return `/${item.value}/${validFlags}`;
         }
         case "near": {
+          // Format NEAR function, quoting terms if necessary
           const formatNearTerm = (term: string) => {
-            if (term.startsWith("/") && term.endsWith("/")) return term;
+            if (term.startsWith("/") && term.endsWith("/")) return term; // Already regex literal
             return /\s|[()]|AND|OR|NOT|NEAR/i.test(term)
               ? `"${term.replace(/"/g, '\\"')}"`
               : term;
@@ -115,33 +123,56 @@ const convertStructuredQueryToString = (group: QueryStructure): string => {
           return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
         }
         default: {
-          // Should be unreachable with proper types, but good practice
-          // const _exhaustiveCheck: never = item;
-          console.warn("Unknown condition type:", item);
+          console.warn("Unknown condition type during string conversion:", item);
           return "";
         }
       }
     }
   });
+  // Join non-empty parts with the group operator
   const validParts = parts.filter(Boolean);
   if (validParts.length === 0) return "";
-  if (validParts.length === 1) return validParts[0];
+  if (validParts.length === 1) return validParts[0]; // No need for operator if only one part
   return validParts.join(` ${group.operator} `);
 };
 
 // Define date formats for display and parsing
 const DISPLAY_DATE_FORMAT = "dd.MM.yyyy";
+// Add more formats if needed, prioritize common ones
 const PARSE_DATE_FORMATS = [
-  "dd.MM.yyyy",
+  DISPLAY_DATE_FORMAT, // Most likely format
   "dd/MM/yyyy",
   "dd-MM-yyyy",
-  "yyyy-MM-dd",
+  "yyyy-MM-dd", // ISO-like
   "yyyyMMdd",
-  "P",
-  "PP",
-  "PPP",
-  "PPPP",
+  "MM/dd/yyyy", // Common US format
+  "M/d/yyyy",
+  "P", // date-fns short date format
+  "PP", // date-fns medium date format
 ];
+
+// Map i18n language codes to date-fns locales
+const getLocaleObject = (langCode: string): Locale => {
+  switch (langCode) {
+    case "de":
+      return de;
+    case "es":
+      return es;
+    case "fr":
+      return fr;
+    case "it":
+      return it;
+    case "ja":
+      return ja;
+    case "pt":
+      return pt;
+    case "ru":
+      return ru;
+    case "en":
+    default:
+      return enUS;
+  }
+};
 
 const SearchForm: React.FC<SearchFormProps> = ({
   onSubmit,
@@ -151,26 +182,24 @@ const SearchForm: React.FC<SearchFormProps> = ({
 }) => {
   const { t, i18n } = useTranslation(["form", "common"]);
 
-  const currentLocale = React.useMemo(() => {
-    switch (i18n.language) {
-      case "de":
-        return de;
-      default:
-        return undefined;
-    }
-  }, [i18n.language]);
+  // Get locale object based on current i18n language
+  const currentLocale = React.useMemo(
+    () => getLocaleObject(i18n.language),
+    [i18n.language]
+  );
+
   const [formData, setFormData] = useState<SearchFormData>({
     searchPaths: "",
     extensions: "",
     excludeFiles: "",
-    excludeFolders: ".git, node_modules, bin, obj, dist",
+    excludeFolders: ".git, node_modules, bin, obj, dist", // Sensible defaults
     folderExclusionMode: "contains",
     modifiedAfter: undefined,
     modifiedBefore: undefined,
     minSizeValue: "",
-    minSizeUnit: "MB",
+    minSizeUnit: "MB", // Default unit
     maxSizeValue: "",
-    maxSizeUnit: "MB",
+    maxSizeUnit: "MB", // Default unit
     maxDepthValue: "",
   });
   const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(
@@ -179,42 +208,57 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
   const [isAfterPopoverOpen, setIsAfterPopoverOpen] = useState(false);
   const [isBeforePopoverOpen, setIsBeforePopoverOpen] = useState(false);
+  // State to hold the raw string input for dates
   const [rawAfterDate, setRawAfterDate] = useState<string>("");
   const [rawBeforeDate, setRawBeforeDate] = useState<string>("");
 
+  // Effect to load data from history entry
   useEffect(() => {
     if (historyEntryToLoad) {
       const params = historyEntryToLoad.searchParams;
       const minSize = bytesToSizeForm(params.minSizeBytes);
       const maxSize = bytesToSizeForm(params.maxSizeBytes);
+
+      // Robust date parsing from history (ISO or yyyy-MM-dd)
       let initialModifiedAfter: Date | undefined = undefined;
       if (params.modifiedAfter) {
         try {
-          const parsed = parse(params.modifiedAfter, "yyyy-MM-dd", new Date());
-          if (isValid(parsed)) initialModifiedAfter = parsed;
-          else {
-            const parsedISO = parseISO(params.modifiedAfter);
-            if (isValid(parsedISO)) initialModifiedAfter = parsedISO;
+          // Try ISO first, then yyyy-MM-dd
+          const parsedISO = parseISO(params.modifiedAfter);
+          if (isValid(parsedISO)) {
+            initialModifiedAfter = parsedISO;
+          } else {
+            const parsedYMD = parse(
+              params.modifiedAfter,
+              "yyyy-MM-dd",
+              new Date()
+            );
+            if (isValid(parsedYMD)) initialModifiedAfter = parsedYMD;
           }
         } catch (_e) {
-          // Prefix unused 'e'
           console.error("Error parsing modifiedAfter from history:", _e);
         }
       }
       let initialModifiedBefore: Date | undefined = undefined;
       if (params.modifiedBefore) {
         try {
-          const parsed = parse(params.modifiedBefore, "yyyy-MM-dd", new Date());
-          if (isValid(parsed)) initialModifiedBefore = parsed;
-          else {
-            const parsedISO = parseISO(params.modifiedBefore);
-            if (isValid(parsedISO)) initialModifiedBefore = parsedISO;
+          const parsedISO = parseISO(params.modifiedBefore);
+          if (isValid(parsedISO)) {
+            initialModifiedBefore = parsedISO;
+          } else {
+            const parsedYMD = parse(
+              params.modifiedBefore,
+              "yyyy-MM-dd",
+              new Date()
+            );
+            if (isValid(parsedYMD)) initialModifiedBefore = parsedYMD;
           }
         } catch (_e) {
-          // Prefix unused 'e'
           console.error("Error parsing modifiedBefore from history:", _e);
         }
       }
+
+      // Update form data state
       setFormData({
         searchPaths: params.searchPaths?.join("\n") ?? "",
         extensions: params.extensions?.join(", ") ?? "",
@@ -229,6 +273,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
         maxSizeUnit: maxSize.unit,
         maxDepthValue: params.maxDepth?.toString() ?? "",
       });
+
+      // Update raw date strings for display
       setRawAfterDate(
         initialModifiedAfter
           ? format(initialModifiedAfter, DISPLAY_DATE_FORMAT, {
@@ -243,66 +289,80 @@ const SearchForm: React.FC<SearchFormProps> = ({
             })
           : ""
       );
+
+      // Update query builder state
       setQueryStructure(params.structuredQuery ?? null);
       setQueryCaseSensitive(params.caseSensitive ?? false);
+
+      // Notify parent component that loading is complete
       onLoadComplete();
     }
-  }, [historyEntryToLoad, onLoadComplete, currentLocale]);
+  }, [historyEntryToLoad, onLoadComplete, currentLocale]); // Depend on currentLocale
 
+  // Handle standard input/textarea changes
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    // Allow negative numbers for potential future use, but maybe validate later
-    // if (e.target.type === "number" && parseFloat(value) < 0) {
-    //   if (value === "" || parseFloat(value) === 0)
-    //     setFormData((prev) => ({ ...prev, [name]: value }));
-    //   return;
-    // }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- Fix: Use specific type for name ---
+  // Handle changes for Select components (units, mode)
   const handleSelectChange = (name: SelectFieldName) => (value: string) => {
-    // Type assertion is okay here as we know the possible values
     setFormData((prev) => ({
       ...prev,
-      [name]: value as SizeUnit | FolderExclusionMode,
+      [name]: value as SizeUnit | FolderExclusionMode, // Type assertion
     }));
   };
-  // --- End Fix ---
 
+  // Parse date string using multiple formats
   const parseDateString = (dateString: string): Date | undefined => {
     if (!dateString) return undefined;
     for (const fmt of PARSE_DATE_FORMATS) {
       try {
-        const parsedDate = parse(dateString, fmt, new Date());
+        // Pass locale to parse function
+        const parsedDate = parse(dateString, fmt, new Date(), {
+          locale: currentLocale,
+        });
         if (isValid(parsedDate)) return parsedDate;
       } catch (_e) {
-        // Prefix unused 'e'
-        /* ignore */
+        /* ignore parse errors, try next format */
       }
     }
-    return undefined;
+    // Try ISO format as a fallback
+    try {
+      const parsedISO = parseISO(dateString);
+      if (isValid(parsedISO)) return parsedISO;
+    } catch (_e) {
+      /* ignore */
+    }
+    return undefined; // Return undefined if no format matches
   };
 
+  // Handle changes in the raw date input fields
   const handleRawDateChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: "modifiedAfter" | "modifiedBefore"
   ) => {
     const value = e.target.value;
+    // Update the raw string state immediately
     if (field === "modifiedAfter") setRawAfterDate(value);
     else setRawBeforeDate(value);
+
+    // Attempt to parse the date
     const parsedDate = parseDateString(value);
+    // Update the actual Date state only if parsing is successful
     if (parsedDate) {
       setFormData((prev) => ({ ...prev, [field]: parsedDate }));
     } else if (!value) {
-      // Clear the date if the input is empty
+      // If the input is cleared, clear the Date state too
       setFormData((prev) => ({ ...prev, [field]: undefined }));
     }
-    // If invalid but not empty, do nothing, wait for Enter/Blur/Select
+    // If parsing fails but input is not empty, the Date state remains unchanged,
+    // but the raw input shows the user's typing. Validation happens on Enter/Blur/Select.
   };
 
+  // Handle Enter/Escape keys in date inputs for validation/reversion
   const handleDateInputKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     field: "modifiedAfter" | "modifiedBefore"
@@ -312,116 +372,99 @@ const SearchForm: React.FC<SearchFormProps> = ({
       const rawValue = field === "modifiedAfter" ? rawAfterDate : rawBeforeDate;
       const parsedDate = parseDateString(rawValue);
       if (parsedDate) {
+        // Valid date entered, update Date state and format raw input
         setFormData((prev) => ({ ...prev, [field]: parsedDate }));
-        // Update raw value to formatted valid date
-        if (field === "modifiedAfter")
-          setRawAfterDate(
-            format(parsedDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
-          );
-        else
-          setRawBeforeDate(
-            format(parsedDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
-          );
+        const formatted = format(parsedDate, DISPLAY_DATE_FORMAT, {
+          locale: currentLocale,
+        });
+        if (field === "modifiedAfter") setRawAfterDate(formatted);
+        else setRawBeforeDate(formatted);
       } else if (!rawValue) {
-        // If input was cleared, ensure state is undefined
+        // Input cleared, ensure Date state is undefined
         setFormData((prev) => ({ ...prev, [field]: undefined }));
       } else {
-        // If input is invalid, revert raw value to last valid date
+        // Invalid input, revert raw input to last valid formatted date
         const lastValidDate = formData[field];
-        if (field === "modifiedAfter")
-          setRawAfterDate(
-            lastValidDate
-              ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
-                  locale: currentLocale,
-                })
-              : ""
-          );
-        else
-          setRawBeforeDate(
-            lastValidDate
-              ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
-                  locale: currentLocale,
-                })
-              : ""
-          );
+        const formatted = lastValidDate
+          ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
+              locale: currentLocale,
+            })
+          : "";
+        if (field === "modifiedAfter") setRawAfterDate(formatted);
+        else setRawBeforeDate(formatted);
       }
       // Close popover on Enter
       if (field === "modifiedAfter") setIsAfterPopoverOpen(false);
       else setIsBeforePopoverOpen(false);
     } else if (e.key === "Escape") {
-      // Revert raw value to last valid date on Escape
+      // Revert raw input to last valid formatted date on Escape
       const lastValidDate = formData[field];
-      if (field === "modifiedAfter")
-        setRawAfterDate(
-          lastValidDate
-            ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
-                locale: currentLocale,
-              })
-            : ""
-        );
-      else
-        setRawBeforeDate(
-          lastValidDate
-            ? format(lastValidDate, DISPLAY_DATE_FORMAT, {
-                locale: currentLocale,
-              })
-            : ""
-        );
+      const formatted = lastValidDate
+        ? format(lastValidDate, DISPLAY_DATE_FORMAT, { locale: currentLocale })
+        : "";
+      if (field === "modifiedAfter") setRawAfterDate(formatted);
+      else setRawBeforeDate(formatted);
       // Close popover on Escape
       if (field === "modifiedAfter") setIsAfterPopoverOpen(false);
       else setIsBeforePopoverOpen(false);
     }
   };
 
+  // Handle date selection from the Calendar component
   const handleDateSelect =
     (field: "modifiedAfter" | "modifiedBefore") => (date: Date | undefined) => {
+      // Update the Date state
       setFormData((prev) => ({ ...prev, [field]: date }));
+      // Update the raw input string to match the selected date
       const formattedDate = date
         ? format(date, DISPLAY_DATE_FORMAT, { locale: currentLocale })
         : "";
       if (field === "modifiedAfter") {
         setRawAfterDate(formattedDate);
-        setIsAfterPopoverOpen(false);
+        setIsAfterPopoverOpen(false); // Close popover
       } else {
         setRawBeforeDate(formattedDate);
-        setIsBeforePopoverOpen(false);
+        setIsBeforePopoverOpen(false); // Close popover
       }
     };
 
+  // Clear a date field
   const clearDate = (field: "modifiedAfter" | "modifiedBefore") => {
     setFormData((prev) => ({ ...prev, [field]: undefined }));
     if (field === "modifiedAfter") {
       setRawAfterDate("");
-      setIsAfterPopoverOpen(false); // Close popover when clearing
+      setIsAfterPopoverOpen(false); // Close popover
     } else {
       setRawBeforeDate("");
-      setIsBeforePopoverOpen(false); // Close popover when clearing
+      setIsBeforePopoverOpen(false); // Close popover
     }
   };
 
+  // Update query structure from QueryBuilder
   const handleQueryChange = useCallback((newQuery: QueryStructure | null) => {
     setQueryStructure(newQuery);
   }, []);
 
+  // Update case sensitivity from QueryBuilder
   const handleQueryCaseSensitivityChange = useCallback((checked: boolean) => {
     setQueryCaseSensitive(checked);
   }, []);
 
-  // --- NEW: Cancel Handler ---
+  // Handle search cancellation request
   const handleCancelSearch = () => {
     if (window.electronAPI?.cancelSearch) {
       console.log("UI: Requesting search cancellation...");
       window.electronAPI.cancelSearch();
-      // Optionally provide immediate feedback, though progress updates should reflect it
     } else {
       console.warn("UI: cancelSearch API not available.");
     }
   };
-  // -------------------------
 
+  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); // Keep preventDefault
-    // Ensure latest raw date input is parsed on submit attempt
+    e.preventDefault();
+
+    // Trigger validation/formatting for date inputs before submitting
     handleDateInputKeyDown(
       {
         key: "Enter",
@@ -439,11 +482,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
     // Use setTimeout to allow state updates from keydown handlers to settle
     setTimeout(() => {
+      // Prepare parameters for the backend
       const splitAndClean = (str: string) =>
         str
-          .split(/[\n,]+/)
+          .split(/[\n,]+/) // Split by newline or comma
           .map((s) => s.trim())
-          .filter(Boolean);
+          .filter(Boolean); // Remove empty strings
+
       const contentQueryString = queryStructure
         ? convertStructuredQueryToString(queryStructure)
         : "";
@@ -454,41 +499,53 @@ const SearchForm: React.FC<SearchFormProps> = ({
         excludeFiles: splitAndClean(formData.excludeFiles),
         excludeFolders: splitAndClean(formData.excludeFolders),
         folderExclusionMode: formData.folderExclusionMode,
-        structuredQuery: queryStructure, // Keep sending structure for potential future use/logging
-        contentSearchTerm: contentQueryString || undefined,
-        contentSearchMode: contentQueryString ? "boolean" : undefined,
-        caseSensitive: contentQueryString ? queryCaseSensitive : undefined,
+        // Send both structure and string for flexibility/logging
+        structuredQuery: queryStructure,
+        contentSearchTerm: contentQueryString || undefined, // Send undefined if empty
+        contentSearchMode: contentQueryString ? "boolean" : undefined, // Mode is boolean if query exists
+        caseSensitive: contentQueryString ? queryCaseSensitive : undefined, // Send sensitivity only if query exists
+        // Format dates to yyyy-MM-dd for backend consistency
         modifiedAfter: formData.modifiedAfter
           ? format(formData.modifiedAfter, "yyyy-MM-dd")
           : undefined,
         modifiedBefore: formData.modifiedBefore
           ? format(formData.modifiedBefore, "yyyy-MM-dd")
           : undefined,
-        maxDepth: parseInt(formData.maxDepthValue, 10) || undefined,
+        maxDepth: parseInt(formData.maxDepthValue, 10) || undefined, // Parse depth, undefined if invalid/empty
       };
 
+      // Calculate size in bytes
       const minSizeNum = parseFloat(formData.minSizeValue);
-      if (!isNaN(minSizeNum) && minSizeNum >= 0)
+      if (!isNaN(minSizeNum) && minSizeNum >= 0) {
         submitParams.minSizeBytes =
           minSizeNum * SIZE_UNITS[formData.minSizeUnit];
+      }
       const maxSizeNum = parseFloat(formData.maxSizeValue);
-      if (!isNaN(maxSizeNum) && maxSizeNum >= 0)
+      if (!isNaN(maxSizeNum) && maxSizeNum >= 0) {
         submitParams.maxSizeBytes =
           maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
+      }
 
+      // Validate min/max size
       if (
         submitParams.minSizeBytes !== undefined &&
         submitParams.maxSizeBytes !== undefined &&
         submitParams.minSizeBytes > submitParams.maxSizeBytes
       ) {
+        // Use alert or a more integrated validation message system
         alert(t("errorMinMax"));
-        return;
+        return; // Prevent submission
       }
 
       console.log("Submitting Params:", submitParams);
-      onSubmit(submitParams);
-    }, 50); // Small delay
+      onSubmit(submitParams); // Call the onSubmit prop passed from App
+    }, 50); // Small delay to ensure state updates
   };
+
+  // Create disabledDateMatcher based on isLoading
+  const disabledDateMatcher: Matcher | Matcher[] | undefined = isLoading
+    ? { before: new Date(0) } // Disable all dates if loading
+    : undefined;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -557,7 +614,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
               {t("folderExclusionModeLabel")}
             </Label>
             <Select
-              name="folderExclusionMode" // Name matches the key for handleSelectChange
+              name="folderExclusionMode"
               value={formData.folderExclusionMode}
               onValueChange={handleSelectChange("folderExclusionMode")}
               disabled={isLoading}
@@ -597,7 +654,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
           onChange={handleInputChange}
           disabled={isLoading}
           placeholder={t("maxDepthPlaceholder")}
-          min="1" // Keep min=1 if 0 is not a valid depth
+          min="1"
           step="1"
           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
@@ -636,16 +693,17 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     }
                     placeholder={DISPLAY_DATE_FORMAT}
                     disabled={isLoading}
-                    className="pl-8 h-9 pr-8" // Add padding for icons
+                    className="pl-8 h-9 pr-8" // Padding for icons
                   />
                   <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {/* Clear button */}
                   {formData.modifiedAfter && !isLoading && (
                     <Button
                       variant="ghost"
                       size="icon"
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevent popover trigger
+                        e.stopPropagation();
                         clearDate("modifiedAfter");
                       }}
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
@@ -660,9 +718,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
                 <Calendar
                   selected={formData.modifiedAfter}
                   onSelect={handleDateSelect("modifiedAfter")}
-                  month={formData.modifiedAfter} // Control the displayed month
-                  locale={currentLocale}
-                  disabled={isLoading}
+                  locale={currentLocale} // Pass locale
+                  disabled={disabledDateMatcher} // Pass the matcher
+                  // Pass initialMonth to suggest starting view
+                  initialMonth={formData.modifiedAfter}
                 />
               </PopoverContent>
             </Popover>
@@ -690,16 +749,17 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     }
                     placeholder={DISPLAY_DATE_FORMAT}
                     disabled={isLoading}
-                    className="pl-8 h-9 pr-8" // Add padding for icons
+                    className="pl-8 h-9 pr-8" // Padding for icons
                   />
                   <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {/* Clear button */}
                   {formData.modifiedBefore && !isLoading && (
                     <Button
                       variant="ghost"
                       size="icon"
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevent popover trigger
+                        e.stopPropagation();
                         clearDate("modifiedBefore");
                       }}
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
@@ -714,9 +774,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
                 <Calendar
                   selected={formData.modifiedBefore}
                   onSelect={handleDateSelect("modifiedBefore")}
-                  month={formData.modifiedBefore} // Control the displayed month
-                  locale={currentLocale}
-                  disabled={isLoading}
+                  locale={currentLocale} // Pass locale
+                  disabled={disabledDateMatcher} // Pass the matcher
+                  // Pass initialMonth to suggest starting view
+                  initialMonth={formData.modifiedBefore}
                 />
               </PopoverContent>
             </Popover>
@@ -738,12 +799,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
               onChange={handleInputChange}
               disabled={isLoading}
               placeholder="e.g., 100"
-              min="0" // Ensure non-negative
-              step="any" // Allow decimals
+              min="0"
+              step="any"
               className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <Select
-              name="minSizeUnit" // Name matches the key for handleSelectChange
+              name="minSizeUnit"
               value={formData.minSizeUnit}
               onValueChange={handleSelectChange("minSizeUnit")}
               disabled={isLoading}
@@ -754,7 +815,6 @@ const SearchForm: React.FC<SearchFormProps> = ({
               <SelectContent>
                 {Object.keys(SIZE_UNITS).map((unit) => (
                   <SelectItem key={unit} value={unit}>
-                    {/* --- Fix: Use specific type for translation key --- */}
                     {t(
                       `sizeUnit${unit}` as SizeUnitTranslationKey,
                       unit as SizeUnit
@@ -777,12 +837,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
               onChange={handleInputChange}
               disabled={isLoading}
               placeholder="e.g., 50"
-              min="0" // Ensure non-negative
-              step="any" // Allow decimals
+              min="0"
+              step="any"
               className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <Select
-              name="maxSizeUnit" // Name matches the key for handleSelectChange
+              name="maxSizeUnit"
               value={formData.maxSizeUnit}
               onValueChange={handleSelectChange("maxSizeUnit")}
               disabled={isLoading}
@@ -793,7 +853,6 @@ const SearchForm: React.FC<SearchFormProps> = ({
               <SelectContent>
                 {Object.keys(SIZE_UNITS).map((unit) => (
                   <SelectItem key={unit} value={unit}>
-                    {/* --- Fix: Use specific type for translation key --- */}
                     {t(
                       `sizeUnit${unit}` as SizeUnitTranslationKey,
                       unit as SizeUnit
@@ -818,18 +877,17 @@ const SearchForm: React.FC<SearchFormProps> = ({
             t("searchButton")
           )}
         </Button>
-        {/* --- NEW: Cancel Button --- */}
+        {/* Cancel Button */}
         {isLoading && (
           <Button
             type="button"
-            variant="destructive" // Or "outline"
+            variant="destructive"
             onClick={handleCancelSearch}
             className="w-full sm:w-auto"
           >
             {t("cancelButton")}
           </Button>
         )}
-        {/* ------------------------- */}
       </div>
     </form>
   );
