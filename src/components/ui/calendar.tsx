@@ -7,13 +7,7 @@ import {
 } from "lucide-react";
 import {
   DayPicker,
-  type CaptionProps,
   type PropsSingle,
-  type CalendarMonth,
-  type DayProps,
-  type RowProps,
-  type FooterProps,
-  type WeekNumberProps,
   type DayPickerProps,
   type Matcher,
 } from "react-day-picker";
@@ -24,6 +18,7 @@ import { buttonVariants } from "@/components/ui/button";
 
 type CalendarView = "days" | "months" | "years";
 
+// CustomCaptionProps defines only the props needed for our custom caption logic
 interface CustomCaptionProps {
   displayMonth: Date;
   onViewChange: (view: CalendarView) => void;
@@ -178,18 +173,13 @@ interface CalendarProps
     | "onMonthChange"
     | "captionLayout"
     | "components"
-    // --- Fix: Explicitly omit disabled here if we add it below ---
-    // | "disabled" // Optional: Omit if adding explicitly below
-    // -----------------------------------------------------------
   > {
   mode?: "single";
   selected?: PropsSingle["selected"];
   onSelect?: PropsSingle["onSelect"];
   locale?: Locale;
   initialMonth?: Date;
-  // --- Fix: Explicitly add the disabled prop ---
   disabled?: Matcher | Matcher[];
-  // ------------------------------------------
 }
 
 function Calendar({
@@ -201,8 +191,8 @@ function Calendar({
   selected,
   onSelect,
   mode = "single",
-  disabled, // Destructure the explicitly added disabled prop
-  ...props // Pass remaining DayPicker props down
+  disabled,
+  ...props
 }: CalendarProps) {
   const [view, setView] = React.useState<CalendarView>("days");
   const [displayDate, setDisplayDate] = React.useState<Date>(
@@ -285,9 +275,7 @@ function Calendar({
           selected={selected}
           onSelect={handleDaySelect}
           locale={locale}
-          // --- Fix: Pass the explicit disabled prop ---
           disabled={disabled}
-          // ------------------------------------------
           classNames={{
             caption: "hidden",
             nav: "hidden",
@@ -316,7 +304,7 @@ function Calendar({
             hidden: "invisible",
             ...classNames,
           }}
-          {...props} // Pass down other remaining props
+          {...props}
         />
       )}
 
