@@ -4,6 +4,7 @@ import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
   // 1. Global Ignores
@@ -31,7 +32,11 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
       ],
     },
   },
@@ -139,4 +144,5 @@ export default tseslint.config(
       "no-undef": "off", // Allow module/require
     },
   },
+  eslintConfigPrettier,
 );
