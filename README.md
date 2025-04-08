@@ -1,6 +1,6 @@
 # File Content Aggregator
 
-![App Screenshot](<./docs/Screenshots/AppScreenshot.png>)
+![App Screenshot](<./docs/assets/AppScreenshot.png>)
 
 A cross-platform desktop application built with Electron and React to efficiently search for files based on name, path, metadata, and content across multiple directories, featuring a powerful boolean and proximity query engine.
 
