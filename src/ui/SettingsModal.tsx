@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import type { ThemePreference } from "./vite-env.d";
-import { applyTheme } from "./main";
+import { applyTheme } from "./main"; // Assuming applyTheme is exported correctly
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -35,7 +35,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   // Fetch initial theme preference when modal opens
   useEffect(() => {
     if (isOpen && window.electronAPI?.getThemePreference) {
-      window.electronAPI
+      // Use void operator for floating promise
+      void window.electronAPI
         .getThemePreference()
         .then((pref) => setCurrentTheme(pref))
         .catch((err) =>
@@ -44,39 +45,52 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  const handleLanguageChange = async (newLang: string) => {
+  // --- Fix: Wrap async logic for event handlers ---
+  const handleLanguageChange = (newLang: string) => {
     if (supportedLngs.includes(newLang) && newLang !== i18n.language) {
       console.log(`UI: Changing language to ${newLang}`);
-      try {
-        await i18n.changeLanguage(newLang);
-        if (window.electronAPI?.setLanguagePreference)
-          await window.electronAPI.setLanguagePreference(newLang);
-        else console.warn("setLanguagePreference API not available.");
-        if (window.electronAPI?.notifyLanguageChanged)
-          window.electronAPI.notifyLanguageChanged(newLang);
-        else console.warn("notifyLanguageChanged API not available.");
-      } catch (error) {
-        console.error("Error changing language:", error);
-      }
+      // Use an IIAFE (Immediately Invoked Async Function Expression) or a separate async function
+      const changeLang = async () => {
+        try {
+          await i18n.changeLanguage(newLang);
+          if (window.electronAPI?.setLanguagePreference) {
+            await window.electronAPI.setLanguagePreference(newLang);
+          } else {
+            console.warn("setLanguagePreference API not available.");
+          }
+          if (window.electronAPI?.notifyLanguageChanged) {
+            window.electronAPI.notifyLanguageChanged(newLang);
+          } else {
+            console.warn("notifyLanguageChanged API not available.");
+          }
+        } catch (error) {
+          console.error("Error changing language:", error);
+        }
+      };
+      void changeLang(); // Use void operator for the IIAFE call
     }
   };
 
-  // Handler for theme change
-  const handleThemeChange = async (newTheme: ThemePreference) => {
+  const handleThemeChange = (newTheme: ThemePreference) => {
     if (newTheme !== currentTheme) {
       setCurrentTheme(newTheme);
-      applyTheme(newTheme); // Apply theme immediately
+      applyTheme(newTheme); // Apply theme immediately (assuming this is synchronous)
       if (window.electronAPI?.setThemePreference) {
-        try {
-          await window.electronAPI.setThemePreference(newTheme);
-        } catch (error) {
-          console.error("Error setting theme preference:", error);
-        }
+        // Use an IIAFE or separate async function
+        const setThemePref = async () => {
+          try {
+            await window.electronAPI.setThemePreference(newTheme);
+          } catch (error) {
+            console.error("Error setting theme preference:", error);
+          }
+        };
+        void setThemePref(); // Use void operator
       } else {
         console.warn("setThemePreference API not available.");
       }
     }
   };
+  // --- End Fix ---
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -92,15 +106,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           <DialogDescription>{t("settingsDescription")}</DialogDescription>
         </DialogHeader>
 
-        {/* Use simple vertical stacking with spacing */}
         <div className="space-y-6 py-4">
-          {/* Language Selection */}
-          <div className="space-y-2"> {/* Add space between label and select */}
-            <Label htmlFor="language-select">
-              {t("languageLabel")}
-            </Label>
+          <div className="space-y-2">
+            <Label htmlFor="language-select">{t("languageLabel")}</Label>
             <Select value={i18n.language} onValueChange={handleLanguageChange}>
-              <SelectTrigger id="language-select" className="w-full"> {/* Make trigger full width */}
+              <SelectTrigger id="language-select" className="w-full">
                 <SelectValue placeholder={t("languageLabel")} />
               </SelectTrigger>
               <SelectContent>
@@ -113,29 +123,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             </Select>
           </div>
 
-          {/* Theme Selection */}
-          <div className="space-y-2"> {/* Add space between label and radio group */}
+          <div className="space-y-2">
             <Label>{t("themeLabel")}</Label>
             <RadioGroup
               value={currentTheme}
-              onValueChange={handleThemeChange}
-              className="space-y-2 pt-1" // Add slight top padding to align radio items visually
+              onValueChange={handleThemeChange} // Pass the handler directly
+              className="space-y-2 pt-1"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="light" id="theme-light" />
-                <Label htmlFor="theme-light" className="cursor-pointer font-normal"> {/* Make label font normal */}
+                <Label htmlFor="theme-light" className="cursor-pointer font-normal">
                   {t("themeLight")}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="dark" id="theme-dark" />
-                <Label htmlFor="theme-dark" className="cursor-pointer font-normal"> {/* Make label font normal */}
+                <Label htmlFor="theme-dark" className="cursor-pointer font-normal">
                   {t("themeDark")}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="system" id="theme-system" />
-                <Label htmlFor="theme-system" className="cursor-pointer font-normal"> {/* Make label font normal */}
+                <Label htmlFor="theme-system" className="cursor-pointer font-normal">
                   {t("themeSystem")}
                 </Label>
               </div>

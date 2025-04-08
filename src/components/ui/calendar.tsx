@@ -121,7 +121,7 @@ function CustomCaption(
               className={cn(
                 buttonVariants({ variant: "ghost" }),
                 "h-auto px-2 py-1 text-sm font-medium", // Keep styling
-                // @ts-ignore - TS overly strict, comparison is valid for styling intent
+                // @ts-expect-error - TS overly strict, comparison is valid for styling intent
                 currentView === "years" && "text-primary underline",
               )}
             >
@@ -238,7 +238,7 @@ function Calendar({
         onMonthChange={setDisplayDate}
         currentView={view}
         locale={locale}
-        {...(props as any)}
+        {...(props)}
       />
 
       {view === "days" && (
