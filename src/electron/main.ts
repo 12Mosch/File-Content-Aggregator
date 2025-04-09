@@ -27,7 +27,7 @@ import {
 } from "./fileSearchService.js";
 import type {
   ExportFormat,
-  SearchParams as UISearchParams,
+  SearchParams as UISearchParams, // Use UI type for history
 } from "../ui/vite-env.js";
 
 import module from "node:module";
@@ -371,12 +371,11 @@ function generateCsv(items: StructuredItem[]): string {
   const rows = items.map((item) => {
     const status = item.readError
       ? "Read Error"
-      : item.content !== null
+      : item.matched
         ? "Matched"
         : "Not Matched";
-    const details = item.readError
-      ? item.readError // Use the error key as detail
-      : (item.content ?? ""); // Use content if available, otherwise empty string
+    // Details are only the error message now, content is fetched on demand
+    const details = item.readError ? item.readError : "";
     return [
       escapeCsvField(item.filePath),
       escapeCsvField(status),
@@ -391,7 +390,13 @@ function generateCsv(items: StructuredItem[]): string {
  */
 function generateJson(items: StructuredItem[]): string {
   try {
-    return JSON.stringify(items, null, 2); // Pretty-print with 2 spaces
+    // Map items to exclude content before stringifying
+    const itemsWithoutContent = items.map(({ filePath, matched, readError }) => ({
+      filePath,
+      matched,
+      readError,
+    }));
+    return JSON.stringify(itemsWithoutContent, null, 2); // Pretty-print
   } catch (error: unknown) {
     console.error("Error generating JSON:", error);
     throw new Error(
@@ -408,12 +413,13 @@ function generateMarkdown(items: StructuredItem[]): string {
     .map((item) => {
       const status = item.readError
         ? ` (Status: Read Error - ${item.readError})`
-        : item.content !== null
+        : item.matched // Use the 'matched' flag
           ? " (Status: Matched)"
           : " (Status: Not Matched)";
+      // Details are only the error message now
       const details = item.readError
         ? `Error: ${item.readError}`
-        : (item.content ?? "No content preview available.");
+        : "Content not included in export (view in app).";
 
       return `## ${item.filePath}${status}\n\n\`\`\`\n${details}\n\`\`\`\n`;
     })
@@ -432,7 +438,7 @@ function areSearchParamsEqual(
   params1: UISearchParams | undefined,
   params2: UISearchParams | undefined
 ): boolean {
-  if (!params1 || !params2) return params1 === params2;
+  if (!params1 || !params2) return params1 === params2; // Both must be defined
 
   // Compare simple properties
   if (
@@ -483,7 +489,6 @@ ipcMain.handle(
   async (event, params: FileSearchParams): Promise<SearchResult> => {
     if (!validateSender(event.senderFrame))
       return {
-        output: "Error: Invalid IPC sender",
         structuredItems: [],
         filesFound: 0,
         filesProcessed: 0,
@@ -521,7 +526,6 @@ ipcMain.handle(
         status: "error",
       });
       return {
-        output: errorMsg,
         structuredItems: [],
         filesFound: 0,
         filesProcessed: 0,
@@ -1008,6 +1012,50 @@ ipcMain.handle(
       console.error(errorMsg);
       dialog.showErrorBox("Dialog Error", errorMsg);
       return { success: false, error: errorMsg };
+    }
+  }
+);
+
+/**
+ * Handles the 'get-file-content' IPC request.
+ * Reads and returns the content of a single specified file.
+ * Used for on-demand loading in the UI's Tree View.
+ */
+ipcMain.handle(
+  "get-file-content",
+  async (
+    event,
+    filePath: string
+  ): Promise<{ content: string | null; error?: string }> => {
+    if (!validateSender(event.senderFrame)) {
+      return { content: null, error: "Invalid sender." };
+    }
+    if (!filePath) {
+      return { content: null, error: "No file path provided." };
+    }
+
+    console.log(`IPC: Received request for content of: ${filePath}`);
+    try {
+      // Basic path validation (prevent accessing outside typical areas if needed,
+      // though relying on OS permissions is primary)
+      // Example: if (!filePath.startsWith(...allowedPrefix)) throw new Error("Access denied");
+
+      const content = await fs.readFile(filePath, { encoding: "utf8" });
+      return { content: content, error: undefined };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error reading file content for '${filePath}':`, message);
+      let reasonKey = "readError"; // Default error reason
+      const code = (error as { code?: string })?.code;
+      if (code === "EPERM" || code === "EACCES") {
+        reasonKey = "readPermissionDenied";
+      } else if (code === "ENOENT") {
+        reasonKey = "fileNotFoundDuringRead";
+      } else if (code === "EISDIR") {
+        reasonKey = "pathIsDir";
+      }
+      // Return the reason key for potential translation in the UI
+      return { content: null, error: reasonKey };
     }
   }
 );
