@@ -687,7 +687,7 @@ ipcMain.handle(
     return new Promise((resolve) => {
       try {
         const currentHistory = store.get(HISTORY_STORE_KEY, []);
-        let updatedHistory = [...currentHistory]; // Create a mutable copy
+        const updatedHistory = [...currentHistory];
 
         // Find if an entry with the same searchParams already exists
         const existingEntryIndex = updatedHistory.findIndex((entry) =>

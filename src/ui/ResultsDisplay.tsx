@@ -7,10 +7,7 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import {
-  VariableSizeList,
-  ListChildComponentProps,
-} from "react-window";
+import { VariableSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import HighlightMatches from "./HighlightMatches";
 import { Button } from "@/components/ui/button";
@@ -72,7 +69,6 @@ interface ResultsDisplayProps {
   filterTerm: string;
   filterCaseSensitive: boolean;
 }
-
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
 interface TreeRowData {
@@ -237,11 +233,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   }, [contentInfo.content, showFull]);
 
   const highlightInfo: HighlightCacheEntry = item
-    ? (highlightCache.get(item.filePath) ?? {
+    ? highlightCache.get(item.filePath) ?? {
         status: "idle",
         html: undefined,
         error: undefined,
-      })
+      }
     : { status: "idle", html: undefined, error: undefined };
 
   // Effect for requesting highlighting (now depends on contentPreview)
@@ -330,7 +326,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
             caseSensitive={filterCaseSensitive}
           />
         </span>
-        {/* Only show copy button if content is loaded or could be loaded */}
+        {/* Only show copy button if content is loadable (no initial read error) */}
         {!item.readError && (
           <Button
             variant="ghost"
@@ -360,7 +356,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
               {t("results:loadingContent")}
             </span>
           ) : contentInfo.status === "error" ? (
-            <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
+            <span className="flex items-center font-mono text-xs text-destructive italic">
+              <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
               {t("results:contentError")}:{" "}
               {t(`errors:${contentInfo.error}`, {
                 defaultValue: contentInfo.error ?? "Unknown error",
@@ -574,7 +571,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     filterCaseSensitive,
     requestHighlighting,
     handleCopyFileContent,
-    contentUpdateCounter,
+    contentUpdateCounter, // Depend on content counter
+    highlightUpdateCounter, // Depend on highlight counter
     requestContent,
   ]);
 
@@ -832,7 +830,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <p
           className={cn(
             "p-3 rounded-md border text-sm mb-4 shrink-0 flex items-center",
-            "bg-amber-100 border-amber-300 text-amber-800"
+            "bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-300"
           )}
         >
           <AlertTriangle className="inline h-4 w-4 mr-2 shrink-0" />

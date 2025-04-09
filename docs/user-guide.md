@@ -41,7 +41,7 @@ Download the latest version for your operating system from the [**GitHub Release
 
 When you launch the application, you'll see the main window:
 
-![Main window of the application](./Screenshots/AppScreenshot.png)
+![Main window of the application](./assets/AppScreenshot.png) <!-- Updated path -->
 
 1.  **Header:** Contains the application title and buttons to access Search History (🕒) and Settings (⚙️).
 2.  **Search Form:** This is where you define all your search criteria.
@@ -159,10 +159,10 @@ The results are displayed in a Tree View:
 
 - Lists _all_ files that were processed (passed initial path/extension/metadata filters).
 - Click the arrow (`▶`/`▼`) or the file path to expand/collapse an item and view its content preview (if available).
-- **Matched Files:** Show a preview of their content (syntax highlighted where possible). If content is long, a "Show More" button appears.
+- **Matched Files:** Show a preview of their content (syntax highlighted where possible). Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
 - **Non-Matching Files:** Show only the file path (content preview is hidden).
 - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
-- **Copy Icon:** Click the copy icon (📄) in the header of an expanded item to copy _only that file's_ full content to the clipboard.
+- **Copy Icon (📄):** Click the copy icon in the header of an expanded item to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
 
 ### Filtering Results
 
@@ -175,14 +175,13 @@ The results are displayed in a Tree View:
 Below the results display area, you'll find options to copy or save the results:
 
 - **Format:** Select the desired format for copying or exporting the results:
-  - **TXT:** Creates a simple text file listing file paths and statuses.
-  - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (error message). Suitable for spreadsheets.
-  - **JSON:** Creates a JSON file containing an array of all processed files, including their path, match status, and any read errors. Suitable for programmatic use.
-  - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status or error message. Suitable for documentation or readable reports.
-  _Note: File content is not included in exports to manage memory; view content within the app._
-- **Copy Results:** Copies the data for _all processed files_ (formatted according to the selected **Format**) to your clipboard.
+  - **TXT:** Creates a simple text file listing file paths, statuses, and content/errors.
+  - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (content or error message). Suitable for spreadsheets.
+  - **JSON:** Creates a JSON file containing an array of all processed files, including their path, status, and content/error details. Suitable for programmatic use.
+  - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status and content/error message in a code block. Suitable for documentation or readable reports.
+- **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard.
   - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option instead for large result sets.
-- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (the data underlying the Tree View) to a file in the selected **Format**. This is the recommended way to export large or structured results.
+- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. This is the recommended way to export large or structured results.
 
 ## Search History
 
@@ -225,6 +224,7 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
 - **UI Glitches / Freezes:** Try restarting the application. If the problem persists, report it.
 - **Export Fails:** Ensure you have write permissions for the location where you are trying to save the file. Check for error messages displayed by the application.
 - **Copy Fails / Seems Incomplete:** The total size of the formatted results might exceed your system's clipboard limit. Use the "Save Results As..." option instead for large result sets.
+- **Content Not Loading in Tree View:** Check for "File Read Errors" displayed below the search form. The application might lack permission to read the specific file.
 
 ## Feedback and Support
 
