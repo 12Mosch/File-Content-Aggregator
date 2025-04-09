@@ -26,7 +26,7 @@ A cross-platform desktop application built with Electron and React to efficientl
   - **Virtualization:** Uses `react-window` and `react-virtualized-auto-sizer` to handle potentially huge numbers of files and large result sets smoothly.
   - **Syntax Highlighting:** Highlights code snippets in the tree view using `highlight.js` in a web worker for performance.
   - **Results Filtering:** Filter the displayed results (both text and tree views) on the fly.
-  - **Copy & Save:** Copy individual file content or all results to the clipboard (with warnings for large results) or save all results to a file.
+  - **Copy & Export:** Copy individual file content or all results (text block view) to the clipboard. Export all processed results (tree view data) to **CSV**, **JSON**, or **Markdown** files.
 - **Application Features:**
   - **Search History:** Automatically saves searches; view, load, filter, name, favorite, and delete past searches.
   - **Internationalization (i18n):** Supports multiple languages (Currently: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian). Uses `i18next`.
@@ -59,7 +59,7 @@ Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub R
 4.  View progress and results. Use the **Cancel Search** button if needed.
 5.  Switch between **Text Block** and **Tree View** using the radio buttons.
 6.  Use the **Filter Results** input to narrow down the displayed results.
-7.  Use the **Copy** / **Save** buttons below the results or the copy icon in the Tree View header.
+7.  Use the **Copy to Clipboard** button (for Text Block view) or the **Export Format** dropdown and **Save Results As...** button (exports all processed files' data) below the results. Use the copy icon in the Tree View header to copy individual file content.
 8.  Access **Settings** (⚙️) or **Search History** (🕒) using the buttons in the header.
 
 ## Development

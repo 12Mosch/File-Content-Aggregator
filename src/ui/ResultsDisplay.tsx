@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next"; // Import TFunction type
+import type { TFunction } from "i18next";
 import {
   FixedSizeList as List,
   VariableSizeList,
@@ -15,9 +15,17 @@ import {
 import AutoSizer from "react-virtualized-auto-sizer";
 import HighlightMatches from "./HighlightMatches";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { StructuredItem } from "./vite-env.d";
-import { Copy, AlertTriangle } from "lucide-react";
+import type { StructuredItem, ExportFormat } from "./vite-env.d";
+import { Copy, AlertTriangle, Save } from "lucide-react";
 
 // Constants
 const TEXT_BLOCK_LINE_HEIGHT = 22;
@@ -55,7 +63,6 @@ interface ResultsDisplayProps {
   itemDisplayStates: ItemDisplayStates;
   itemDisplayVersion: number;
   onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>;
-  onSave: () => Promise<void>;
   onToggleExpand: (filePath: string) => void;
   onShowFullContent: (filePath: string) => void;
   isFilterActive: boolean;
@@ -63,7 +70,7 @@ interface ResultsDisplayProps {
   filterCaseSensitive: boolean;
 }
 
-// --- Row Component for Text View (Unchanged) ---
+// --- Row Component for Text View ---
 interface TextRowData {
   lines: string[];
   filterTerm: string;
@@ -388,7 +395,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   itemDisplayStates,
   itemDisplayVersion,
   onCopy,
-  onSave,
   onToggleExpand,
   onShowFullContent,
   isFilterActive,
@@ -397,8 +403,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 }) => {
   const { t } = useTranslation(["results", "errors"]);
   const [copyStatus, setCopyStatus] = useState<string>("");
-  const [saveStatus, setSaveStatus] = useState<string>("");
+  const [exportStatus, setExportStatus] = useState<string>("");
   const [copyFileStatus, setCopyFileStatus] = useState<string>("");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
   const textListRef = useRef<List<TextRowData>>(null);
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -636,21 +643,44 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       });
   };
 
-  const handleSave = () => {
-    setSaveStatus(t("saveButtonSaving"));
-    onSave()
-      .then(() => {
-        setSaveStatus(t("saveButtonInitiated"));
+  // --- Handle Export ---
+  const handleExport = () => {
+    if (!filteredStructuredItems || filteredStructuredItems.length === 0) {
+      setExportStatus(t("exportButtonNoResults"));
+      setTimeout(() => setExportStatus(""), 3000);
+      return;
+    }
+    if (!window.electronAPI?.exportResults) {
+      setExportStatus(t("exportButtonError"));
+      console.error("Export API not available.");
+      setTimeout(() => setExportStatus(""), 3000);
+      return;
+    }
+
+    setExportStatus(t("exportButtonExporting"));
+    window.electronAPI
+      .exportResults(filteredStructuredItems, exportFormat)
+      .then(({ success, error }) => {
+        if (success) {
+          setExportStatus(t("exportButtonSuccess"));
+        } else {
+          setExportStatus(
+            error === "Export cancelled."
+              ? t("exportButtonCancelled")
+              : t("exportButtonError")
+          );
+          console.error("Export failed:", error);
+        }
       })
-      .catch((error: unknown) => {
+      .catch((err: unknown) => {
+        setExportStatus(t("exportButtonError"));
         console.error(
-          "Save failed:",
-          error instanceof Error ? error.message : error
+          "Export failed:",
+          err instanceof Error ? err.message : err
         );
-        setSaveStatus(t("saveButtonFailed"));
       })
       .finally(() => {
-        setTimeout(() => setSaveStatus(""), 5000);
+        setTimeout(() => setExportStatus(""), 5000);
       });
   };
 
@@ -731,21 +761,48 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           }
         </AutoSizer>
       </div>
-      <div className="mt-4 flex gap-4 shrink-0">
+      {/* --- Export/Copy Area --- */}
+      <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0">
         <Button
           onClick={handleCopyAllResults}
           disabled={!results || !!copyStatus}
+          variant="outline"
         >
+          <Copy className="mr-2 h-4 w-4" />
           {copyStatus || t("copyButton")}
         </Button>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="exportFormatSelect" className="text-sm shrink-0">
+            {t("exportFormatLabel")}
+          </Label>
+          <Select
+            value={exportFormat}
+            onValueChange={(value) => setExportFormat(value as ExportFormat)}
+            disabled={!filteredStructuredItems || !!exportStatus}
+          >
+            <SelectTrigger
+              id="exportFormatSelect"
+              className="w-[100px] h-9"
+            >
+              <SelectValue placeholder={t("exportFormatLabel")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="csv">{t("exportFormatCSV")}</SelectItem>
+              <SelectItem value="json">{t("exportFormatJSON")}</SelectItem>
+              <SelectItem value="md">{t("exportFormatMD")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Button
-          onClick={handleSave}
-          disabled={!results || !!saveStatus}
+          onClick={handleExport}
+          disabled={!filteredStructuredItems || !!exportStatus}
           variant="secondary"
         >
-          {saveStatus || t("saveButton")}
+          <Save className="mr-2 h-4 w-4" />
+          {exportStatus || t("saveButtonLabel")}
         </Button>
       </div>
+      {/* ----------------------------- */}
     </div>
   );
 };

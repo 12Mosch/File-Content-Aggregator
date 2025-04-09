@@ -14,7 +14,7 @@ Welcome to the File Content Aggregator! This guide will help you install, config
   - [Results Summary](#results-summary)
   - [View Modes (Text Block vs. Tree View)](#view-modes-text-block-vs-tree-view)
   - [Filtering Results](#filtering-results)
-  - [Copying and Saving Results](#copying-and-saving-results)
+  - [Copying and Exporting Results](#copying-and-exporting-results)
 - [Search History](#search-history)
 - [Settings](#settings)
 - [Troubleshooting](#troubleshooting)
@@ -175,11 +175,17 @@ Use the radio buttons above the results to switch views:
 - Check the **Case-Sensitive** box next to it to make the filter match case.
 - This filter operates _only_ on the results already found by the main search; it doesn't perform a new file system search.
 
-### Copying and Saving Results
+### Copying and Exporting Results
+
+Below the results display area, you'll find options to copy or save the results:
 
 - **Copy to Clipboard:** Copies the _entire content_ currently shown in the **Text Block** view to your clipboard.
-  - ⚠️ **Warning:** If the total result size is very large, the content might be truncated by your operating system's clipboard limits. A warning message will appear above the results if this is likely.
-- **Save to File...:** Opens a system dialog allowing you to save the _entire content_ currently shown in the **Text Block** view to a text file. This is the recommended way to export large results.
+  - ⚠️ **Warning:** If the total result size is very large, the content might be truncated by your operating system's clipboard limits. A warning message will appear above the results if this is likely. Use the export option for large results.
+- **Export Format:** Select the desired format for exporting the results:
+  - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (content or error message). Suitable for spreadsheets.
+  - **JSON:** Creates a JSON file containing an array of all processed files, including their path, content (if matched), and any read errors. Suitable for programmatic use.
+  - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its content or error message in a code block. Suitable for documentation or readable reports.
+- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (the data underlying the Tree View) to a file in the selected **Export Format**. This is the recommended way to export large or structured results.
 
 ## Search History
 
@@ -219,6 +225,7 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - Searching very deep directory structures can be slow; try using **Max Depth**.
   - Use **Exclude Folders** effectively (e.g., `node_modules`, build output folders, backup folders).
 - **UI Glitches / Freezes:** Try restarting the application. If the problem persists, report it.
+- **Export Fails:** Ensure you have write permissions for the location where you are trying to save the file. Check for error messages displayed by the application.
 
 ## Feedback and Support
 

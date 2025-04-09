@@ -6,6 +6,8 @@ import type {
   ProgressData,
   SearchHistoryEntry,
   ThemePreference,
+  StructuredItem,
+  ExportFormat,
 } from "../ui/vite-env.d";
 
 const electronAPI = {
@@ -56,21 +58,25 @@ const electronAPI = {
     ipcRenderer.invoke("get-theme-preference"),
   setThemePreference: (theme: ThemePreference): Promise<void> =>
     ipcRenderer.invoke("set-theme-preference", theme),
-  // --- NEW: Theme Change Listener ---
   onThemePreferenceChanged: (
     callback: (theme: ThemePreference) => void
   ): (() => void) => {
     const listener = (_event: IpcRendererEvent, theme: ThemePreference) =>
       callback(theme);
     ipcRenderer.on("theme-preference-changed", listener);
-    // Return cleanup function
     return () =>
       ipcRenderer.removeListener("theme-preference-changed", listener);
   },
-  // -----------------------------
 
   // --- Cancellation Method ---
   cancelSearch: (): void => ipcRenderer.send("cancel-search"),
+
+  // --- Export Method ---
+  exportResults: (
+    items: StructuredItem[],
+    format: ExportFormat
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("export-results", items, format),
 };
 
 // --- Expose API ---

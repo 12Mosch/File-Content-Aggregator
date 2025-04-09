@@ -47,6 +47,7 @@ interface SearchResult {
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 export type ContentSearchMode = "term" | "regex" | "boolean";
 export type ThemePreference = "light" | "dark" | "system";
+export type ExportFormat = "csv" | "json" | "md";
 
 interface SearchParams {
   searchPaths: string[];
@@ -99,14 +100,18 @@ export interface IElectronAPI {
   // Theme API
   getThemePreference: () => Promise<ThemePreference>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
-  // --- NEW: Theme Change Listener ---
   onThemePreferenceChanged: (
     callback: (theme: ThemePreference) => void
   ) => () => void;
-  // -----------------------------
 
   // Cancellation API
   cancelSearch: () => void;
+
+  // Export API
+  exportResults: (
+    items: StructuredItem[],
+    format: ExportFormat
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 // --- Global Window Augmentation ---

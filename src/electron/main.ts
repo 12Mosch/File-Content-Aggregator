@@ -23,7 +23,9 @@ import {
   ProgressData,
   SearchResult,
   CancellationChecker,
+  StructuredItem,
 } from "./fileSearchService.js";
+import type { ExportFormat } from "../ui/vite-env.js";
 
 import module from "node:module";
 const require = module.createRequire(import.meta.url);
@@ -115,9 +117,7 @@ async function initializeMainI18nLanguage() {
         initialLang = baseLang;
       }
     }
-    // --- Fix: Remove redundant Error type ---
   } catch (error: unknown) {
-    // --- End Fix ---
     console.error(
       "Main i18n: Error getting initial language:",
       error instanceof Error ? error.message : error
@@ -350,6 +350,81 @@ function validateSender(senderFrame: WebFrameMain | null): boolean {
   return false;
 }
 
+// --- Export Helper Functions ---
+
+/**
+ * Escapes a string for CSV format.
+ * Wraps the string in double quotes if it contains commas, double quotes, or newlines.
+ * Doubles up existing double quotes within the string.
+ */
+function escapeCsvField(field: string | null | undefined): string {
+  if (field === null || field === undefined) {
+    return "";
+  }
+  const str = String(field);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/**
+ * Generates CSV content from structured items.
+ */
+function generateCsv(items: StructuredItem[]): string {
+  const header = ["FilePath", "Status", "Details"];
+  const rows = items.map((item) => {
+    const status = item.readError
+      ? "Read Error"
+      : item.content !== null
+        ? "Matched"
+        : "Not Matched";
+    const details = item.readError
+      ? item.readError // Use the error key as detail
+      : item.content ?? ""; // Use content if available, otherwise empty string
+    return [
+      escapeCsvField(item.filePath),
+      escapeCsvField(status),
+      escapeCsvField(details),
+    ].join(",");
+  });
+  return [header.join(","), ...rows].join("\n");
+}
+
+/**
+ * Generates JSON content from structured items.
+ */
+function generateJson(items: StructuredItem[]): string {
+  try {
+    return JSON.stringify(items, null, 2); // Pretty-print with 2 spaces
+  } catch (error: unknown) {
+    console.error("Error generating JSON:", error);
+    throw new Error(
+      `Failed to serialize results to JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Generates Markdown content from structured items.
+ */
+function generateMarkdown(items: StructuredItem[]): string {
+  return items
+    .map((item) => {
+      const status = item.readError
+        ? ` (Status: Read Error - ${item.readError})`
+        : item.content !== null
+          ? " (Status: Matched)"
+          : " (Status: Not Matched)";
+      const details = item.readError
+        ? `Error: ${item.readError}`
+        : item.content ?? "No content preview available.";
+
+      return `## ${item.filePath}${status}\n\n\`\`\`\n${details}\n\`\`\`\n`;
+    })
+    .join("\n---\n\n"); // Separate entries with a horizontal rule
+}
+
 // --- IPC Handlers ---
 
 ipcMain.handle(
@@ -425,67 +500,6 @@ ipcMain.on("cancel-search", (event) => {
   }
 });
 
-ipcMain.handle("save-file-dialog", (event): Promise<string | undefined> => {
-  if (!validateSender(event.senderFrame) || !mainWindow)
-    return Promise.resolve(undefined);
-  // --- Fix: Prefix unused reject parameter ---
-  return new Promise((resolve, _reject) => {
-    // --- End Fix ---
-    i18nMain
-      .loadNamespaces("dialogs")
-      .then(() =>
-        dialog.showSaveDialog(mainWindow!, {
-          title: i18nMain.t("dialogs:saveDialogTitle"),
-          buttonLabel: i18nMain.t("dialogs:saveDialogButtonLabel"),
-          defaultPath: `file-content-aggregator-results.txt`,
-          filters: [
-            {
-              name: i18nMain.t("dialogs:saveDialogFilterText"),
-              extensions: ["txt"],
-            },
-            {
-              name: i18nMain.t("dialogs:saveDialogFilterAll"),
-              extensions: ["*"],
-            },
-          ],
-        })
-      )
-      .then(({ canceled, filePath }) => {
-        resolve(canceled || !filePath ? undefined : filePath);
-      })
-      .catch((error: unknown) => {
-        const errorMsg = i18nMain.isInitialized
-          ? i18nMain.t("dialogs:showError", {
-              detail: error instanceof Error ? error.message : String(error),
-            })
-          : `Error showing save dialog: ${error instanceof Error ? error.message : String(error)}`;
-        dialog.showErrorBox(
-          i18nMain.isInitialized
-            ? i18nMain.t("dialogs:errorTitle")
-            : "Dialog Error",
-          errorMsg
-        );
-        resolve(undefined);
-      });
-  });
-});
-
-ipcMain.handle(
-  "write-file",
-  async (event, filePath: string, content: string): Promise<boolean> => {
-    if (!validateSender(event.senderFrame) || !filePath) return false;
-    try {
-      await fs.writeFile(filePath, content, "utf8");
-      return true;
-    } catch (error: unknown) {
-      dialog.showErrorBox(
-        "File Write Error",
-        `Failed to write file: ${filePath}\nError: ${error instanceof Error ? error.message : String(error)}`
-      );
-      return false;
-    }
-  }
-);
 ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
   if (!validateSender(event.senderFrame)) return false;
   try {
@@ -751,3 +765,103 @@ ipcMain.handle(
     });
   }
 );
+
+// --- Export Results Handler ---
+ipcMain.handle(
+  "export-results",
+  async (
+    event,
+    items: StructuredItem[],
+    format: ExportFormat
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!validateSender(event.senderFrame) || !mainWindow) {
+      return { success: false, error: "Invalid sender or main window." };
+    }
+    if (!items || items.length === 0) {
+      return { success: false, error: "No results to export." };
+    }
+
+    // Determine file extension and filters based on format
+    let fileExtension: string;
+    let fileTypeName: string;
+    switch (format) {
+      case "json":
+        fileExtension = "json";
+        fileTypeName = "JSON Files";
+        break;
+      case "md":
+        fileExtension = "md";
+        fileTypeName = "Markdown Files";
+        break;
+      case "csv":
+      default:
+        fileExtension = "csv";
+        fileTypeName = "CSV Files";
+        break;
+    }
+
+    try {
+      // Ensure i18n is ready for dialogs
+      await i18nMain.loadNamespaces("dialogs");
+
+      // Show save dialog
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: i18nMain.t("dialogs:saveDialogTitle"),
+        buttonLabel: i18nMain.t("dialogs:saveDialogButtonLabel"),
+        defaultPath: `file-content-aggregator-results.${fileExtension}`,
+        filters: [
+          { name: fileTypeName, extensions: [fileExtension] },
+          {
+            name: i18nMain.t("dialogs:saveDialogFilterAll"),
+            extensions: ["*"],
+          },
+        ],
+      });
+
+      if (canceled || !filePath) {
+        console.log("Export cancelled by user.");
+        return { success: false, error: "Export cancelled." };
+      }
+
+      // Generate content based on format
+      let content: string;
+      try {
+        switch (format) {
+          case "json":
+            content = generateJson(items);
+            break;
+          case "md":
+            content = generateMarkdown(items);
+            break;
+          case "csv":
+          default:
+            content = generateCsv(items);
+            break;
+        }
+      } catch (genError: unknown) {
+        const errorMsg = `Failed to generate ${format.toUpperCase()} content: ${genError instanceof Error ? genError.message : String(genError)}`;
+        console.error(errorMsg);
+        dialog.showErrorBox("Export Error", errorMsg);
+        return { success: false, error: errorMsg };
+      }
+
+      // Write content to file
+      try {
+        await fs.writeFile(filePath, content, "utf8");
+        console.log(`Results successfully exported to ${filePath}`);
+        return { success: true };
+      } catch (writeError: unknown) {
+        const errorMsg = `Failed to write export file: ${filePath}\nError: ${writeError instanceof Error ? writeError.message : String(writeError)}`;
+        console.error(errorMsg);
+        dialog.showErrorBox("File Write Error", errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    } catch (dialogError: unknown) {
+      const errorMsg = `Error showing save dialog for export: ${dialogError instanceof Error ? dialogError.message : String(dialogError)}`;
+      console.error(errorMsg);
+      dialog.showErrorBox("Dialog Error", errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+);
+// ---------------------------------

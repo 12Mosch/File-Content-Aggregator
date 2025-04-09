@@ -1,8 +1,6 @@
+// D:/Code/Electron/src/electron/tsconfig.json
 {
   "compilerOptions": {
-    // No rootDir needed here if include is specific
-    // No baseUrl needed
-
     // require strict types (null-save)
     "strict": true,
     // tell TypeScript to generate ESM Syntax
@@ -24,8 +22,12 @@
     // No JSX needed for main process code
     // "jsx": "react-jsx"
   },
-  // Include only files within the current directory (src/electron) and its subdirectories
-  "include": ["./**/*"],
+  // Include files within the current directory (src/electron) AND the shared type definitions
+  "include": [
+    "./**/*", // Include all files in src/electron
+    "../ui/vite-env.d.ts" // <--- Add this line back
+  ],
   // Exclude node_modules and build outputs
   "exclude": ["../../node_modules", "../../dist-electron", "../../dist-react"]
 }
+
