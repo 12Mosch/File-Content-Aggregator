@@ -32,6 +32,7 @@ const TREE_ITEM_CONTENT_LINE_HEIGHT = 18;
 const TREE_ITEM_PADDING_Y = 8;
 const MAX_PREVIEW_LINES = 50;
 const SHOW_MORE_BUTTON_HEIGHT = 30;
+const LARGE_COPY_ITEMS_THRESHOLD = 5000;
 
 // Types
 interface ItemDisplayState {
@@ -42,8 +43,8 @@ type ItemDisplayStates = Map<string, ItemDisplayState>;
 type HighlightStatus = "idle" | "pending" | "done" | "error";
 interface HighlightCacheEntry {
   status: HighlightStatus;
-  html?: string; // Optional
-  error?: string; // Optional
+  html?: string;
+  error?: string;
 }
 type HighlightCache = Map<string, HighlightCacheEntry>;
 
@@ -71,6 +72,7 @@ interface ResultsDisplayProps {
   filterTerm: string;
   filterCaseSensitive: boolean;
 }
+
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
 interface TreeRowData {
@@ -420,7 +422,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   filteredStructuredItems,
   summary,
-  viewMode,
+  viewMode, // Keep for potential future use or simplified display
   itemDisplayStates,
   itemDisplayVersion,
   onToggleExpand,
@@ -430,15 +432,34 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   filterCaseSensitive,
 }) => {
   const { t } = useTranslation(["results", "errors"]);
+  const [copyStatus, setCopyStatus] = useState<string>("");
   const [exportStatus, setExportStatus] = useState<string>("");
   const [copyFileStatus, setCopyFileStatus] = useState<string>("");
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("txt");
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
   const workerRef = useRef<Worker | null>(null);
   const highlightCacheRef = useRef<HighlightCache>(new Map());
   const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
   const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
   const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
+
+  // Fetch default export format on mount
+  useEffect(() => {
+    if (window.electronAPI?.getDefaultExportFormat) {
+      void window.electronAPI
+        .getDefaultExportFormat()
+        .then((format) => setExportFormat(format))
+        .catch((err) =>
+          console.error("Error fetching default export format:", err)
+        );
+    }
+  }, []);
+
+  // Check if the number of items to copy is large
+  const isCopyLarge = useMemo(
+    () => (filteredStructuredItems?.length ?? 0) > LARGE_COPY_ITEMS_THRESHOLD,
+    [filteredStructuredItems]
+  );
 
   // Function to request content for a specific file
   const requestContent = useCallback(async (filePath: string) => {
@@ -466,10 +487,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       console.error(`Failed to invoke getFileContent for ${filePath}:`, error);
       contentCacheRef.current.set(filePath, {
         status: "error",
-        error: "ipcError", // Generic IPC error key
+        error: "ipcError",
       });
     } finally {
-      setContentUpdateCounter((prev) => prev + 1); // Trigger re-render again
+      setContentUpdateCounter((prev) => prev + 1);
     }
   }, []);
 
@@ -540,8 +561,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       highlightCache: highlightCacheRef.current,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
-      contentCache: contentCacheRef.current, // Pass content cache
-      requestContent: requestContent, // Pass request function
+      contentCache: contentCacheRef.current,
+      requestContent: requestContent,
     };
   }, [
     filteredStructuredItems,
@@ -692,6 +713,54 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     filteredStructuredItems,
   ]);
 
+  // --- Handle Copy Results ---
+  const handleCopyResults = useCallback(async () => {
+    if (!filteredStructuredItems || filteredStructuredItems.length === 0) {
+      setCopyStatus(t("exportButtonNoResults"));
+      setTimeout(() => setCopyStatus(""), 3000);
+      return;
+    }
+    if (!window.electronAPI?.invokeGenerateExportContent) {
+      setCopyStatus(t("copyButtonFailed"));
+      console.error("generate-export-content API not available.");
+      setTimeout(() => setCopyStatus(""), 3000);
+      return;
+    }
+    if (!window.electronAPI?.copyToClipboard) {
+      setCopyStatus(t("copyButtonFailed"));
+      console.error("copy-to-clipboard API not available.");
+      setTimeout(() => setCopyStatus(""), 3000);
+      return;
+    }
+
+    setCopyStatus(t("copyButtonCopying"));
+    try {
+      // Generate content in the selected format
+      const { content, error } =
+        await window.electronAPI.invokeGenerateExportContent(
+          filteredStructuredItems,
+          exportFormat
+        );
+
+      if (error || content === null) {
+        throw new Error(error || "Failed to generate content for copying.");
+      }
+
+      // Copy the generated content to clipboard
+      const success = await window.electronAPI.copyToClipboard(content);
+      let statusKey = success ? "copyButtonSuccess" : "copyButtonFailed";
+      if (success && isCopyLarge) {
+        statusKey = "copyButtonTruncated";
+      }
+      setCopyStatus(t(statusKey));
+    } catch (err) {
+      console.error("Error during copy results:", err);
+      setCopyStatus(t("copyButtonFailed"));
+    } finally {
+      setTimeout(() => setCopyStatus(""), 5000);
+    }
+  }, [filteredStructuredItems, exportFormat, t, isCopyLarge]);
+
   // --- Handle Export ---
   const handleExport = () => {
     if (!filteredStructuredItems || filteredStructuredItems.length === 0) {
@@ -758,6 +827,18 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <span className="ml-auto text-xs text-primary">{copyFileStatus}</span>
         )}
       </div>
+      {/* Re-added Clipboard warning */}
+      {isCopyLarge && (
+        <p
+          className={cn(
+            "p-3 rounded-md border text-sm mb-4 shrink-0 flex items-center",
+            "bg-amber-100 border-amber-300 text-amber-800"
+          )}
+        >
+          <AlertTriangle className="inline h-4 w-4 mr-2 shrink-0" />
+          <span>{t("clipboardWarning")}</span>
+        </p>
+      )}
       <div className="flex-grow border border-border rounded-md bg-background overflow-hidden min-h-[200px]">
         <AutoSizer>
           {({ height, width }) =>
@@ -787,6 +868,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       </div>
       {/* --- Export/Copy Area --- */}
       <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0">
+        {/* Format Select */}
         <div className="flex items-center gap-2">
           <Label htmlFor="exportFormatSelect" className="text-sm shrink-0">
             {t("exportFormatLabel")}
@@ -794,21 +876,40 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <Select
             value={exportFormat}
             onValueChange={(value) => setExportFormat(value as ExportFormat)}
-            disabled={!filteredStructuredItems || !!exportStatus}
+            disabled={!filteredStructuredItems || !!exportStatus || !!copyStatus}
           >
             <SelectTrigger id="exportFormatSelect" className="w-[100px] h-9">
               <SelectValue placeholder={t("exportFormatLabel")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="csv">{t("exportFormatCSV")}</SelectItem>
-              <SelectItem value="json">{t("exportFormatJSON")}</SelectItem>
-              <SelectItem value="md">{t("exportFormatMD")}</SelectItem>
+              <SelectItem value="txt">
+                {t("exportFormatTXT")}
+              </SelectItem>
+              <SelectItem value="csv">
+                {t("exportFormatCSV")}
+              </SelectItem>
+              <SelectItem value="json">
+                {t("exportFormatJSON")}
+              </SelectItem>
+              <SelectItem value="md">
+                {t("exportFormatMD")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {/* Copy Button */}
+        <Button
+          onClick={handleCopyResults}
+          disabled={!filteredStructuredItems || !!copyStatus || !!exportStatus}
+          variant="outline"
+        >
+          <Copy className="mr-2 h-4 w-4" />
+          {copyStatus || t("copyButton")}
+        </Button>
+        {/* Save Button */}
         <Button
           onClick={handleExport}
-          disabled={!filteredStructuredItems || !!exportStatus}
+          disabled={!filteredStructuredItems || !!exportStatus || !!copyStatus}
           variant="secondary"
         >
           <Save className="mr-2 h-4 w-4" />

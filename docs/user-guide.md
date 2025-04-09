@@ -174,15 +174,15 @@ The results are displayed in a Tree View:
 
 Below the results display area, you'll find options to copy or save the results:
 
-- **Export Format:** Select the desired format for copying or exporting the results:
+- **Format:** Select the desired format for copying or exporting the results:
   - **TXT:** Creates a simple text file listing file paths and statuses.
   - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (error message). Suitable for spreadsheets.
   - **JSON:** Creates a JSON file containing an array of all processed files, including their path, match status, and any read errors. Suitable for programmatic use.
   - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status or error message. Suitable for documentation or readable reports.
   _Note: File content is not included in exports to manage memory; view content within the app._
-- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (the data underlying the Tree View) to a file in the selected **Export Format**. This is the recommended way to export large or structured results.
-- **Copy Results:** Copies the data for _all processed files_ (formatted according to the selected **Export Format**) to your clipboard.
-  - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option for large results.
+- **Copy Results:** Copies the data for _all processed files_ (formatted according to the selected **Format**) to your clipboard.
+  - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option instead for large result sets.
+- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (the data underlying the Tree View) to a file in the selected **Format**. This is the recommended way to export large or structured results.
 
 ## Search History
 
