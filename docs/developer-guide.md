@@ -22,6 +22,7 @@ This guide provides technical information for developers working on or contribut
   - [UI State Management](#ui-state-management)
   - [Theming](#theming)
   - [Search History](#search-history)
+  - [Exporting Results](#exporting-results)
 - [Building for Distribution](#building-for-distribution)
 - [Security Considerations](#security-considerations)
 - [Code Style & Linting](#code-style--linting)
@@ -142,7 +143,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Renderer calls `window.electronAPI.invokeSomething(args)`.
   - Preload script uses `ipcRenderer.invoke('channel', args)`.
   - Main process listens with `ipcMain.handle('channel', async (event, args) => { ... return result; })`.
-  - _Examples:_ `search-files`, `save-file-dialog`, `write-file`, `get-initial-language`, `get-theme-preference`, history handlers.
+  - _Examples:_ `search-files`, `export-results`, `get-initial-language`, `get-theme-preference`, history handlers.
 - **Main -> Renderer (Send):** Used for updates or events initiated by the main process.
   - Main process uses `mainWindow.webContents.send('channel', data)`.
   - Preload script sets up a listener using `ipcRenderer.on('channel', listener)` and exposes a handler function via `contextBridge` (e.g., `onSearchProgress`, `onThemePreferenceChanged`).
@@ -200,6 +201,12 @@ Communication between the Main and Renderer processes happens via IPC messages:
 - **Search History:**
   - IPC handlers in `main.ts` manage CRUD operations using `electron-store`.
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
+- **Exporting Results:**
+  - The `export-results` IPC handler in `main.ts` takes the structured results data and the desired format (CSV, JSON, Markdown).
+  - It uses helper functions (`generateCsv`, `generateJson`, `generateMarkdown`) to format the data.
+  - It prompts the user for a save location using `dialog.showSaveDialog`.
+  - It writes the generated content to the selected file using `fs.writeFile`.
+  - **Error Handling:** If an error occurs during content generation (e.g., JSON serialization failure), the specific error message is now included in the `dialog.showErrorBox` presented to the user, aiding debugging. File write errors are also handled.
 
 ## Building for Distribution
 

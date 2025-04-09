@@ -839,10 +839,19 @@ ipcMain.handle(
             break;
         }
       } catch (genError: unknown) {
-        const errorMsg = `Failed to generate ${format.toUpperCase()} content: ${genError instanceof Error ? genError.message : String(genError)}`;
-        console.error(errorMsg);
-        dialog.showErrorBox("Export Error", errorMsg);
+        // --- ERROR HANDLING ---
+        const specificErrorMsg =
+          genError instanceof Error ? genError.message : String(genError);
+        const errorMsg = i18nMain.t("dialogs:exportGenerationError", {
+          format: format.toUpperCase(),
+          detail: specificErrorMsg,
+        });
+        console.error(
+          `Export Error: Failed to generate ${format.toUpperCase()} content: ${specificErrorMsg}`
+        );
+        dialog.showErrorBox(i18nMain.t("dialogs:exportErrorTitle"), errorMsg);
         return { success: false, error: errorMsg };
+        // --- END  ---
       }
 
       // Write content to file

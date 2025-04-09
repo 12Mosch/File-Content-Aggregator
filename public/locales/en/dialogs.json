@@ -4,5 +4,7 @@
   "saveDialogFilterText": "Text Files",
   "saveDialogFilterAll": "All Files",
   "errorTitle": "Dialog Error",
-  "showError": "Error showing dialog: {{detail}}"
+  "showError": "Error showing dialog: {{detail}}",
+  "exportErrorTitle": "Export Error",
+  "exportGenerationError": "Failed to generate {{format}} content: {{detail}}"
 }
