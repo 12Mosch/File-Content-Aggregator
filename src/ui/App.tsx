@@ -25,7 +25,8 @@ import { cn } from "@/lib/utils";
 
 import "./index.css";
 
-const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
+// Removed: No longer needed as aggregated text results aren't stored
+// const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 type GroupedErrors = { [reasonKey: string]: string[] };
 interface ItemDisplayState {
   expanded: boolean;
@@ -37,7 +38,8 @@ const FILTER_DEBOUNCE_DELAY = 300;
 function App() {
   const { t } = useTranslation(["common", "errors", "results", "form"]);
 
-  const [results, setResults] = useState<string | null>(null);
+  // Removed: State for aggregated text results
+  // const [results, setResults] = useState<string | null>(null);
   const [structuredResults, setStructuredResults] = useState<
     StructuredItem[] | null
   >(null);
@@ -52,7 +54,7 @@ function App() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<"text" | "tree">("text");
+  const [viewMode, setViewMode] = useState<"text" | "tree">("tree"); // Default to tree view now
   const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(
     new Map()
   );
@@ -218,7 +220,7 @@ function App() {
   const handleSearchSubmit = useCallback(
     async (params: SearchParams) => {
       setIsLoading(true);
-      setResults(null);
+      // setResults(null); // Removed
       setStructuredResults(null);
       setSearchSummary(null);
       setPathErrors([]);
@@ -228,6 +230,7 @@ function App() {
       setProgress({ processed: 0, total: 0, message: "Starting search..." });
       setGeneralError(null);
       setResultsFilterTerm("");
+      setViewMode("tree"); // Reset to tree view on new search
 
       if (
         window.electronAPI?.addSearchHistoryEntry &&
@@ -256,7 +259,7 @@ function App() {
         const searchResult: SearchResult =
           await window.electronAPI.invokeSearch(backendParams);
 
-        setResults(searchResult.output);
+        // setResults(searchResult.output); // Removed
         setStructuredResults(searchResult.structuredItems);
         setSearchSummary({
           filesFound: searchResult.filesFound,
@@ -264,6 +267,7 @@ function App() {
           errorsEncountered: searchResult.errorsEncountered,
         });
         const translatedPathErrors = searchResult.pathErrors.map((err) => {
+          // Keep existing translations, add more if needed for new error types
           if (err.startsWith("Search path not found:"))
             return t("errors:pathNotFound", {
               path: err.substring("Search path not found:".length).trim(),
@@ -292,7 +296,19 @@ function App() {
                 .substring("Invalid regular expression pattern:".length)
                 .trim(),
             });
-          return err;
+          // Add translation for the filtered traversal error
+          if (err.startsWith("Traversal error in")) {
+            const match = err.match(
+              /Traversal error in "(.*?)": Permission denied for "(.*?)".*/
+            );
+            if (match) {
+              return t("errors:pathTraversalPermissionDenied", {
+                searchPath: match[1],
+                errorPath: match[2],
+              });
+            }
+          }
+          return err; // Fallback for untranslated errors
         });
         setPathErrors(translatedPathErrors);
         setFileReadErrors(searchResult.fileReadErrors);
@@ -320,54 +336,14 @@ function App() {
     [t]
   );
 
-  const handleCopyResults = useCallback(async (): Promise<{
-    success: boolean;
-    potentiallyTruncated: boolean;
-  }> => {
-    let potentiallyTruncated = false;
-    if (results) {
-      const lineCount = results.split("\n").length;
-      if (lineCount > LARGE_RESULT_LINE_THRESHOLD_APP)
-        potentiallyTruncated = true;
-      if (window.electronAPI?.copyToClipboard) {
-        try {
-          const success = await window.electronAPI.copyToClipboard(results);
-          return { success, potentiallyTruncated };
-        } catch (err: unknown) {
-          setGeneralError(
-            t("errors:copyFailed", {
-              detail: err instanceof Error ? err.message : String(err),
-            })
-          );
-          return { success: false, potentiallyTruncated };
-        }
-      }
-    }
-    return { success: false, potentiallyTruncated };
-  }, [results, t]);
+  // Removed: handleCopyResults is no longer needed for aggregated text
+  // const handleCopyResults = useCallback(async (): Promise<{
+  //   success: boolean;
+  //   potentiallyTruncated: boolean;
+  // }> => { ... }, [results, t]);
 
-  const handleSaveResults = useCallback(async (): Promise<void> => {
-    if (
-      results &&
-      window.electronAPI?.showSaveDialog &&
-      window.electronAPI?.writeFile
-    ) {
-      setGeneralError(null);
-      try {
-        const filePath = await window.electronAPI.showSaveDialog();
-        if (filePath) {
-          const success = await window.electronAPI.writeFile(filePath, results);
-          if (!success) setGeneralError(t("errors:saveFailedBackend"));
-        }
-      } catch (err: unknown) {
-        setGeneralError(
-          t("errors:saveFailed", {
-            detail: err instanceof Error ? err.message : String(err),
-          })
-        );
-      }
-    }
-  }, [results, t]);
+  // Removed: handleSaveResults is no longer needed for aggregated text
+  // const handleSaveResults = useCallback(async (): Promise<void> => { ... }, [results, t]);
 
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
@@ -416,39 +392,26 @@ function App() {
 
   const isFilterActive = debouncedFilterTerm.trim().length > 0;
 
-  const filteredTextLines = useMemo(() => {
-    if (!results) return [];
-    const lines = results.split("\n");
-    if (!isFilterActive) return lines;
-    const term = debouncedFilterTerm;
-    const caseSensitive = resultsFilterCaseSensitive;
-    return lines.filter((line) =>
-      caseSensitive
-        ? line.includes(term)
-        : line.toLowerCase().includes(term.toLowerCase())
-    );
-  }, [
-    results,
-    debouncedFilterTerm,
-    resultsFilterCaseSensitive,
-    isFilterActive,
-  ]);
+  // Removed: filteredTextLines is no longer needed
+  // const filteredTextLines = useMemo(() => { ... }, [results, ...]);
 
   const filteredStructuredResults = useMemo(() => {
     if (!structuredResults) return null;
     if (!isFilterActive) return structuredResults;
     const term = debouncedFilterTerm;
     const caseSensitive = resultsFilterCaseSensitive;
+    // Filter based on filePath only, as content isn't available here
     return structuredResults.filter((item) => {
       const filePathMatch = caseSensitive
         ? item.filePath.includes(term)
         : item.filePath.toLowerCase().includes(term.toLowerCase());
-      const contentMatch =
-        item.content !== null &&
+      // Add check for readError matching
+      const errorMatch =
+        item.readError &&
         (caseSensitive
-          ? item.content.includes(term)
-          : item.content.toLowerCase().includes(term.toLowerCase()));
-      return filePathMatch || contentMatch;
+          ? item.readError.includes(term)
+          : item.readError.toLowerCase().includes(term.toLowerCase()));
+      return filePathMatch || errorMatch;
     });
   }, [
     structuredResults,
@@ -547,7 +510,8 @@ function App() {
 
         {isLoading && progress && <ProgressBar {...progress} />}
 
-        {!isLoading && results !== null && searchSummary && (
+        {/* Changed: Show results section only if structuredResults exist */}
+        {!isLoading && structuredResults !== null && searchSummary && (
           <section className="flex flex-col gap-4 mt-4">
             <div className="flex flex-wrap items-center gap-4 p-3 bg-card border border-border rounded-lg">
               <Label
@@ -581,48 +545,15 @@ function App() {
               </div>
             </div>
 
-            <RadioGroup
-              value={viewMode}
-              onValueChange={(value) => setViewMode(value as "text" | "tree")}
-              className="flex gap-4 self-start"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="text" id="viewModeText" />
-                <Label
-                  htmlFor="viewModeText"
-                  className="text-sm text-muted-foreground cursor-pointer"
-                >
-                  {t("results:viewModeText")}
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem
-                  value="tree"
-                  id="viewModeTree"
-                  disabled={!structuredResults}
-                />
-                <Label
-                  htmlFor="viewModeTree"
-                  className={cn(
-                    "text-sm text-muted-foreground cursor-pointer",
-                    !structuredResults && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  {t("results:viewModeTree")}
-                </Label>
-              </div>
-            </RadioGroup>
+            {/* Removed: Radio group for view mode is less relevant now */}
+            {/* <RadioGroup ... /> */}
 
             <ResultsDisplay
-              results={results}
-              filteredTextLines={filteredTextLines}
               filteredStructuredItems={filteredStructuredResults}
               summary={searchSummary}
-              viewMode={viewMode}
+              viewMode={viewMode} // Keep for potential future use or simplified display
               itemDisplayStates={itemDisplayStates}
               itemDisplayVersion={itemDisplayVersion}
-              onCopy={() => handleCopyResults()}
-              onSave={handleSaveResults} // Pass the async handler directly
               onToggleExpand={handleToggleExpand}
               onShowFullContent={handleShowFullContent}
               isFilterActive={isFilterActive}

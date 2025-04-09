@@ -22,10 +22,11 @@ interface ProgressData {
   status?: "searching" | "cancelling" | "cancelled" | "completed" | "error";
 }
 
-/** Represents a single file's result in the structured view */
+/** Represents a single file's result in the structured view (content fetched on demand) */
 interface StructuredItem {
   filePath: string;
-  content: string | null; // Content if matched, null otherwise
+  // content: string | null; // Removed: Content is fetched on demand
+  matched: boolean; // Indicates if content matched (if query was present)
   readError?: string; // Key indicating the type of read error, if any
 }
 
@@ -36,10 +37,10 @@ interface FileReadError {
   detail?: string; // Specific error message from the system
 }
 
-/** The overall result object returned by the search process */
+/** The overall result object returned by the search process (no aggregated output) */
 interface SearchResult {
-  output: string; // Concatenated content for text block view
-  structuredItems: StructuredItem[]; // Data for tree view
+  // output: string; // Removed: Aggregated output is no longer generated
+  structuredItems: StructuredItem[]; // Data for tree view (without content)
   filesProcessed: number; // Count of files actually read/checked
   filesFound: number; // Count of files found initially matching path/extension
   errorsEncountered: number; // Count of file read errors
@@ -141,6 +142,12 @@ export interface IElectronAPI {
     items: StructuredItem[],
     format: ExportFormat
   ) => Promise<{ success: boolean; error?: string }>;
+
+  // Get File Content API
+  /** Reads and returns the content of a specific file. */
+  invokeGetFileContent: (
+    filePath: string
+  ) => Promise<{ content: string | null; error?: string }>;
 }
 
 // --- Global Window Augmentation ---

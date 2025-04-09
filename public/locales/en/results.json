@@ -31,5 +31,9 @@
   "filterCaseSensitiveLabel": "Case-Sensitive",
   "copyFileContentButton": "Copy File Content",
   "highlighting": "Highlighting...",
-  "highlightError": "Highlighting Error"
+  "highlightError": "Highlighting Error",
+  "loadingContent": "Loading content...",
+  "contentError": "Error loading content",
+  "noContentPreview": "No content preview available.",
+  "notMatched": "Content did not match query."
 }

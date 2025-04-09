@@ -72,14 +72,15 @@ interface PathErrorDetail {
   code?: string; // Error code (e.g., 'EPERM', 'ENOENT')
 }
 
+// Modified: Removed 'content' property
 export interface StructuredItem {
   filePath: string;
-  content: string | null;
+  matched: boolean; // Indicates if content matched (if query was present)
   readError?: string;
 }
 
+// Modified: Removed 'output' property
 export interface SearchResult {
-  output: string;
   structuredItems: StructuredItem[];
   filesProcessed: number;
   filesFound: number;
@@ -95,7 +96,7 @@ export type ProgressCallback = (data: ProgressData) => void;
 export type CancellationChecker = () => boolean;
 
 // --- Concurrency Limit ---
-const FILE_OPERATION_CONCURRENCY_LIMIT = 20;
+const FILE_OPERATION_CONCURRENCY_LIMIT = 20; // Consider lowering if OOM persists
 
 // --- Helper Functions ---
 function parseDateStartOfDay(dateString: string | undefined): Date | null {
@@ -668,7 +669,7 @@ export async function searchFiles(
   const detailedPathErrors: PathErrorDetail[] = [];
   const fileReadErrors: FileReadError[] = [];
   const structuredItems: StructuredItem[] = [];
-  const outputLines: string[] = [];
+  // const outputLines: string[] = [];
   let wasCancelled = false;
 
   // Ensure p-limit is loaded correctly
@@ -685,7 +686,7 @@ export async function searchFiles(
       message: "Internal error: Concurrency limiter failed to load.",
     });
     return {
-      output: "",
+      // output: "", // Removed
       structuredItems: [],
       filesFound: 0,
       filesProcessed: 0,
@@ -723,7 +724,6 @@ export async function searchFiles(
         status: "cancelled",
       });
       return {
-        output: "",
         structuredItems: [],
         filesFound: 0,
         filesProcessed: 0,
@@ -856,7 +856,6 @@ export async function searchFiles(
         status: "cancelled",
       });
       return {
-        output: "",
         structuredItems: [],
         filesFound: 0,
         filesProcessed: 0,
@@ -896,7 +895,6 @@ export async function searchFiles(
       status: "error",
     });
     return {
-      output: "",
       structuredItems: [],
       filesFound: 0,
       filesProcessed: 0,
@@ -920,7 +918,6 @@ export async function searchFiles(
       status: "cancelled",
     });
     return {
-      output: "",
       structuredItems: [],
       filesFound: initialFileCount,
       filesProcessed: 0,
@@ -971,7 +968,6 @@ export async function searchFiles(
       status: "cancelled",
     });
     return {
-      output: "",
       structuredItems: [],
       filesFound: initialFileCount,
       filesProcessed: 0,
@@ -1026,7 +1022,6 @@ export async function searchFiles(
       status: "cancelled",
     });
     return {
-      output: "",
       structuredItems: [],
       filesFound: initialFileCount,
       filesProcessed: 0,
@@ -1104,7 +1099,6 @@ export async function searchFiles(
         status: "cancelled",
       });
       return {
-        output: "",
         structuredItems: [],
         filesFound: initialFileCount,
         filesProcessed: 0, // No files fully processed yet
@@ -1141,7 +1135,6 @@ export async function searchFiles(
       status: "cancelled",
     });
     return {
-      output: "",
       structuredItems: [],
       filesFound: initialFileCount,
       filesProcessed: 0,
@@ -1187,7 +1180,6 @@ export async function searchFiles(
             status: "error",
           });
           return {
-            output: "",
             structuredItems: [],
             filesFound: initialFileCount,
             filesProcessed: 0,
@@ -1262,7 +1254,6 @@ export async function searchFiles(
             status: "error",
           });
           return {
-            output: "",
             structuredItems: [],
             filesFound: initialFileCount,
             filesProcessed: 0,
@@ -1318,7 +1309,6 @@ export async function searchFiles(
         status: "cancelled",
       });
       return {
-        output: "",
         structuredItems: [],
         filesFound: initialFileCount,
         filesProcessed: 0,
@@ -1344,10 +1334,11 @@ export async function searchFiles(
         const displayFilePath = file.replace(/\\/g, "/"); // Normalize path for display
         let fileContent: string | null = null;
         let structuredItemResult: StructuredItem | null = null;
-        let outputLineResult: string | null = null;
+        // let outputLineResult: string | null = null;
         let fileReadErrorResult: FileReadError | null = null;
         let errorKeyForProgress: string | undefined = undefined;
         let incrementCounter = true; // Flag to control progress increment
+        let contentMatches = !contentMatcher; // Default to true if no content query
 
         try {
           if (checkCancellation()) {
@@ -1355,28 +1346,19 @@ export async function searchFiles(
             return null;
           }
 
-          // Read file content
-          fileContent = await fs.readFile(file, { encoding: "utf8" });
-
-          // Check content against the matcher (if one exists)
-          const contentMatches = !contentMatcher || contentMatcher(fileContent);
-
-          if (contentMatches) {
-            // Matched: Add to text output and structured results with content
-            outputLineResult = `${displayFilePath}\n\n${fileContent}\n`;
-            structuredItemResult = {
-              filePath: displayFilePath,
-              content: fileContent,
-              readError: undefined,
-            };
-          } else {
-            // Did not match content query: Add to structured results without content
-            structuredItemResult = {
-              filePath: displayFilePath,
-              content: null, // Indicate no match
-              readError: undefined,
-            };
+          // Only read content if there's a content matcher
+          if (contentMatcher) {
+            fileContent = await fs.readFile(file, { encoding: "utf8" });
+            contentMatches = contentMatcher(fileContent);
           }
+
+          // Always add a structured item, indicating match status
+          structuredItemResult = {
+            filePath: displayFilePath,
+            matched: contentMatches, // Store match status
+            readError: undefined,
+          };
+
         } catch (error: unknown) {
           // Handle file read errors
           const message =
@@ -1395,7 +1377,7 @@ export async function searchFiles(
           // Add structured item indicating the read error
           structuredItemResult = {
             filePath: displayFilePath,
-            content: null,
+            matched: false, // Cannot match if read failed
             readError: reasonKey,
           };
           // Add detailed error info for the final result summary
@@ -1407,10 +1389,6 @@ export async function searchFiles(
           errorKeyForProgress = reasonKey; // For progress update message
         } finally {
           // --- Cache Cleanup ---
-          // Always clear the word boundary cache for this content after processing
-          // (or attempting to process) it, regardless of success or error.
-          // This prevents the cache from growing indefinitely if the same large
-          // file is processed multiple times without matching or errors out.
           if (fileContent !== null) {
             wordBoundariesCache.delete(fileContent);
           }
@@ -1437,7 +1415,7 @@ export async function searchFiles(
         // Return results for this file (or null if cancelled)
         return checkCancellation()
           ? null
-          : { structuredItemResult, outputLineResult, fileReadErrorResult };
+          : { structuredItemResult, fileReadErrorResult };
       })
     );
 
@@ -1451,9 +1429,6 @@ export async function searchFiles(
         // Add valid results to the respective arrays
         if (result.structuredItemResult) {
           structuredItems.push(result.structuredItemResult);
-        }
-        if (result.outputLineResult) {
-          outputLines.push(result.outputLineResult);
         }
         if (result.fileReadErrorResult) {
           fileReadErrors.push(result.fileReadErrorResult);
@@ -1473,9 +1448,6 @@ export async function searchFiles(
     status: finalStatus,
   });
 
-  // Join text output lines
-  const finalOutput = outputLines.join("\n");
-
   // Filter path errors for relevance before returning
   const relevantPathErrors = filterRelevantPathErrors(
     detailedPathErrors,
@@ -1483,9 +1455,8 @@ export async function searchFiles(
     folderExclusionMode
   );
 
-  // Return the final search result object
+  // Return the final search result object (without output)
   return {
-    output: finalOutput,
     structuredItems: structuredItems,
     filesFound: initialFileCount,
     filesProcessed: filesProcessedCounter,

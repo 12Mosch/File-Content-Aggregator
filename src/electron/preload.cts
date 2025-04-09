@@ -20,7 +20,7 @@ const electronAPI = {
   /**
    * Invokes the file search process in the main process.
    * @param params Search parameters excluding the structured query (which is converted to string).
-   * @returns A promise resolving with the search results.
+   * @returns A promise resolving with the search results (note: structuredItems will not contain full content).
    */
   invokeSearch: (
     params: Omit<SearchParams, "structuredQuery">
@@ -159,7 +159,7 @@ const electronAPI = {
 
   /**
    * Invokes the export results functionality in the main process.
-   * @param items The structured data items to export.
+   * @param items The structured data items to export (should not contain full content).
    * @param format The desired export format ('csv', 'json', 'md').
    * @returns A promise resolving with an object indicating success or failure (with an optional error message).
    */
@@ -168,6 +168,17 @@ const electronAPI = {
     format: ExportFormat
   ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("export-results", items, format),
+
+  // --- Get File Content Method ---
+  /**
+   * Invokes the main process to read the content of a specific file.
+   * @param filePath The absolute path to the file.
+   * @returns A promise resolving with an object containing the file content or an error key.
+   */
+  invokeGetFileContent: (
+    filePath: string
+  ): Promise<{ content: string | null; error?: string }> =>
+    ipcRenderer.invoke("get-file-content", filePath),
 };
 
 // --- Expose API to Renderer ---

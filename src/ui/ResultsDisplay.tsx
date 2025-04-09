@@ -8,7 +8,6 @@ import React, {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  FixedSizeList as List,
   VariableSizeList,
   ListChildComponentProps,
 } from "react-window";
@@ -25,16 +24,14 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { StructuredItem, ExportFormat } from "./vite-env.d";
-import { Copy, AlertTriangle, Save } from "lucide-react";
+import { Copy, AlertTriangle, Save, Loader2 } from "lucide-react";
 
 // Constants
-const TEXT_BLOCK_LINE_HEIGHT = 22;
 const TREE_ITEM_HEADER_HEIGHT = 32;
 const TREE_ITEM_CONTENT_LINE_HEIGHT = 18;
 const TREE_ITEM_PADDING_Y = 8;
 const MAX_PREVIEW_LINES = 50;
 const SHOW_MORE_BUTTON_HEIGHT = 30;
-const LARGE_RESULT_LINE_THRESHOLD = 100000;
 
 // Types
 interface ItemDisplayState {
@@ -50,58 +47,30 @@ interface HighlightCacheEntry {
 }
 type HighlightCache = Map<string, HighlightCacheEntry>;
 
+// Added state for on-demand content
+interface ContentCacheEntry {
+  status: "idle" | "loading" | "loaded" | "error";
+  content?: string | null;
+  error?: string; // Error key for translation
+}
+type ContentCache = Map<string, ContentCacheEntry>;
+
 interface ResultsDisplayProps {
-  results: string;
-  filteredTextLines: string[];
   filteredStructuredItems: StructuredItem[] | null;
   summary: {
     filesFound: number;
     filesProcessed: number;
     errorsEncountered: number;
   };
-  viewMode: "text" | "tree";
+  viewMode: "text" | "tree"; // Keep for now, but text view is non-functional
   itemDisplayStates: ItemDisplayStates;
   itemDisplayVersion: number;
-  onCopy: () => Promise<{ success: boolean; potentiallyTruncated: boolean }>;
   onToggleExpand: (filePath: string) => void;
   onShowFullContent: (filePath: string) => void;
   isFilterActive: boolean;
   filterTerm: string;
   filterCaseSensitive: boolean;
 }
-
-// --- Row Component for Text View ---
-interface TextRowData {
-  lines: string[];
-  filterTerm: string;
-  filterCaseSensitive: boolean;
-}
-const TextRow: React.FC<ListChildComponentProps<TextRowData>> = ({
-  index,
-  style,
-  data,
-}) => {
-  const { lines, filterTerm, filterCaseSensitive } = data;
-  const lineContent = lines?.[index] ?? "";
-  return (
-    <div
-      style={style}
-      className="px-3 overflow-hidden box-border flex items-center"
-    >
-      <pre className="font-mono text-sm leading-snug text-foreground whitespace-pre-wrap break-words m-0 select-text w-full">
-        {lineContent === "" ? (
-          "\u00A0"
-        ) : (
-          <HighlightMatches
-            text={lineContent}
-            term={filterTerm}
-            caseSensitive={filterCaseSensitive}
-          />
-        )}
-      </pre>
-    </div>
-  );
-};
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
 interface TreeRowData {
@@ -120,6 +89,8 @@ interface TreeRowData {
     forceUpdate?: boolean
   ) => void;
   onCopyContent: (content: string) => void;
+  contentCache: ContentCache; // Added content cache
+  requestContent: (filePath: string) => void; // Added function to request content
 }
 const getLanguageFromPath = (filePath: string): string => {
   const extension = filePath.split(".").pop()?.toLowerCase() || "plaintext";
@@ -183,6 +154,9 @@ const getLanguageFromPath = (filePath: string): string => {
   }
 };
 
+// Define a default entry that matches the ContentCacheEntry type
+const defaultContentEntry: ContentCacheEntry = { status: "idle" };
+
 const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   index,
   style,
@@ -199,6 +173,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     highlightCache,
     requestHighlighting,
     onCopyContent,
+    contentCache, // Destructure new props
+    requestContent, // Destructure new props
   } = data;
 
   // --- Hooks moved to top level ---
@@ -212,14 +188,41 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   );
   const wasPreviewHighlightedRef = useRef(false);
 
+  // Use the default entry when getting from cache to ensure consistent type
+  const contentInfo: ContentCacheEntry = item
+    ? contentCache.get(item.filePath) ?? defaultContentEntry
+    : defaultContentEntry;
+
+  // Effect to request content when expanded and not already loaded/loading
+  useEffect(() => {
+    if (
+      item &&
+      isExpanded &&
+      !item.readError && // Don't request if there was a read error initially
+      contentInfo.status === "idle"
+    ) {
+      requestContent(item.filePath);
+    }
+    // Only depend on item path, expansion state, and initial read error status
+  }, [
+    item?.filePath,
+    isExpanded,
+    item?.readError,
+    contentInfo.status,
+    requestContent,
+    item,
+  ]);
+
   const { contentPreview, totalContentLines, isContentLarge } = useMemo(() => {
-    const lines = item?.content?.split("\n") ?? [];
+    // Use content from the cache if available
+    const currentContent = contentInfo.content; // Access is safe due to consistent type
+    const lines = currentContent?.split("\n") ?? [];
     const totalLines = lines.length;
-    const large = item?.content ? totalLines > MAX_PREVIEW_LINES : false;
+    const large = currentContent ? totalLines > MAX_PREVIEW_LINES : false;
     const preview =
       large && !showFull
         ? lines.slice(0, MAX_PREVIEW_LINES).join("\n")
-        : item?.content;
+        : currentContent;
     if (large && !showFull) {
       wasPreviewHighlightedRef.current = true;
     }
@@ -228,7 +231,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
       totalContentLines: totalLines,
       isContentLarge: large,
     };
-  }, [item?.content, showFull]);
+    // Depend on cached content and showFull state
+  }, [contentInfo.content, showFull]);
 
   const highlightInfo: HighlightCacheEntry = item
     ? (highlightCache.get(item.filePath) ?? {
@@ -238,7 +242,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
       })
     : { status: "idle", html: undefined, error: undefined };
 
-  // Effect for requesting highlighting
+  // Effect for requesting highlighting (now depends on contentPreview)
   useEffect(() => {
     if (!item) return;
     const currentCacheEntry = highlightCache.get(item.filePath);
@@ -246,7 +250,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     let forceUpdate = false;
     if (
       isExpanded &&
-      typeof contentPreview === "string" &&
+      typeof contentPreview === "string" && // Check if contentPreview is available
       language !== "plaintext"
     ) {
       if (!currentCacheEntry || currentCacheEntry.status === "idle") {
@@ -266,13 +270,12 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     }
   }, [
     isExpanded,
-    contentPreview,
+    contentPreview, // Depend on the derived preview content
     language,
     item?.filePath,
     requestHighlighting,
     highlightCache,
     showFull,
-    index,
     item,
   ]);
 
@@ -292,10 +295,17 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
 
   const handleCopyClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (item.content) {
-      onCopyContent(item.content);
+    // Use cached content if available
+    if (contentInfo.status === "loaded" && contentInfo.content) {
+      onCopyContent(contentInfo.content);
+    } else {
+      // Optionally handle cases where content isn't loaded yet
+      console.warn("Content not loaded for copying:", item.filePath);
     }
   };
+
+  // Determine if content is available for the copy button
+  const canCopy = contentInfo.status === "loaded" && !!contentInfo.content;
 
   return (
     <div
@@ -318,7 +328,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
             caseSensitive={filterCaseSensitive}
           />
         </span>
-        {item.content && (
+        {/* Only show copy button if content is loaded or could be loaded */}
+        {!item.readError && (
           <Button
             variant="ghost"
             size="icon"
@@ -326,6 +337,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
             onClick={handleCopyClick}
             title={t("results:copyFileContentButton")}
             aria-label={t("results:copyFileContentButton")}
+            disabled={!canCopy} // Disable if content not loaded
           >
             <Copy className="h-3.5 w-3.5" />
           </Button>
@@ -334,11 +346,27 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
       {/* Content Area */}
       {isExpanded && (
         <div className="pl-[2.1rem] pr-2 py-1 bg-background text-left box-border">
+          {/* Handle initial read error */}
           {item.readError ? (
             <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
               {t(`errors:${item.readError}`, { defaultValue: item.readError })}
             </span>
-          ) : typeof contentPreview === "string" ? (
+          ) : // Handle content loading states
+          contentInfo.status === "loading" ? (
+            <span className="flex items-center font-mono text-xs text-muted-foreground italic">
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              {t("results:loadingContent")}
+            </span>
+          ) : contentInfo.status === "error" ? (
+            <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
+              {t("results:contentError")}:{" "}
+              {t(`errors:${contentInfo.error}`, {
+                defaultValue: contentInfo.error ?? "Unknown error",
+              })}
+            </span>
+          ) : contentInfo.status === "loaded" &&
+            typeof contentPreview === "string" ? (
+            // Content loaded, handle highlighting
             <>
               <pre className="m-0 text-left w-full font-mono text-xs leading-normal text-foreground whitespace-pre-wrap break-all">
                 {language === "plaintext" ? (
@@ -358,7 +386,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
                     dangerouslySetInnerHTML={{ __html: highlightInfo.html }}
                   />
                 ) : (
-                  <code>{contentPreview}</code>
+                  <code>{contentPreview}</code> // Fallback if highlighting fails silently
                 )}
               </pre>
               {showShowMoreButton && (
@@ -375,8 +403,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
               )}
             </>
           ) : (
+            // Fallback for idle state or null content after load
             <span className="block font-mono text-xs text-muted-foreground italic">
-              {/* No content */}
+              {item.matched
+                ? t("results:noContentPreview")
+                : t("results:notMatched")}
             </span>
           )}
         </div>
@@ -387,14 +418,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
 
 // --- Main ResultsDisplay Component ---
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
-  results,
-  filteredTextLines,
   filteredStructuredItems,
   summary,
   viewMode,
   itemDisplayStates,
   itemDisplayVersion,
-  onCopy,
   onToggleExpand,
   onShowFullContent,
   isFilterActive,
@@ -402,25 +430,48 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   filterCaseSensitive,
 }) => {
   const { t } = useTranslation(["results", "errors"]);
-  const [copyStatus, setCopyStatus] = useState<string>("");
   const [exportStatus, setExportStatus] = useState<string>("");
   const [copyFileStatus, setCopyFileStatus] = useState<string>("");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
-  const textListRef = useRef<List<TextRowData>>(null);
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
   const workerRef = useRef<Worker | null>(null);
   const highlightCacheRef = useRef<HighlightCache>(new Map());
   const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
+  const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
+  const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
 
-  const isOriginalResultLarge = useMemo(
-    () => results.split("\n").length > LARGE_RESULT_LINE_THRESHOLD,
-    [results]
-  );
+  // Function to request content for a specific file
+  const requestContent = useCallback(async (filePath: string) => {
+    // Check if already loading or loaded
+    const existing = contentCacheRef.current.get(filePath);
+    if (existing?.status === "loading" || existing?.status === "loaded") {
+      return;
+    }
 
-  const textItemData: TextRowData = useMemo(
-    () => ({ lines: filteredTextLines, filterTerm, filterCaseSensitive }),
-    [filteredTextLines, filterTerm, filterCaseSensitive]
-  );
+    // Set status to loading
+    contentCacheRef.current.set(filePath, { status: "loading" });
+    setContentUpdateCounter((prev) => prev + 1); // Trigger re-render
+
+    try {
+      if (!window.electronAPI?.invokeGetFileContent) {
+        throw new Error("API function invokeGetFileContent not available.");
+      }
+      const result = await window.electronAPI.invokeGetFileContent(filePath);
+      contentCacheRef.current.set(filePath, {
+        status: result.error ? "error" : "loaded",
+        content: result.content,
+        error: result.error,
+      });
+    } catch (error) {
+      console.error(`Failed to invoke getFileContent for ${filePath}:`, error);
+      contentCacheRef.current.set(filePath, {
+        status: "error",
+        error: "ipcError", // Generic IPC error key
+      });
+    } finally {
+      setContentUpdateCounter((prev) => prev + 1); // Trigger re-render again
+    }
+  }, []);
 
   const requestHighlighting = useCallback(
     (filePath: string, code: string, language: string, forceUpdate = false) => {
@@ -489,6 +540,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       highlightCache: highlightCacheRef.current,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
+      contentCache: contentCacheRef.current, // Pass content cache
+      requestContent: requestContent, // Pass request function
     };
   }, [
     filteredStructuredItems,
@@ -500,6 +553,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     filterCaseSensitive,
     requestHighlighting,
     handleCopyFileContent,
+    contentUpdateCounter,
+    requestContent,
   ]);
 
   const getTreeItemSize = useCallback(
@@ -514,17 +569,29 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
       if (!isExpanded) return TREE_ITEM_HEADER_HEIGHT;
 
+      // Calculate size based on cached content or loading/error state
+      const contentInfo =
+        contentCacheRef.current.get(item.filePath) ?? defaultContentEntry;
       let contentLineCount = 0;
+
       if (item.readError) {
-        contentLineCount = 2;
-      } else if (item.content) {
-        const lines = item.content.split("\n").length;
+        contentLineCount = 1; // Space for the initial read error message
+      } else if (contentInfo.status === "loading") {
+        contentLineCount = 1; // Space for loading indicator
+      } else if (contentInfo.status === "error") {
+        contentLineCount = 1; // Space for error message
+      } else if (
+        contentInfo.status === "loaded" &&
+        typeof contentInfo.content === "string"
+      ) {
+        const lines = contentInfo.content.split("\n").length;
         contentLineCount =
           lines > MAX_PREVIEW_LINES && !showFull ? MAX_PREVIEW_LINES : lines;
       } else {
-        contentLineCount = 1;
+        contentLineCount = 1; // Space for "Not Matched" or "No Content"
       }
 
+      // Add extra line for highlight status if needed
       const highlightInfo = highlightCacheRef.current.get(item.filePath);
       if (
         highlightInfo?.status === "pending" ||
@@ -533,9 +600,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         contentLineCount += 1;
       }
 
+      // Check if show more button is needed based on *actual* content length
       const showShowMoreButton =
-        item.content &&
-        item.content.split("\n").length > MAX_PREVIEW_LINES &&
+        contentInfo.status === "loaded" &&
+        typeof contentInfo.content === "string" &&
+        contentInfo.content.split("\n").length > MAX_PREVIEW_LINES &&
         !showFull;
       const showMoreButtonHeight = showShowMoreButton
         ? SHOW_MORE_BUTTON_HEIGHT
@@ -549,7 +618,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         TREE_ITEM_PADDING_Y
       );
     },
-    [filteredStructuredItems, itemDisplayStates]
+    [filteredStructuredItems, itemDisplayStates, contentUpdateCounter] // Depend on contentUpdateCounter
   );
 
   // Effect for initializing and terminating the worker
@@ -601,47 +670,27 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     };
   }, []); // Empty dependency array ensures this runs only on mount and unmount
 
-  // Effect to clear highlight cache when results change
+  // Effect to clear highlight and content caches when results change
   useEffect(() => {
     highlightCacheRef.current.clear();
+    contentCacheRef.current.clear(); // Clear content cache too
     setHighlightUpdateCounter(0);
-  }, [results]);
+    setContentUpdateCounter(0); // Reset content counter
+  }, [filteredStructuredItems]); // Depend on the results structure
 
   // Effect to reset list scroll/size when view mode or data changes significantly
   useEffect(() => {
-    if (viewMode === "tree" && treeListRef.current) {
+    if (treeListRef.current) {
       treeListRef.current.resetAfterIndex(0, true);
-    }
-    if (viewMode === "text" && textListRef.current && isFilterActive) {
-      textListRef.current.scrollToItem(0);
     }
   }, [
     viewMode,
     itemDisplayVersion,
     highlightUpdateCounter,
+    contentUpdateCounter,
     isFilterActive,
-    filteredTextLines,
     filteredStructuredItems,
   ]);
-
-  // Wrapper functions for promise-based onClick handlers
-  const handleCopyAllResults = () => {
-    setCopyStatus(t("copyButtonCopying"));
-    onCopy()
-      .then(({ success }) => {
-        let statusKey = success ? "copyButtonSuccess" : "copyButtonFailed";
-        if (success && isOriginalResultLarge) {
-          statusKey = "copyButtonTruncated";
-        }
-        setCopyStatus(t(statusKey));
-      })
-      .catch(() => {
-        setCopyStatus(t("copyButtonFailed"));
-      })
-      .finally(() => {
-        setTimeout(() => setCopyStatus(""), 5000);
-      });
-  };
 
   // --- Handle Export ---
   const handleExport = () => {
@@ -658,6 +707,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
 
     setExportStatus(t("exportButtonExporting"));
+    // Pass items *without* content for export
     window.electronAPI
       .exportResults(filteredStructuredItems, exportFormat)
       .then(({ success, error }) => {
@@ -684,16 +734,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       });
   };
 
+  // Simplified summary logic as text view is non-functional
   const getSummaryLabelKey = (): string => {
-    if (viewMode === "text")
-      return isFilterActive ? "summaryTotalLinesFiltered" : "summaryTotalLines";
-    else
-      return isFilterActive ? "summaryTotalFilesFiltered" : "summaryTotalFiles";
+    return isFilterActive ? "summaryTotalFilesFiltered" : "summaryTotalFiles";
   };
-  const summaryCount =
-    viewMode === "text"
-      ? filteredTextLines.length
-      : (filteredStructuredItems?.length ?? 0);
+  const summaryCount = filteredStructuredItems?.length ?? 0;
 
   return (
     <div className="mt-6 p-4 border border-border rounded-lg bg-card flex flex-col flex-grow min-h-[300px] overflow-hidden">
@@ -713,33 +758,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <span className="ml-auto text-xs text-primary">{copyFileStatus}</span>
         )}
       </div>
-      {isOriginalResultLarge && (
-        <p
-          className={cn(
-            "p-3 rounded-md border text-sm mb-4 shrink-0 flex items-center",
-            "bg-amber-100 border-amber-300 text-amber-800"
-          )}
-        >
-          <AlertTriangle className="inline h-4 w-4 mr-2 shrink-0" />
-          <span>{t("clipboardWarning")}</span>
-        </p>
-      )}
       <div className="flex-grow border border-border rounded-md bg-background overflow-hidden min-h-[200px]">
         <AutoSizer>
           {({ height, width }) =>
-            viewMode === "text" ? (
-              <List
-                ref={textListRef}
-                height={height}
-                itemCount={filteredTextLines.length}
-                itemSize={TEXT_BLOCK_LINE_HEIGHT}
-                width={width}
-                itemData={textItemData}
-                overscanCount={10}
-              >
-                {TextRow}
-              </List>
-            ) : treeItemData ? (
+            // Always render Tree View (or null if no data)
+            treeItemData ? (
               <VariableSizeList
                 ref={treeListRef}
                 height={height}
@@ -751,8 +774,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 estimatedItemSize={
                   TREE_ITEM_HEADER_HEIGHT + TREE_ITEM_CONTENT_LINE_HEIGHT * 5
                 }
+                // Update itemKey to depend on content/highlight updates too
                 itemKey={(index, data) =>
-                  `${data.items[index]?.filePath ?? index}-${itemDisplayVersion}`
+                  `${data.items[index]?.filePath ?? index}-${itemDisplayVersion}-${highlightUpdateCounter}-${contentUpdateCounter}`
                 }
               >
                 {TreeRow}
@@ -763,14 +787,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       </div>
       {/* --- Export/Copy Area --- */}
       <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0">
-        <Button
-          onClick={handleCopyAllResults}
-          disabled={!results || !!copyStatus}
-          variant="outline"
-        >
-          <Copy className="mr-2 h-4 w-4" />
-          {copyStatus || t("copyButton")}
-        </Button>
         <div className="flex items-center gap-2">
           <Label htmlFor="exportFormatSelect" className="text-sm shrink-0">
             {t("exportFormatLabel")}
