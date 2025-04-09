@@ -23,6 +23,8 @@ This guide provides technical information for developers working on or contribut
   - [Theming](#theming)
   - [Search History](#search-history)
   - [Exporting Results](#exporting-results)
+  - [On-Demand Content Loading](#on-demand-content-loading)
+  - [Copying Results](#copying-results)
 - [Building for Distribution](#building-for-distribution)
 - [Security Considerations](#security-considerations)
 - [Code Style & Linting](#code-style--linting)
@@ -126,7 +128,7 @@ file-content-aggregator/
 
 ### Electron Main vs. Renderer
 
-- **Main Process (`src/electron/main.ts`):** Runs in a Node.js environment. Has access to all Node.js APIs and Electron APIs for managing windows, menus, dialogs, system events, etc. It orchestrates the application lifecycle and performs backend tasks like file searching and exporting results.
+- **Main Process (`src/electron/main.ts`):** Runs in a Node.js environment. Has access to all Node.js APIs and Electron APIs for managing windows, menus, dialogs, system events, etc. It orchestrates the application lifecycle and performs backend tasks like file searching, exporting results, reading individual file contents on demand, and generating formatted content for copying.
 - **Renderer Process (`src/ui/main.tsx` & components):** Runs the web page (`index.html`) inside a Chromium window. This is where the React UI lives. It _does not_ have direct access to Node.js or most Electron APIs for security reasons.
 
 ### Preload Script & Context Isolation
@@ -144,7 +146,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Renderer calls `window.electronAPI.invokeSomething(args)`.
   - Preload script uses `ipcRenderer.invoke('channel', args)`.
   - Main process listens with `ipcMain.handle('channel', async (event, args) => { ... return result; })`.
-  - _Examples:_ `search-files`, `export-results`, `get-initial-language`, `get-theme-preference`, history handlers, `copy-to-clipboard`.
+  - _Examples:_ `search-files`, `export-results`, `get-initial-language`, `get-theme-preference`, history handlers, `copy-to-clipboard`, `get-file-content`, `generate-export-content`, settings handlers.
 - **Main -> Renderer (Send):** Used for updates or events initiated by the main process.
   - Main process uses `mainWindow.webContents.send('channel', data)`.
   - Preload script sets up a listener using `ipcRenderer.on('channel', listener)` and exposes a handler function via `contextBridge` (e.g., `onSearchProgress`, `onThemePreferenceChanged`).
@@ -192,10 +194,11 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Handles proximity search (`NEAR`) logic within the AST evaluation.
   - Accepts and checks a `checkCancellation` function periodically.
   - Sends progress updates via the `progressCallback`.
+  - **Memory Optimization:** The function no longer reads or returns the full content of matched files in the main result set. It only returns metadata (`filePath`, `matched`, `readError`).
 - **Internationalization (i18n):**
   - UI: Configured in `src/ui/i18n.ts`, uses `HttpApi` backend to load locales from `/public/locales`. `useTranslation` hook used in components. Language preference synced with `main.ts` via IPC.
   - Main: Separate `i18next` instance configured in `main.ts`, uses `i18next-fs-backend` to load locales for dialogs.
-- **UI State Management:** Primarily uses standard React hooks (`useState`, `useCallback`, `useEffect`, `useMemo`). Global state like search results, progress, errors, history, and settings are managed in the root `App.tsx` component and passed down as props.
+- **UI State Management:** Primarily uses standard React hooks (`useState`, `useCallback`, `useEffect`, `useMemo`). Global state like search results, progress, errors, history, and settings are managed in the root `App.tsx` component and passed down as props. Content for individual files in the tree view is fetched on demand and managed within `ResultsDisplay.tsx`.
 - **Theming:**
   - Initialization: The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` _before_ the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
   - Updates: The `ThemeHandler` component (`src/ui/ThemeManager.tsx`) listens for subsequent theme preference changes (via IPC `theme-preference-changed`) and OS theme changes (if preference is "System"). It calls `applyTheme` to update the `<html>` class when these changes occur.
@@ -207,11 +210,22 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
   - Loading: When loading a history entry in `SearchForm.tsx`, the `structuredQuery` property (stored as `unknown`) is validated using the `isQueryStructure` type guard (`src/ui/queryBuilderUtils.ts`) before being set in the component's state, ensuring type safety.
 - **Exporting Results:**
-  - The `export-results` IPC handler in `main.ts` takes the structured results data and the desired format (CSV, JSON, Markdown).
-  - It uses helper functions (`generateCsv`, `generateJson`, `generateMarkdown`) to format the data.
+  - The `export-results` IPC handler in `main.ts` takes the structured results data (which *does not* include file content) and the desired format (TXT, CSV, JSON, Markdown).
+  - It uses helper functions (`generateTxt`, `generateCsv`, `generateJson`, `generateMarkdown`) to format the data based on file path, match status, and read errors.
   - It prompts the user for a save location using `dialog.showSaveDialog`.
   - It writes the generated content to the selected file using `fs.writeFile`.
   - Error Handling: If an error occurs during content generation (e.g., JSON serialization failure), the specific error message is now included in the `dialog.showErrorBox` presented to the user, aiding debugging. File write errors are also handled.
+- **On-Demand Content Loading:**
+  - A new IPC channel `get-file-content` is handled in `main.ts`.
+  - The renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` when a user expands an item in the tree view.
+  - The main process reads only the requested file's content and returns it (or an error).
+  - `ResultsDisplay.tsx` uses a `contentCache` Ref to store fetched content and manage loading/error states for individual tree items.
+- **Copying Results:**
+  - The "Copy Results" button in `ResultsDisplay.tsx` triggers the `handleCopyResults` function.
+  - This function calls the `generate-export-content` IPC handler in `main.ts`, passing the current `filteredStructuredItems` and the selected `exportFormat`.
+  - The main process generates the content string in the requested format (without saving to disk) and returns it to the renderer.
+  - The renderer then uses the `copy-to-clipboard` IPC handler to place the generated string onto the system clipboard.
+  - A warning is shown if the number of items being copied is large, as the resulting string might exceed clipboard limits.
 
 ## Building for Distribution
 

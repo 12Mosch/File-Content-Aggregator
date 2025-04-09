@@ -155,12 +155,12 @@ const electronAPI = {
    */
   cancelSearch: (): void => ipcRenderer.send("cancel-search"),
 
-  // --- Export Method (Renderer -> Main -> Renderer) ---
+  // --- Export/Copy Methods (Renderer -> Main -> Renderer) ---
 
   /**
-   * Invokes the export results functionality in the main process.
+   * Invokes the export results functionality in the main process (saves to file).
    * @param items The structured data items to export (should not contain full content).
-   * @param format The desired export format ('csv', 'json', 'md').
+   * @param format The desired export format ('txt', 'csv', 'json', 'md').
    * @returns A promise resolving with an object indicating success or failure (with an optional error message).
    */
   exportResults: (
@@ -169,7 +169,19 @@ const electronAPI = {
   ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("export-results", items, format),
 
-  // --- Get File Content Method ---
+  /**
+   * Invokes the main process to generate the export content string for the given format.
+   * Used for the "Copy to Clipboard" functionality.
+   * @param items The structured data items.
+   * @param format The desired export format.
+   * @returns A promise resolving with the generated content string or an error.
+   */
+  invokeGenerateExportContent: (
+    items: StructuredItem[],
+    format: ExportFormat
+  ): Promise<{ content: string | null; error?: string }> =>
+    ipcRenderer.invoke("generate-export-content", items, format),
+
   /**
    * Invokes the main process to read the content of a specific file.
    * @param filePath The absolute path to the file.
@@ -179,6 +191,14 @@ const electronAPI = {
     filePath: string
   ): Promise<{ content: string | null; error?: string }> =>
     ipcRenderer.invoke("get-file-content", filePath),
+
+  // --- Settings Methods ---
+  /** Gets the default export format preference. */
+  getDefaultExportFormat: (): Promise<ExportFormat> =>
+    ipcRenderer.invoke("get-default-export-format"),
+  /** Sets the default export format preference. */
+  setDefaultExportFormat: (format: ExportFormat): Promise<void> =>
+    ipcRenderer.invoke("set-default-export-format", format),
 };
 
 // --- Expose API to Renderer ---

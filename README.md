@@ -21,16 +21,16 @@ A cross-platform desktop application built with Electron and React to efficientl
   - **Boolean Logic:** Combine terms and expressions using `AND`, `OR`, `NOT`, and parentheses `()`.
   - **Proximity Search:** Find terms near each other using `NEAR(term1, term2, distance)` (e.g., `NEAR(error, database, 5)` finds "error" within 5 words of "database").
 - **Efficient Results Display:**
-  - **Text Block View:** Shows concatenated content of matching files.
-  - **Tree View:** Lists all processed files, showing content previews for matches or error messages for non-matches/read errors.
+  - **Tree View:** Lists all processed files, showing content previews (fetched on demand) for matches or error messages for non-matches/read errors.
   - **Virtualization:** Uses `react-window` and `react-virtualized-auto-sizer` to handle potentially huge numbers of files and large result sets smoothly.
   - **Syntax Highlighting:** Highlights code snippets in the tree view using `highlight.js` in a web worker for performance.
-  - **Results Filtering:** Filter the displayed results (both text and tree views) on the fly.
-  - **Copy & Export:** Copy individual file content or all results (text block view) to the clipboard. Export all processed results (tree view data) to **CSV**, **JSON**, or **Markdown** files.
+  - **Results Filtering:** Filter the displayed results (tree view) on the fly based on file path or error messages.
+  - **Copy & Export:** Copy individual file content or all results (formatted as **TXT**, **CSV**, **JSON**, or **Markdown**) to the clipboard. Export all processed results (metadata and status) to **TXT**, **CSV**, **JSON**, or **Markdown** files.
 - **Application Features:**
-  - **Search History:** Automatically saves searches; view, load, filter, name, favorite, and delete past searches.
+  - **Search History:** Automatically saves searches (de-duplicates identical searches); view, load, filter, name, favorite, and delete past searches.
   - **Internationalization (i18n):** Supports multiple languages (Currently: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian). Uses `i18next`.
   - **Theming:** Supports Light, Dark, and System Default themes using Tailwind CSS and `shadcn/ui`.
+  - **Settings:** Configure language, theme, and default export format.
   - **Progress & Cancellation:** Real-time progress bar during search with the ability to cancel ongoing searches.
 - **Security Focused:**
   - Built with Electron's security best practices in mind (Context Isolation, Sandbox enabled).
@@ -56,10 +56,10 @@ Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub R
     - Set optional filters like **Max Depth**, **Date Modified**, and **File Size**.
     - _(Note: Date input supports `DD.MM.YYYY` format via keyboard)_.
 3.  Click **Search Files**.
-4.  View progress and results. Use the **Cancel Search** button if needed.
-5.  Switch between **Text Block** and **Tree View** using the radio buttons.
-6.  Use the **Filter Results** input to narrow down the displayed results.
-7.  Use the **Copy to Clipboard** button (for Text Block view) or the **Export Format** dropdown and **Save Results As...** button (exports all processed files' data) below the results. Use the copy icon in the Tree View header to copy individual file content.
+4.  View progress and results in the **Tree View**. Use the **Cancel Search** button if needed.
+5.  Expand items in the Tree View (`▶`/`▼`) to see content previews (if matched and readable).
+6.  Use the **Filter Results** input to narrow down the displayed files based on path or error.
+7.  Use the **Export Format** dropdown (TXT, CSV, JSON, MD) and the **Copy Results** button to copy the formatted list of all processed files to the clipboard (⚠️ may be truncated for very large result sets). Use the **Save Results As...** button to save the formatted list to a file. Use the copy icon (📄) in an expanded item's header to copy only that specific file's content.
 8.  Access **Settings** (⚙️) or **Search History** (🕒) using the buttons in the header.
 
 ## Development

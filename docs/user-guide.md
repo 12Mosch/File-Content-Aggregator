@@ -12,7 +12,7 @@ Welcome to the File Content Aggregator! This guide will help you install, config
   - [Running and Cancelling Searches](#running-and-cancelling-searches)
 - [Understanding Results](#understanding-results)
   - [Results Summary](#results-summary)
-  - [View Modes (Text Block vs. Tree View)](#view-modes-text-block-vs-tree-view)
+  - [Results View (Tree View)](#results-view-tree-view)
   - [Filtering Results](#filtering-results)
   - [Copying and Exporting Results](#copying-and-exporting-results)
 - [Search History](#search-history)
@@ -41,7 +41,7 @@ Download the latest version for your operating system from the [**GitHub Release
 
 When you launch the application, you'll see the main window:
 
-![Main window of the application](./assets/AppScreenshot.png)
+![Main window of the application](./Screenshots/AppScreenshot.png)
 
 1.  **Header:** Contains the application title and buttons to access Search History (🕒) and Settings (⚙️).
 2.  **Search Form:** This is where you define all your search criteria.
@@ -151,27 +151,22 @@ Above the results display, you'll see a summary:
 - **Files Found (Initial):** The total number of files matching your path and extension filters _before_ content/metadata filtering.
 - **Files Processed:** The number of files whose content or metadata was actually checked against your criteria.
 - **File Read Errors:** The number of files that couldn't be read due to permissions or other issues (details shown in the error section below the form if any occurred).
-- **Total Files/Lines:** The count of items currently displayed in the results view (changes based on View Mode and filtering).
+- **Total Files:** The count of items currently displayed in the results view (changes based on filtering).
 
-### View Modes (Text Block vs. Tree View)
+### Results View (Tree View)
 
-Use the radio buttons above the results to switch views:
+The results are displayed in a Tree View:
 
-- **Text Block:**
-  - Shows the concatenated content of all files that matched your _content query_.
-  - If no content query was used, this view might be empty or show all content depending on implementation details.
-  - Useful for quickly scanning matched content together.
-- **Tree View:**
-  - Lists _all_ files that were processed (passed initial path/extension/metadata filters).
-  - Click the arrow (`▶`/`▼`) or the file path to expand/collapse an item.
-  - **Matched Files:** Show a preview of their content (syntax highlighted where possible). If content is long, a "Show More" button appears.
-  - **Non-Matching Files:** Show only the file path (content preview is hidden).
-  - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
-  - **Copy Icon:** Click the copy icon (📄) in the header of an expanded item to copy _only that file's_ full content to the clipboard.
+- Lists _all_ files that were processed (passed initial path/extension/metadata filters).
+- Click the arrow (`▶`/`▼`) or the file path to expand/collapse an item and view its content preview (if available).
+- **Matched Files:** Show a preview of their content (syntax highlighted where possible). If content is long, a "Show More" button appears.
+- **Non-Matching Files:** Show only the file path (content preview is hidden).
+- **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
+- **Copy Icon:** Click the copy icon (📄) in the header of an expanded item to copy _only that file's_ full content to the clipboard.
 
 ### Filtering Results
 
-- Use the **Filter Results** input box above the results display to quickly filter the _currently displayed_ results in either view mode.
+- Use the **Filter Results** input box above the results display to quickly filter the _currently displayed_ results in the Tree View.
 - Check the **Case-Sensitive** box next to it to make the filter match case.
 - This filter operates _only_ on the results already found by the main search; it doesn't perform a new file system search.
 
@@ -179,13 +174,15 @@ Use the radio buttons above the results to switch views:
 
 Below the results display area, you'll find options to copy or save the results:
 
-- **Copy to Clipboard:** Copies the _entire content_ currently shown in the **Text Block** view to your clipboard.
-  - ⚠️ **Warning:** If the total result size is very large, the content might be truncated by your operating system's clipboard limits. A warning message will appear above the results if this is likely. Use the export option for large results.
-- **Export Format:** Select the desired format for exporting the results:
-  - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (content or error message). Suitable for spreadsheets.
-  - **JSON:** Creates a JSON file containing an array of all processed files, including their path, content (if matched), and any read errors. Suitable for programmatic use.
-  - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its content or error message in a code block. Suitable for documentation or readable reports.
+- **Export Format:** Select the desired format for copying or exporting the results:
+  - **TXT:** Creates a simple text file listing file paths and statuses.
+  - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (error message). Suitable for spreadsheets.
+  - **JSON:** Creates a JSON file containing an array of all processed files, including their path, match status, and any read errors. Suitable for programmatic use.
+  - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status or error message. Suitable for documentation or readable reports.
+  _Note: File content is not included in exports to manage memory; view content within the app._
 - **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (the data underlying the Tree View) to a file in the selected **Export Format**. This is the recommended way to export large or structured results.
+- **Copy Results:** Copies the data for _all processed files_ (formatted according to the selected **Export Format**) to your clipboard.
+  - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option for large results.
 
 ## Search History
 
@@ -209,6 +206,7 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - `Light`: Light background, dark text.
   - `Dark`: Dark background, light text.
   - `System Default`: Automatically matches your operating system's light/dark mode setting.
+- **Default Export Format:** Choose the format (TXT, CSV, JSON, MD) that will be selected by default when copying or exporting results. TXT is the initial default.
 
 ## Troubleshooting
 
@@ -218,7 +216,7 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - Make sure your **Exclude** patterns aren't accidentally excluding the files you want.
   - Simplify your **Content Query** or remove it temporarily to see if files are found based on path/extension alone. Check query syntax carefully (quotes, slashes for regex, NEAR format).
   - Ensure **Date** and **Size** filters aren't too restrictive.
-- **Permission Denied Errors:** The application needs read access to the directories and files you are searching. If searching system-protected areas, you might need to adjust folder permissions (consult your OS documentation). Avoid running the application with elevated privileges (like `sudo` or "Run as Administrator") unless absolutely necessary and you understand the security implications.
+- **Permission Denied Errors:** The application needs read access to the directories and files you are searching. If searching system-protected areas, you might need to adjust folder permissions (consult your OS documentation). Avoid running the application with elevated privileges (like `sudo` or "Run as Administrator") unless absolutely necessary and you understand the security implications. The application attempts to filter out permission errors for folders you've explicitly excluded.
 - **Search is Very Slow:**
   - Searching large directories (like `C:\` or `/`) or directories with millions of files will take time.
   - Complex regular expressions in the content query can be slow.
@@ -226,6 +224,7 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - Use **Exclude Folders** effectively (e.g., `node_modules`, build output folders, backup folders).
 - **UI Glitches / Freezes:** Try restarting the application. If the problem persists, report it.
 - **Export Fails:** Ensure you have write permissions for the location where you are trying to save the file. Check for error messages displayed by the application.
+- **Copy Fails / Seems Incomplete:** The total size of the formatted results might exceed your system's clipboard limit. Use the "Save Results As..." option instead for large result sets.
 
 ## Feedback and Support
 

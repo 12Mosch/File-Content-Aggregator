@@ -40,6 +40,7 @@ const fallbackLngMain = "en";
 const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_STORE_KEY = "searchHistory";
 const THEME_PREFERENCE_KEY = "themePreference";
+const DEFAULT_EXPORT_FORMAT_KEY = "defaultExportFormat";
 type ThemePreference = "light" | "dark" | "system";
 
 // Use the SearchParams type defined in vite-env.d.ts for history storage
@@ -74,11 +75,18 @@ const schema = {
     enum: ["light", "dark", "system"],
     default: "system",
   },
+  // setting for default export format
+  [DEFAULT_EXPORT_FORMAT_KEY]: {
+    type: "string",
+    enum: ["txt", "csv", "json", "md"],
+    default: "txt",
+  },
 };
 const store = new Store<{
   userLanguage?: string;
   searchHistory: SearchHistoryEntry[];
   themePreference: ThemePreference;
+  defaultExportFormat: ExportFormat;
 }>({ schema });
 
 const i18nMain = i18next.createInstance();
@@ -424,6 +432,27 @@ function generateMarkdown(items: StructuredItem[]): string {
       return `## ${item.filePath}${status}\n\n\`\`\`\n${details}\n\`\`\`\n`;
     })
     .join("\n---\n\n"); // Separate entries with a horizontal rule
+}
+
+/**
+ * Generates plain text content from structured items.
+ * Similar to Markdown but without the formatting.
+ */
+function generateTxt(items: StructuredItem[]): string {
+  return items
+    .map((item) => {
+      const status = item.readError
+        ? ` (Status: Read Error - ${item.readError})`
+        : item.matched
+          ? " (Status: Matched)"
+          : " (Status: Not Matched)";
+      const details = item.readError
+        ? `Error: ${item.readError}`
+        : "Content not included in export (view in app).";
+
+      return `${item.filePath}${status}\n${details}\n`;
+    })
+    .join("\n----------------------------------------\n\n"); // Separator
 }
 
 // --- Search History Helper ---
@@ -937,6 +966,10 @@ ipcMain.handle(
         fileExtension = "md";
         fileTypeName = "Markdown Files";
         break;
+      case "txt":
+        fileExtension = "txt";
+        fileTypeName = "Text Files";
+        break;
       case "csv":
       default:
         fileExtension = "csv";
@@ -976,6 +1009,9 @@ ipcMain.handle(
             break;
           case "md":
             content = generateMarkdown(items);
+            break;
+          case "txt":
+            content = generateTxt(items);
             break;
           case "csv":
           default:
@@ -1057,5 +1093,102 @@ ipcMain.handle(
       // Return the reason key for potential translation in the UI
       return { content: null, error: reasonKey };
     }
+  }
+);
+
+/**
+ * Handles the 'generate-export-content' IPC request.
+ * Generates the export content string based on the provided items and format,
+ * but does *not* save it. Used for the "Copy to Clipboard" functionality.
+ */
+ipcMain.handle(
+  "generate-export-content",
+  async (
+    event,
+    items: StructuredItem[],
+    format: ExportFormat
+  ): Promise<{ content: string | null; error?: string }> => {
+    if (!validateSender(event.senderFrame)) {
+      return { content: null, error: "Invalid sender." };
+    }
+    if (!items) {
+      return { content: null, error: "No items provided." };
+    }
+
+    try {
+      let content: string;
+      switch (format) {
+        case "json":
+          content = generateJson(items);
+          break;
+        case "md":
+          content = generateMarkdown(items);
+          break;
+        case "txt":
+          content = generateTxt(items);
+          break;
+        case "csv":
+        default:
+          content = generateCsv(items);
+          break;
+      }
+      return { content: content, error: undefined };
+    } catch (genError: unknown) {
+      const specificErrorMsg =
+        genError instanceof Error ? genError.message : String(genError);
+      console.error(
+        `IPC Error: Failed to generate ${format.toUpperCase()} content for copy: ${specificErrorMsg}`
+      );
+      return { content: null, error: specificErrorMsg };
+    }
+  }
+);
+
+// --- Settings Handlers ---
+
+/**
+ * Gets the default export format preference.
+ */
+ipcMain.handle("get-default-export-format", (event): Promise<ExportFormat> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve("txt"); // Default fallback
+  return new Promise((resolve) => {
+    try {
+      const format = store.get(DEFAULT_EXPORT_FORMAT_KEY, "txt");
+      resolve(format);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting default export format:",
+        error instanceof Error ? error.message : error
+      );
+      resolve("txt"); // Default fallback on error
+    }
+  });
+});
+
+/**
+ * Sets the default export format preference.
+ */
+ipcMain.handle(
+  "set-default-export-format",
+  (event, format: ExportFormat): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      if (["txt", "csv", "json", "md"].includes(format)) {
+        try {
+          store.set(DEFAULT_EXPORT_FORMAT_KEY, format);
+          console.log(`IPC: Default export format set to "${format}"`);
+        } catch (error: unknown) {
+          console.error(
+            `IPC: Error setting default export format to "${format}":`,
+            error instanceof Error ? error.message : error
+          );
+        }
+      } else {
+        console.warn(
+          `IPC: Attempted to save invalid default export format: ${format}`
+        );
+      }
+      resolve();
+    });
   }
 );

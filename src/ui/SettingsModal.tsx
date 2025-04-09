@@ -20,8 +20,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import type { ThemePreference } from "./vite-env.d";
-import { applyTheme } from "./main"; // Assuming applyTheme is exported correctly
+import type { ThemePreference, ExportFormat } from "./vite-env.d";
+import { applyTheme } from "./main";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,27 +29,36 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { t, i18n } = useTranslation(["common"]);
+  const { t, i18n } = useTranslation(["common", "results"]);
   const [currentTheme, setCurrentTheme] = useState<ThemePreference>("system");
+  const [defaultExportFormat, setDefaultExportFormat] =
+    useState<ExportFormat>("txt");
 
-  // Fetch initial theme preference when modal opens
+  // Fetch initial theme and export format preferences when modal opens
   useEffect(() => {
-    if (isOpen && window.electronAPI?.getThemePreference) {
-      // Use void operator for floating promise
-      void window.electronAPI
-        .getThemePreference()
-        .then((pref) => setCurrentTheme(pref))
-        .catch((err) =>
-          console.error("Error fetching theme pref in modal:", err)
-        );
+    if (isOpen) {
+      if (window.electronAPI?.getThemePreference) {
+        void window.electronAPI
+          .getThemePreference()
+          .then((pref) => setCurrentTheme(pref))
+          .catch((err) =>
+            console.error("Error fetching theme pref in modal:", err)
+          );
+      }
+      if (window.electronAPI?.getDefaultExportFormat) {
+        void window.electronAPI
+          .getDefaultExportFormat()
+          .then((format) => setDefaultExportFormat(format))
+          .catch((err) =>
+            console.error("Error fetching default export format:", err)
+          );
+      }
     }
   }, [isOpen]);
 
-  // --- Fix: Wrap async logic for event handlers ---
   const handleLanguageChange = (newLang: string) => {
     if (supportedLngs.includes(newLang) && newLang !== i18n.language) {
       console.log(`UI: Changing language to ${newLang}`);
-      // Use an IIAFE (Immediately Invoked Async Function Expression) or a separate async function
       const changeLang = async () => {
         try {
           await i18n.changeLanguage(newLang);
@@ -67,16 +76,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           console.error("Error changing language:", error);
         }
       };
-      void changeLang(); // Use void operator for the IIAFE call
+      void changeLang();
     }
   };
 
   const handleThemeChange = (newTheme: ThemePreference) => {
     if (newTheme !== currentTheme) {
       setCurrentTheme(newTheme);
-      applyTheme(newTheme); // Apply theme immediately (assuming this is synchronous)
+      applyTheme(newTheme);
       if (window.electronAPI?.setThemePreference) {
-        // Use an IIAFE or separate async function
         const setThemePref = async () => {
           try {
             await window.electronAPI.setThemePreference(newTheme);
@@ -84,13 +92,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             console.error("Error setting theme preference:", error);
           }
         };
-        void setThemePref(); // Use void operator
+        void setThemePref();
       } else {
         console.warn("setThemePreference API not available.");
       }
     }
   };
-  // --- End Fix ---
+
+  // Handler for changing default export format
+  const handleExportFormatChange = (newFormat: string) => {
+    const format = newFormat as ExportFormat;
+    if (format !== defaultExportFormat) {
+      setDefaultExportFormat(format);
+      if (window.electronAPI?.setDefaultExportFormat) {
+        const setFormatPref = async () => {
+          try {
+            await window.electronAPI.setDefaultExportFormat(format);
+          } catch (error) {
+            console.error("Error setting default export format:", error);
+          }
+        };
+        void setFormatPref();
+      } else {
+        console.warn("setDefaultExportFormat API not available.");
+      }
+    }
+  };
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -102,32 +129,38 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{t("settingsTitle")}</DialogTitle>
-          <DialogDescription>{t("settingsDescription")}</DialogDescription>
+          <DialogTitle>{t("common:settingsTitle")}</DialogTitle>
+          <DialogDescription>
+            {t("common:settingsDescription")}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Language Setting */}
           <div className="space-y-2">
-            <Label htmlFor="language-select">{t("languageLabel")}</Label>
+            <Label htmlFor="language-select">
+              {t("common:languageLabel")}
+            </Label>
             <Select value={i18n.language} onValueChange={handleLanguageChange}>
               <SelectTrigger id="language-select" className="w-full">
-                <SelectValue placeholder={t("languageLabel")} />
+                <SelectValue placeholder={t("common:languageLabel")} />
               </SelectTrigger>
               <SelectContent>
                 {supportedLngs.map((lng) => (
                   <SelectItem key={lng} value={lng}>
-                    {t(`lang_${lng}`)}
+                    {t(`common:lang_${lng}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
+          {/* Theme Setting */}
           <div className="space-y-2">
-            <Label>{t("themeLabel")}</Label>
+            <Label>{t("common:themeLabel")}</Label>
             <RadioGroup
               value={currentTheme}
-              onValueChange={handleThemeChange} // Pass the handler directly
+              onValueChange={handleThemeChange}
               className="space-y-2 pt-1"
             >
               <div className="flex items-center space-x-2">
@@ -136,7 +169,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   htmlFor="theme-light"
                   className="cursor-pointer font-normal"
                 >
-                  {t("themeLight")}
+                  {t("common:themeLight")}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -145,7 +178,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   htmlFor="theme-dark"
                   className="cursor-pointer font-normal"
                 >
-                  {t("themeDark")}
+                  {t("common:themeDark")}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -154,17 +187,51 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   htmlFor="theme-system"
                   className="cursor-pointer font-normal"
                 >
-                  {t("themeSystem")}
+                  {t("common:themeSystem")}
                 </Label>
               </div>
             </RadioGroup>
+          </div>
+
+          {/* Default Export Format Setting */}
+          <div className="space-y-2">
+            <Label htmlFor="default-export-format-select">
+              {t("common:defaultExportFormatLabel")}
+            </Label>
+            <Select
+              value={defaultExportFormat}
+              onValueChange={handleExportFormatChange}
+            >
+              <SelectTrigger
+                id="default-export-format-select"
+                className="w-full"
+              >
+                <SelectValue
+                  placeholder={t("common:defaultExportFormatLabel")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="txt">
+                  {t("results:exportFormatTXT")}
+                </SelectItem>
+                <SelectItem value="csv">
+                  {t("results:exportFormatCSV")}
+                </SelectItem>
+                <SelectItem value="json">
+                  {t("results:exportFormatJSON")}
+                </SelectItem>
+                <SelectItem value="md">
+                  {t("results:exportFormatMD")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
-              {t("closeButton")}
+              {t("common:closeButton")}
             </Button>
           </DialogClose>
         </DialogFooter>

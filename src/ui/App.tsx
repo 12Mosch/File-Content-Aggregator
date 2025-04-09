@@ -20,13 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from "@/lib/utils";
 
 import "./index.css";
 
-// Removed: No longer needed as aggregated text results aren't stored
-// const LARGE_RESULT_LINE_THRESHOLD_APP = 100000;
 type GroupedErrors = { [reasonKey: string]: string[] };
 interface ItemDisplayState {
   expanded: boolean;
@@ -54,7 +50,6 @@ function App() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<"text" | "tree">("tree"); // Default to tree view now
   const [itemDisplayStates, setItemDisplayStates] = useState<ItemDisplayStates>(
     new Map()
   );
@@ -220,7 +215,6 @@ function App() {
   const handleSearchSubmit = useCallback(
     async (params: SearchParams) => {
       setIsLoading(true);
-      // setResults(null); // Removed
       setStructuredResults(null);
       setSearchSummary(null);
       setPathErrors([]);
@@ -230,7 +224,6 @@ function App() {
       setProgress({ processed: 0, total: 0, message: "Starting search..." });
       setGeneralError(null);
       setResultsFilterTerm("");
-      setViewMode("tree"); // Reset to tree view on new search
 
       if (
         window.electronAPI?.addSearchHistoryEntry &&
@@ -335,15 +328,6 @@ function App() {
     },
     [t]
   );
-
-  // Removed: handleCopyResults is no longer needed for aggregated text
-  // const handleCopyResults = useCallback(async (): Promise<{
-  //   success: boolean;
-  //   potentiallyTruncated: boolean;
-  // }> => { ... }, [results, t]);
-
-  // Removed: handleSaveResults is no longer needed for aggregated text
-  // const handleSaveResults = useCallback(async (): Promise<void> => { ... }, [results, t]);
 
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
@@ -545,13 +529,10 @@ function App() {
               </div>
             </div>
 
-            {/* Removed: Radio group for view mode is less relevant now */}
-            {/* <RadioGroup ... /> */}
-
             <ResultsDisplay
               filteredStructuredItems={filteredStructuredResults}
               summary={searchSummary}
-              viewMode={viewMode} // Keep for potential future use or simplified display
+              viewMode="tree" // Hardcode to tree view
               itemDisplayStates={itemDisplayStates}
               itemDisplayVersion={itemDisplayVersion}
               onToggleExpand={handleToggleExpand}

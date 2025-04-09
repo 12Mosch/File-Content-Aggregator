@@ -56,7 +56,7 @@ export type ContentSearchMode = "term" | "regex" | "boolean";
 /** Available theme preferences */
 export type ThemePreference = "light" | "dark" | "system";
 /** Available formats for exporting results */
-export type ExportFormat = "csv" | "json" | "md";
+export type ExportFormat = "txt" | "csv" | "json" | "md"; // Added 'txt'
 
 /** Parameters defining a search operation */
 interface SearchParams {
@@ -136,18 +136,27 @@ export interface IElectronAPI {
   /** Sends a request to cancel the ongoing search. */
   cancelSearch: () => void;
 
-  // Export API
+  // Export/Copy API
   /** Exports the structured search results to a file. */
   exportResults: (
     items: StructuredItem[],
     format: ExportFormat
   ) => Promise<{ success: boolean; error?: string }>;
-
-  // Get File Content API
+  /** Generates the export content string for the given format (for copy). */
+  invokeGenerateExportContent: (
+    items: StructuredItem[],
+    format: ExportFormat
+  ) => Promise<{ content: string | null; error?: string }>;
   /** Reads and returns the content of a specific file. */
   invokeGetFileContent: (
     filePath: string
   ) => Promise<{ content: string | null; error?: string }>;
+
+  // Settings API
+  /** Gets the default export format preference. */
+  getDefaultExportFormat: () => Promise<ExportFormat>;
+  /** Sets the default export format preference. */
+  setDefaultExportFormat: (format: ExportFormat) => Promise<void>;
 }
 
 // --- Global Window Augmentation ---
