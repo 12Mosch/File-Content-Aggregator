@@ -210,11 +210,12 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
   - Loading: When loading a history entry in `SearchForm.tsx`, the `structuredQuery` property (stored as `unknown`) is validated using the `isQueryStructure` type guard (`src/ui/queryBuilderUtils.ts`) before being set in the component's state, ensuring type safety.
 - **Exporting Results:**
-  - The `export-results` IPC handler in `main.ts` takes the structured results data (which *does not* include file content) and the desired format (TXT, CSV, JSON, Markdown).
-  - It uses helper functions (`generateTxt`, `generateCsv`, `generateJson`, `generateMarkdown`) to format the data based on file path, match status, and read errors.
+  - The `export-results` IPC handler in `main.ts` takes the structured results data (which *does not* include file content initially) and the desired format (TXT, CSV, JSON, Markdown).
+  - It calls `fetchContentForExport` to read the content of matched files concurrently.
+  - It then uses helper functions (`generateTxt`, `generateCsv`, etc.) to format the data *including the fetched content*.
   - It prompts the user for a save location using `dialog.showSaveDialog`.
   - It writes the generated content to the selected file using `fs.writeFile`.
-  - Error Handling: If an error occurs during content generation (e.g., JSON serialization failure), the specific error message is now included in the `dialog.showErrorBox` presented to the user, aiding debugging. File write errors are also handled.
+  - Error Handling: Errors during content fetching or generation are handled and reported.
 - **On-Demand Content Loading:**
   - A new IPC channel `get-file-content` is handled in `main.ts`.
   - The renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` when a user expands an item in the tree view.
@@ -223,8 +224,9 @@ Communication between the Main and Renderer processes happens via IPC messages:
 - **Copying Results:**
   - The "Copy Results" button in `ResultsDisplay.tsx` triggers the `handleCopyResults` function.
   - This function calls the `generate-export-content` IPC handler in `main.ts`, passing the current `filteredStructuredItems` and the selected `exportFormat`.
-  - The main process generates the content string in the requested format (without saving to disk) and returns it to the renderer.
-  - The renderer then uses the `copy-to-clipboard` IPC handler to place the generated string onto the system clipboard.
+  - The `generate-export-content` handler calls `fetchContentForExport` to read content for matched files.
+  - It then generates the content string in the requested format (including content) and returns it to the renderer.
+  - The renderer uses the `copy-to-clipboard` IPC handler to place the generated string onto the system clipboard.
   - A warning is shown if the number of items being copied is large, as the resulting string might exceed clipboard limits.
 
 ## Building for Distribution

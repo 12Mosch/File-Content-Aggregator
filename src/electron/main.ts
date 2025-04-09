@@ -16,6 +16,7 @@ import i18next from "i18next";
 import Backend from "i18next-fs-backend";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
+import type PLimit from "p-limit";
 
 import {
   searchFiles,
@@ -27,12 +28,20 @@ import {
 } from "./fileSearchService.js";
 import type {
   ExportFormat,
-  SearchParams as UISearchParams, // Use UI type for history
+  SearchParams as UISearchParams,
 } from "../ui/vite-env.js";
 
 import module from "node:module";
 const require = module.createRequire(import.meta.url);
 const mime = require("mime") as { getType: (path: string) => string | null };
+// Import p-limit correctly for use
+const pLimitModule = require("p-limit") as {
+  default?: typeof PLimit;
+  __esModule?: boolean;
+};
+const pLimit: typeof PLimit =
+  pLimitModule.default ?? (pLimitModule as typeof PLimit);
+// -------------------------------------------------------------
 
 const APP_PROTOCOL = "app";
 const supportedLngsMain = ["en", "es", "de", "ja", "fr", "pt", "ru", "it"];
@@ -42,6 +51,7 @@ const HISTORY_STORE_KEY = "searchHistory";
 const THEME_PREFERENCE_KEY = "themePreference";
 const DEFAULT_EXPORT_FORMAT_KEY = "defaultExportFormat";
 type ThemePreference = "light" | "dark" | "system";
+const EXPORT_CONTENT_READ_CONCURRENCY = 10;
 
 // Use the SearchParams type defined in vite-env.d.ts for history storage
 // This includes the structuredQuery property as 'unknown'
@@ -51,6 +61,13 @@ interface SearchHistoryEntry {
   name?: string;
   isFavorite?: boolean;
   searchParams: UISearchParams;
+}
+
+// Interface for data passed to export generation functions (includes content)
+interface ExportItem {
+  filePath: string;
+  status: "Matched" | "Not Matched" | "Read Error";
+  details: string | null;
 }
 
 const schema = {
@@ -75,7 +92,7 @@ const schema = {
     enum: ["light", "dark", "system"],
     default: "system",
   },
-  // setting for default export format
+  // New setting for default export format
   [DEFAULT_EXPORT_FORMAT_KEY]: {
     type: "string",
     enum: ["txt", "csv", "json", "md"],
@@ -372,39 +389,26 @@ function escapeCsvField(field: string | null | undefined): string {
 }
 
 /**
- * Generates CSV content from structured items.
+ * Generates CSV content from enriched export items (including content).
  */
-function generateCsv(items: StructuredItem[]): string {
+function generateCsv(items: ExportItem[]): string {
   const header = ["FilePath", "Status", "Details"];
   const rows = items.map((item) => {
-    const status = item.readError
-      ? "Read Error"
-      : item.matched
-        ? "Matched"
-        : "Not Matched";
-    // Details are only the error message now, content is fetched on demand
-    const details = item.readError ? item.readError : "";
     return [
       escapeCsvField(item.filePath),
-      escapeCsvField(status),
-      escapeCsvField(details),
+      escapeCsvField(item.status),
+      escapeCsvField(item.details),
     ].join(",");
   });
   return [header.join(","), ...rows].join("\n");
 }
 
 /**
- * Generates JSON content from structured items.
+ * Generates JSON content from enriched export items (including content).
  */
-function generateJson(items: StructuredItem[]): string {
+function generateJson(items: ExportItem[]): string {
   try {
-    // Map items to exclude content before stringifying
-    const itemsWithoutContent = items.map(({ filePath, matched, readError }) => ({
-      filePath,
-      matched,
-      readError,
-    }));
-    return JSON.stringify(itemsWithoutContent, null, 2); // Pretty-print
+    return JSON.stringify(items, null, 2);
   } catch (error: unknown) {
     console.error("Error generating JSON:", error);
     throw new Error(
@@ -414,43 +418,33 @@ function generateJson(items: StructuredItem[]): string {
 }
 
 /**
- * Generates Markdown content from structured items.
+ * Generates Markdown content from enriched export items (including content).
  */
-function generateMarkdown(items: StructuredItem[]): string {
+function generateMarkdown(items: ExportItem[]): string {
   return items
     .map((item) => {
-      const status = item.readError
-        ? ` (Status: Read Error - ${item.readError})`
-        : item.matched // Use the 'matched' flag
-          ? " (Status: Matched)"
-          : " (Status: Not Matched)";
-      // Details are only the error message now
-      const details = item.readError
-        ? `Error: ${item.readError}`
-        : "Content not included in export (view in app).";
+      const details =
+        item.status === "Read Error"
+          ? `Error: ${item.details}`
+          : item.details ?? "No content.";
 
-      return `## ${item.filePath}${status}\n\n\`\`\`\n${details}\n\`\`\`\n`;
+      return `## ${item.filePath} (Status: ${item.status})\n\n\`\`\`\n${details}\n\`\`\`\n`;
     })
     .join("\n---\n\n"); // Separate entries with a horizontal rule
 }
 
 /**
- * Generates plain text content from structured items.
- * Similar to Markdown but without the formatting.
+ * Generates plain text content from enriched export items (including content).
  */
-function generateTxt(items: StructuredItem[]): string {
+function generateTxt(items: ExportItem[]): string {
   return items
     .map((item) => {
-      const status = item.readError
-        ? ` (Status: Read Error - ${item.readError})`
-        : item.matched
-          ? " (Status: Matched)"
-          : " (Status: Not Matched)";
-      const details = item.readError
-        ? `Error: ${item.readError}`
-        : "Content not included in export (view in app).";
+      const details =
+        item.status === "Read Error"
+          ? `Error: ${item.details}`
+          : item.details ?? "No content.";
 
-      return `${item.filePath}${status}\n${details}\n`;
+      return `${item.filePath} (Status: ${item.status})\n${details}\n`;
     })
     .join("\n----------------------------------------\n\n"); // Separator
 }
@@ -936,8 +930,57 @@ ipcMain.handle(
 );
 
 /**
+ * Reads content for multiple files concurrently, respecting a limit.
+ * @param items The structured items (containing file paths) to read content for.
+ * @returns A promise resolving to an array of ExportItem objects including content or errors.
+ */
+async function fetchContentForExport(
+  items: StructuredItem[]
+): Promise<ExportItem[]> {
+  const limit = pLimit(EXPORT_CONTENT_READ_CONCURRENCY);
+  const promises = items.map((item) =>
+    limit(async (): Promise<ExportItem> => {
+      let status: ExportItem["status"] = item.readError
+        ? "Read Error"
+        : item.matched
+          ? "Matched"
+          : "Not Matched";
+      let details: string | null = item.readError ?? null; // Start with initial error
+
+      // If matched and no initial read error, try reading content now
+      if (status === "Matched") {
+        try {
+          details = await fs.readFile(item.filePath, { encoding: "utf8" });
+        } catch (readError: unknown) {
+          console.warn(
+            `Export: Failed to read content for ${item.filePath}:`,
+            readError
+          );
+          status = "Read Error";
+          details =
+            readError instanceof Error ? readError.message : String(readError);
+        }
+      } else if (status === "Read Error" && details) {
+        // If there was an initial read error, use its key as the detail
+        details = `Initial Read Error: ${details}`;
+      } else {
+        details = null;
+      }
+
+      return {
+        filePath: item.filePath,
+        status: status,
+        details: details,
+      };
+    })
+  );
+
+  return Promise.all(promises);
+}
+
+/**
  * Handles the 'export-results' IPC request.
- * Generates content in the specified format (CSV, JSON, Markdown) from the provided structured results,
+ * Fetches content for matched files, generates content in the specified format,
  * prompts the user for a save location, and writes the file.
  */
 ipcMain.handle(
@@ -978,18 +1021,23 @@ ipcMain.handle(
     }
 
     try {
+      // Fetch content for relevant items BEFORE showing save dialog
+      console.log(`Export: Fetching content for ${items.length} items...`);
+      const itemsWithContent = await fetchContentForExport(items);
+      console.log(`Export: Content fetched.`);
+
       // Ensure i18n is ready for dialogs
       await i18nMain.loadNamespaces("dialogs");
 
       // Show save dialog
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-        title: i18nMain.t("dialogs:exportDialogTitle"), // Use specific key
-        buttonLabel: i18nMain.t("dialogs:exportDialogButtonLabel"), // Use specific key
+        title: i18nMain.t("dialogs:exportDialogTitle"),
+        buttonLabel: i18nMain.t("dialogs:exportDialogButtonLabel"),
         defaultPath: `file-content-aggregator-results.${fileExtension}`,
         filters: [
           { name: fileTypeName, extensions: [fileExtension] },
           {
-            name: i18nMain.t("dialogs:exportDialogFilterAll"), // Use specific key
+            name: i18nMain.t("dialogs:exportDialogFilterAll"),
             extensions: ["*"],
           },
         ],
@@ -1000,22 +1048,22 @@ ipcMain.handle(
         return { success: false, error: "Export cancelled." };
       }
 
-      // Generate content based on format
+      // Generate content based on format using itemsWithContent
       let content: string;
       try {
         switch (format) {
           case "json":
-            content = generateJson(items);
+            content = generateJson(itemsWithContent);
             break;
           case "md":
-            content = generateMarkdown(items);
+            content = generateMarkdown(itemsWithContent);
             break;
           case "txt":
-            content = generateTxt(items);
+            content = generateTxt(itemsWithContent);
             break;
           case "csv":
           default:
-            content = generateCsv(items);
+            content = generateCsv(itemsWithContent);
             break;
         }
       } catch (genError: unknown) {
@@ -1043,10 +1091,10 @@ ipcMain.handle(
         dialog.showErrorBox("File Write Error", errorMsg);
         return { success: false, error: errorMsg };
       }
-    } catch (dialogError: unknown) {
-      const errorMsg = `Error showing save dialog for export: ${dialogError instanceof Error ? dialogError.message : String(dialogError)}`;
+    } catch (fetchOrDialogError: unknown) {
+      const errorMsg = `Error during export preparation: ${fetchOrDialogError instanceof Error ? fetchOrDialogError.message : String(fetchOrDialogError)}`;
       console.error(errorMsg);
-      dialog.showErrorBox("Dialog Error", errorMsg);
+      dialog.showErrorBox("Export Preparation Error", errorMsg);
       return { success: false, error: errorMsg };
     }
   }
@@ -1072,10 +1120,6 @@ ipcMain.handle(
 
     console.log(`IPC: Received request for content of: ${filePath}`);
     try {
-      // Basic path validation (prevent accessing outside typical areas if needed,
-      // though relying on OS permissions is primary)
-      // Example: if (!filePath.startsWith(...allowedPrefix)) throw new Error("Access denied");
-
       const content = await fs.readFile(filePath, { encoding: "utf8" });
       return { content: content, error: undefined };
     } catch (error: unknown) {
@@ -1098,7 +1142,7 @@ ipcMain.handle(
 
 /**
  * Handles the 'generate-export-content' IPC request.
- * Generates the export content string based on the provided items and format,
+ * Fetches content for matched files, generates the export content string,
  * but does *not* save it. Used for the "Copy to Clipboard" functionality.
  */
 ipcMain.handle(
@@ -1116,20 +1160,25 @@ ipcMain.handle(
     }
 
     try {
+      // Fetch content for relevant items
+      console.log(`Copy: Fetching content for ${items.length} items...`);
+      const itemsWithContent = await fetchContentForExport(items);
+      console.log(`Copy: Content fetched.`);
+
       let content: string;
       switch (format) {
         case "json":
-          content = generateJson(items);
+          content = generateJson(itemsWithContent);
           break;
         case "md":
-          content = generateMarkdown(items);
+          content = generateMarkdown(itemsWithContent);
           break;
         case "txt":
-          content = generateTxt(items);
+          content = generateTxt(itemsWithContent);
           break;
         case "csv":
         default:
-          content = generateCsv(items);
+          content = generateCsv(itemsWithContent);
           break;
       }
       return { content: content, error: undefined };
