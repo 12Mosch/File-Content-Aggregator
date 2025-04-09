@@ -191,7 +191,7 @@ Below the results display area, you'll find options to copy or save the results:
 
 Click the history icon (🕒) in the header to open the Search History modal.
 
-- **View:** See a list of your past searches, sorted by time (most recent first) and favorites.
+- **View:** See a list of your past searches, sorted by time (most recent first) and favorites. Searches with the exact same parameters will update the timestamp of the existing entry rather than creating duplicates.
 - **Load:** Click the "Load" button on an entry to repopulate the Search Form with that search's parameters.
 - **Filter:** Use the filter input at the top of the modal to quickly find past searches by name, path, query terms, etc.
 - **Name/Favorite:**

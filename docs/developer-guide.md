@@ -201,8 +201,9 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Styling: Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.
 - **Search History:**
   - IPC handlers in `main.ts` manage CRUD operations using `electron-store`.
+  - **De-duplication:** The `add-search-history-entry` handler now checks if an entry with identical `searchParams` (excluding `structuredQuery` and array order) already exists. If found, it updates the existing entry's timestamp and moves it to the top instead of adding a duplicate.
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
-  - **Loading:** When loading a history entry in `SearchForm.tsx`, the `structuredQuery` property (stored as `unknown`) is validated using the `isQueryStructure` type guard (`src/ui/queryBuilderUtils.ts`) before being set in the component's state, ensuring type safety.
+  - Loading: When loading a history entry in `SearchForm.tsx`, the `structuredQuery` property (stored as `unknown`) is validated using the `isQueryStructure` type guard (`src/ui/queryBuilderUtils.ts`) before being set in the component's state, ensuring type safety.
 - **Exporting Results:**
   - The `export-results` IPC handler in `main.ts` takes the structured results data and the desired format (CSV, JSON, Markdown).
   - It uses helper functions (`generateCsv`, `generateJson`, `generateMarkdown`) to format the data.

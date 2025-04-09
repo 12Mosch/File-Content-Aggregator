@@ -19,13 +19,16 @@ import { getPreloadPath } from "./pathResolver.js";
 
 import {
   searchFiles,
-  SearchParams,
+  SearchParams as FileSearchParams,
   ProgressData,
   SearchResult,
   CancellationChecker,
   StructuredItem,
 } from "./fileSearchService.js";
-import type { ExportFormat } from "../ui/vite-env.js";
+import type {
+  ExportFormat,
+  SearchParams as UISearchParams,
+} from "../ui/vite-env.js";
 
 import module from "node:module";
 const require = module.createRequire(import.meta.url);
@@ -39,27 +42,14 @@ const HISTORY_STORE_KEY = "searchHistory";
 const THEME_PREFERENCE_KEY = "themePreference";
 type ThemePreference = "light" | "dark" | "system";
 
+// Use the SearchParams type defined in vite-env.d.ts for history storage
+// This includes the structuredQuery property as 'unknown'
 interface SearchHistoryEntry {
   id: string;
   timestamp: string;
   name?: string;
   isFavorite?: boolean;
-  searchParams: {
-    searchPaths: string[];
-    extensions: string[];
-    excludeFiles: string[];
-    excludeFolders: string[];
-    folderExclusionMode?: "contains" | "exact" | "startsWith" | "endsWith";
-    contentSearchTerm?: string;
-    contentSearchMode?: "term" | "regex" | "boolean";
-    structuredQuery?: unknown | null;
-    caseSensitive?: boolean;
-    modifiedAfter?: string;
-    modifiedBefore?: string;
-    minSizeBytes?: number;
-    maxSizeBytes?: number;
-    maxDepth?: number;
-  };
+  searchParams: UISearchParams;
 }
 
 const schema = {
@@ -73,7 +63,7 @@ const schema = {
         timestamp: { type: "string", format: "date-time" },
         name: { type: "string" },
         isFavorite: { type: "boolean" },
-        searchParams: { type: "object" },
+        searchParams: { type: "object" }, // Keep as object for schema validation
       },
       required: ["id", "timestamp", "searchParams"],
     },
@@ -430,6 +420,58 @@ function generateMarkdown(items: StructuredItem[]): string {
     .join("\n---\n\n"); // Separate entries with a horizontal rule
 }
 
+// --- Search History Helper ---
+
+/**
+ * Compares two SearchParams objects for equality, ignoring structuredQuery and array order.
+ * @param params1 First SearchParams object.
+ * @param params2 Second SearchParams object.
+ * @returns True if the parameters are considered equal for history de-duplication.
+ */
+function areSearchParamsEqual(
+  params1: UISearchParams | undefined,
+  params2: UISearchParams | undefined
+): boolean {
+  if (!params1 || !params2) return params1 === params2;
+
+  // Compare simple properties
+  if (
+    params1.folderExclusionMode !== params2.folderExclusionMode ||
+    params1.contentSearchTerm !== params2.contentSearchTerm ||
+    params1.contentSearchMode !== params2.contentSearchMode ||
+    params1.caseSensitive !== params2.caseSensitive ||
+    params1.modifiedAfter !== params2.modifiedAfter ||
+    params1.modifiedBefore !== params2.modifiedBefore ||
+    params1.minSizeBytes !== params2.minSizeBytes ||
+    params1.maxSizeBytes !== params2.maxSizeBytes ||
+    params1.maxDepth !== params2.maxDepth
+  ) {
+    return false;
+  }
+
+  // Compare array properties (order-insensitive)
+  const compareArrays = (arr1?: string[], arr2?: string[]): boolean => {
+    const sorted1 = arr1 ? [...arr1].sort() : [];
+    const sorted2 = arr2 ? [...arr2].sort() : [];
+    return (
+      sorted1.length === sorted2.length &&
+      sorted1.every((val, index) => val === sorted2[index])
+    );
+  };
+
+  if (
+    !compareArrays(params1.searchPaths, params2.searchPaths) ||
+    !compareArrays(params1.extensions, params2.extensions) ||
+    !compareArrays(params1.excludeFiles, params2.excludeFiles) ||
+    !compareArrays(params1.excludeFolders, params2.excludeFolders)
+  ) {
+    return false;
+  }
+
+  // Ignore structuredQuery for comparison
+  return true;
+}
+
 // --- IPC Handlers ---
 
 /**
@@ -438,7 +480,7 @@ function generateMarkdown(items: StructuredItem[]): string {
  */
 ipcMain.handle(
   "search-files",
-  async (event, params: SearchParams): Promise<SearchResult> => {
+  async (event, params: FileSearchParams): Promise<SearchResult> => {
     if (!validateSender(event.senderFrame))
       return {
         output: "Error: Invalid IPC sender",
@@ -608,31 +650,60 @@ ipcMain.on("language-changed", (event, lng: string) => {
 
 /**
  * Handles the 'add-search-history-entry' IPC request.
- * Adds a new entry to the search history stored in electron-store.
+ * Adds a new entry to the search history, preventing exact duplicates based on searchParams.
+ * If a duplicate is found, it updates the timestamp of the existing entry and moves it to the top.
  */
 ipcMain.handle(
   "add-search-history-entry",
-  (event, entry: SearchHistoryEntry): Promise<void> => {
+  (event, newEntry: SearchHistoryEntry): Promise<void> => {
     if (!validateSender(event.senderFrame)) return Promise.resolve();
     return new Promise((resolve) => {
       try {
         const currentHistory = store.get(HISTORY_STORE_KEY, []);
-        const entryWithDefaults = {
-          ...entry,
-          name: entry.name ?? "",
-          isFavorite: entry.isFavorite ?? false,
-        };
-        const updatedHistory = [entryWithDefaults, ...currentHistory];
-        if (updatedHistory.length > MAX_HISTORY_ENTRIES) {
-          updatedHistory.length = MAX_HISTORY_ENTRIES;
+        let updatedHistory = [...currentHistory]; // Create a mutable copy
+
+        // Find if an entry with the same searchParams already exists
+        const existingEntryIndex = updatedHistory.findIndex((entry) =>
+          areSearchParamsEqual(entry.searchParams, newEntry.searchParams)
+        );
+
+        if (existingEntryIndex > -1) {
+          // Duplicate found: Update timestamp and move to top
+          console.log(
+            `IPC: Found duplicate history entry at index ${existingEntryIndex}. Updating timestamp.`
+          );
+          const existingEntry = updatedHistory[existingEntryIndex];
+          // Remove the old entry
+          updatedHistory.splice(existingEntryIndex, 1);
+          // Prepend the existing entry with updated timestamp, keeping original name/favorite
+          updatedHistory.unshift({
+            ...existingEntry, // Keep original ID, name, favorite, params
+            timestamp: newEntry.timestamp, // Update timestamp
+          });
+        } else {
+          // No duplicate: Add the new entry to the top
+          console.log(`IPC: Adding new history entry ${newEntry.id}.`);
+          const entryWithDefaults = {
+            ...newEntry,
+            name: newEntry.name ?? "",
+            isFavorite: newEntry.isFavorite ?? false,
+          };
+          updatedHistory.unshift(entryWithDefaults); // Add to the beginning
+
+          // Ensure history doesn't exceed the maximum size
+          if (updatedHistory.length > MAX_HISTORY_ENTRIES) {
+            updatedHistory.length = MAX_HISTORY_ENTRIES; // Trim the end
+          }
         }
+
+        // Save the potentially modified history
         store.set(HISTORY_STORE_KEY, updatedHistory);
         console.log(
-          `IPC: Added entry ${entry.id} to search history. Total: ${updatedHistory.length}`
+          `IPC: History updated. Total entries: ${updatedHistory.length}`
         );
       } catch (error: unknown) {
         console.error(
-          "IPC: Error adding search history entry:",
+          "IPC: Error adding/updating search history entry:",
           error instanceof Error ? error.message : error
         );
       }
