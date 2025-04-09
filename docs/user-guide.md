@@ -41,7 +41,7 @@ Download the latest version for your operating system from the [**GitHub Release
 
 When you launch the application, you'll see the main window:
 
-![Main window of the application](./Screenshots/AppScreenshot.png)
+![Main window of the application](./assets/AppScreenshot.png)
 
 1.  **Header:** Contains the application title and buttons to access Search History (🕒) and Settings (⚙️).
 2.  **Search Form:** This is where you define all your search criteria.
