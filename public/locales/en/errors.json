@@ -24,5 +24,6 @@
   "historyClearFailed": "Failed to clear search history.",
   "historyUpdateFailed": "Failed to update history entry.",
   "historyApiNA": "History feature is currently unavailable.",
-  "themeInitFailed": "Failed to load initial theme preference. Using system default."
+  "themeInitFailed": "Failed to load initial theme preference. Using system default.",
+  "pathTraversalError": "Traversal error in \"{{path}}\": Some files/folders might have been skipped due to access issues ({{detail}})."
 }

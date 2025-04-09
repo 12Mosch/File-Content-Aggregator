@@ -705,26 +705,41 @@ export async function searchFiles(
           return;
         }
 
-        // Run fast-glob for the current path
-        const found = await fg(includePatterns, {
-          cwd: normalizedPath,
-          absolute: true,
-          onlyFiles: true,
-          dot: true, // Include dotfiles/folders
-          stats: false, // Don't need stats yet
-          suppressErrors: true, // Suppress glob errors (e.g., permission denied)
-          deep: globDepth,
-        });
+        try {
+          // Run fast-glob for the current path, catching errors
+          const found = await fg(includePatterns, {
+            cwd: normalizedPath,
+            absolute: true,
+            onlyFiles: true,
+            dot: true,
+            stats: false,
+            suppressErrors: false,
+            deep: globDepth,
+          });
 
-        if (checkCancellation()) {
-          wasCancelled = true;
-          return;
+          if (checkCancellation()) {
+            wasCancelled = true;
+            return;
+          }
+
+          // Add found files to the set (normalizing paths)
+          found.forEach((file: string) =>
+            allFoundFiles.add(file.replace(/\\/g, "/"))
+          );
+        } catch (globError: unknown) {
+          // Handle errors during fast-glob traversal (e.g., permission denied in subfolder)
+          const message =
+            globError instanceof Error ? globError.message : String(globError);
+          console.warn(
+            `Error during file discovery within path "${searchPath}":`,
+            message
+          );
+          // Add a specific error message to pathErrors for the user
+          pathErrors.push(
+            `Traversal error in "${searchPath}": Some files/folders might have been skipped due to access issues (${message}).`
+          );
+          // Continue with the next search path
         }
-
-        // Add found files to the set (normalizing paths)
-        found.forEach((file: string) =>
-          allFoundFiles.add(file.replace(/\\/g, "/"))
-        );
       })
     );
 
@@ -755,9 +770,10 @@ export async function searchFiles(
       status: "searching",
     });
   } catch (error: unknown) {
+    // This catch block handles errors outside the map loop (e.g., Promise.all rejection)
     const message = error instanceof Error ? error.message : String(error);
-    console.error("Error during file discovery:", message);
-    const errorMsg = `Unexpected error during file search: ${message}`;
+    console.error("Error during file discovery phase:", message);
+    const errorMsg = `Unexpected error during file search setup: ${message}`;
     pathErrors.push(errorMsg);
     progressCallback({
       processed: 0,

@@ -182,7 +182,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
 ## Core Logic Areas
 
 - **File Search (`fileSearchService.ts`):** Contains the main search orchestration logic.
-  - Uses `fast-glob` for initial discovery.
+  - Uses `fast-glob` for initial discovery. **Traversal errors (e.g., permission denied in subdirectories) are now caught and reported in the `pathErrors` array, allowing the search to continue for other paths.**
   - Applies filters (extension, excludes, date, size) sequentially.
   - Uses `p-limit` to manage concurrency for file stats and reads.
   - Parses boolean queries using `jsep` and evaluates the AST against file content using `evaluateBooleanAst`. Includes robust error handling during evaluation, ensuring the internal word boundary cache is cleared even on failure to prevent potential memory leaks.
