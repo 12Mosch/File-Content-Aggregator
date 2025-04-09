@@ -23,5 +23,6 @@
   "historyDeleteFailed": "Failed to delete history entry.",
   "historyClearFailed": "Failed to clear search history.",
   "historyUpdateFailed": "Failed to update history entry.",
-  "historyApiNA": "History feature is currently unavailable."
+  "historyApiNA": "History feature is currently unavailable.",
+  "themeInitFailed": "Failed to load initial theme preference. Using system default."
 }

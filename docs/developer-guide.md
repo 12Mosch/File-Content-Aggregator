@@ -100,6 +100,7 @@ file-content-aggregator/
 │   │   ├── QueryCondition.tsx # Query builder sub-component
 │   │   ├── SettingsModal.tsx # Settings UI
 │   │   ├── HistoryModal.tsx  # History UI
+│   │   ├── ThemeManager.tsx  # Theme application logic and listener component
 │   │   ├── highlight.worker.ts # Web worker for syntax highlighting
 │   │   ├── i18n.ts           # i18next configuration for UI
 │   │   ├── index.css         # Main CSS entry point (Tailwind directives)
@@ -192,11 +193,10 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Main: Separate `i18next` instance configured in `main.ts`, uses `i18next-fs-backend` to load locales for dialogs.
 - **UI State Management:** Primarily uses standard React hooks (`useState`, `useCallback`, `useEffect`, `useMemo`). Global state like search results, progress, errors, history, and settings are managed in the root `App.tsx` component and passed down as props.
 - **Theming:**
-  - Managed by `ThemeHandler` component in `src/ui/main.tsx`.
-  - Reads/writes preference via IPC to `electron-store` (handled in `main.ts`).
-  - Applies `light`/`dark` classes to `<html>` element.
-  - Listens for OS theme changes when preference is "System".
-  - Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.
+  - **Initialization:** The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` *before* the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
+  - **Updates:** The `ThemeHandler` component (`src/ui/ThemeManager.tsx`) listens for subsequent theme preference changes (via IPC `theme-preference-changed`) and OS theme changes (if preference is "System"). It calls `applyTheme` to update the `<html>` class when these changes occur.
+  - **Storage:** Preference is read/written via IPC to `electron-store` (handled in `main.ts`).
+  - **Styling:** Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.
 - **Search History:**
   - IPC handlers in `main.ts` manage CRUD operations using `electron-store`.
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
