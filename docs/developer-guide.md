@@ -195,7 +195,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Main: Separate `i18next` instance configured in `main.ts`, uses `i18next-fs-backend` to load locales for dialogs.
 - **UI State Management:** Primarily uses standard React hooks (`useState`, `useCallback`, `useEffect`, `useMemo`). Global state like search results, progress, errors, history, and settings are managed in the root `App.tsx` component and passed down as props.
 - **Theming:**
-  - Initialization: The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` *before* the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
+  - Initialization: The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` _before_ the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
   - Updates: The `ThemeHandler` component (`src/ui/ThemeManager.tsx`) listens for subsequent theme preference changes (via IPC `theme-preference-changed`) and OS theme changes (if preference is "System"). It calls `applyTheme` to update the `<html>` class when these changes occur.
   - Storage: Preference is read/written via IPC to `electron-store` (handled in `main.ts`).
   - Styling: Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.

@@ -1,9 +1,5 @@
 // Utility functions for the query builder
-import type {
-  QueryGroup,
-  Condition,
-  QueryItem,
-} from "./queryBuilderTypes.js"; // Use .js extension for NodeNext compatibility
+import type { QueryGroup, Condition, QueryItem } from "./queryBuilderTypes.js"; // Use .js extension for NodeNext compatibility
 
 /**
  * Generates a simple unique ID.

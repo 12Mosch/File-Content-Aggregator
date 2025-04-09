@@ -30,4 +30,3 @@
   // Exclude node_modules and build outputs
   "exclude": ["../../node_modules", "../../dist-electron", "../../dist-react"]
 }
-

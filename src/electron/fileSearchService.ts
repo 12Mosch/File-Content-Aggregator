@@ -182,9 +182,7 @@ function isJsepCallExpression(node: unknown): node is Jsep.CallExpression {
   );
 }
 // --- Fix: Use Jsep namespace for type guard ---
-function isJsepLogicalExpression(
-  node: unknown
-): node is Jsep.Expression & {
+function isJsepLogicalExpression(node: unknown): node is Jsep.Expression & {
   type: "LogicalExpression";
   operator: string;
   left: Jsep.Expression;

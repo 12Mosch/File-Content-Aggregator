@@ -124,7 +124,10 @@ const convertStructuredQueryToString = (group: QueryStructure): string => {
           return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
         }
         default: {
-          console.warn("Unknown condition type during string conversion:", item);
+          console.warn(
+            "Unknown condition type during string conversion:",
+            item
+          );
           return "";
         }
       }

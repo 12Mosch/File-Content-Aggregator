@@ -780,10 +780,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             onValueChange={(value) => setExportFormat(value as ExportFormat)}
             disabled={!filteredStructuredItems || !!exportStatus}
           >
-            <SelectTrigger
-              id="exportFormatSelect"
-              className="w-[100px] h-9"
-            >
+            <SelectTrigger id="exportFormatSelect" className="w-[100px] h-9">
               <SelectValue placeholder={t("exportFormatLabel")} />
             </SelectTrigger>
             <SelectContent>

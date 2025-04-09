@@ -250,9 +250,7 @@ function Calendar({
 
   const currentYear = displayDate.getFullYear();
   const startDecadeYear = Math.floor(currentYear / 10) * 10;
-  const years = Array.from({ length: 12 }).map(
-    (_, i) => startDecadeYear + i
-  );
+  const years = Array.from({ length: 12 }).map((_, i) => startDecadeYear + i);
 
   return (
     <div className={cn("p-3", className)}>

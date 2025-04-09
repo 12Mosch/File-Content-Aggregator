@@ -386,7 +386,7 @@ function generateCsv(items: StructuredItem[]): string {
         : "Not Matched";
     const details = item.readError
       ? item.readError // Use the error key as detail
-      : item.content ?? ""; // Use content if available, otherwise empty string
+      : (item.content ?? ""); // Use content if available, otherwise empty string
     return [
       escapeCsvField(item.filePath),
       escapeCsvField(status),
@@ -423,7 +423,7 @@ function generateMarkdown(items: StructuredItem[]): string {
           : " (Status: Not Matched)";
       const details = item.readError
         ? `Error: ${item.readError}`
-        : item.content ?? "No content preview available.";
+        : (item.content ?? "No content preview available.");
 
       return `## ${item.filePath}${status}\n\n\`\`\`\n${details}\n\`\`\`\n`;
     })
