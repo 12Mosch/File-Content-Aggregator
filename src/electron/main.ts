@@ -343,6 +343,11 @@ app.on("web-contents-created", (_event, contents) => {
   });
 });
 
+/**
+ * Validates that the IPC message sender is the main frame of the main window.
+ * @param senderFrame The WebFrameMain object of the sender.
+ * @returns True if the sender is valid, false otherwise.
+ */
 function validateSender(senderFrame: WebFrameMain | null): boolean {
   if (!mainWindow || !senderFrame) return false;
   if (senderFrame === mainWindow.webContents.mainFrame) return true;
@@ -427,6 +432,10 @@ function generateMarkdown(items: StructuredItem[]): string {
 
 // --- IPC Handlers ---
 
+/**
+ * Handles the 'search-files' IPC request from the renderer process.
+ * Performs the file search based on the provided parameters.
+ */
 ipcMain.handle(
   "search-files",
   async (event, params: SearchParams): Promise<SearchResult> => {
@@ -482,6 +491,10 @@ ipcMain.handle(
   }
 );
 
+/**
+ * Handles the 'cancel-search' IPC message from the renderer process.
+ * Sets the cancellation flag for the ongoing search.
+ */
 ipcMain.on("cancel-search", (event) => {
   if (!validateSender(event.senderFrame)) {
     console.warn("IPC: Received cancel-search from invalid sender.");
@@ -500,6 +513,10 @@ ipcMain.on("cancel-search", (event) => {
   }
 });
 
+/**
+ * Handles the 'copy-to-clipboard' IPC request.
+ * Copies the provided text content to the system clipboard.
+ */
 ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
   if (!validateSender(event.senderFrame)) return false;
   try {
@@ -513,6 +530,11 @@ ipcMain.handle("copy-to-clipboard", (event, content: string): boolean => {
     return false;
   }
 });
+
+/**
+ * Handles the 'get-initial-language' IPC request.
+ * Determines and returns the initial language for the UI based on stored preference or OS locale.
+ */
 ipcMain.handle("get-initial-language", (event): Promise<string> => {
   if (!validateSender(event.senderFrame))
     return Promise.resolve(fallbackLngMain);
@@ -540,6 +562,10 @@ ipcMain.handle("get-initial-language", (event): Promise<string> => {
   });
 });
 
+/**
+ * Handles the 'set-language-preference' IPC request.
+ * Stores the user's selected language preference.
+ */
 ipcMain.handle(
   "set-language-preference",
   (event, lng: string): Promise<void> => {
@@ -562,6 +588,10 @@ ipcMain.handle(
   }
 );
 
+/**
+ * Handles the 'language-changed' IPC message from the renderer.
+ * Updates the main process i18n instance language.
+ */
 ipcMain.on("language-changed", (event, lng: string) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return;
   if (supportedLngsMain.includes(lng))
@@ -575,6 +605,11 @@ ipcMain.on("language-changed", (event, lng: string) => {
       `Main i18n: Received unsupported language change request: ${lng}`
     );
 });
+
+/**
+ * Handles the 'add-search-history-entry' IPC request.
+ * Adds a new entry to the search history stored in electron-store.
+ */
 ipcMain.handle(
   "add-search-history-entry",
   (event, entry: SearchHistoryEntry): Promise<void> => {
@@ -605,6 +640,11 @@ ipcMain.handle(
     });
   }
 );
+
+/**
+ * Handles the 'get-search-history' IPC request.
+ * Retrieves the search history from electron-store.
+ */
 ipcMain.handle("get-search-history", (event): Promise<SearchHistoryEntry[]> => {
   if (!validateSender(event.senderFrame)) return Promise.resolve([]);
   return new Promise((resolve) => {
@@ -626,6 +666,11 @@ ipcMain.handle("get-search-history", (event): Promise<SearchHistoryEntry[]> => {
     }
   });
 });
+
+/**
+ * Handles the 'delete-search-history-entry' IPC request.
+ * Removes a specific entry from the search history.
+ */
 ipcMain.handle(
   "delete-search-history-entry",
   (event, entryId: string): Promise<void> => {
@@ -650,6 +695,11 @@ ipcMain.handle(
     });
   }
 );
+
+/**
+ * Handles the 'clear-search-history' IPC request.
+ * Removes all entries from the search history.
+ */
 ipcMain.handle("clear-search-history", (event): Promise<boolean> => {
   if (!validateSender(event.senderFrame)) return Promise.resolve(false);
   return new Promise((resolve) => {
@@ -666,6 +716,11 @@ ipcMain.handle("clear-search-history", (event): Promise<boolean> => {
     }
   });
 });
+
+/**
+ * Handles the 'update-search-history-entry' IPC request.
+ * Updates the name or favorite status of a specific history entry.
+ */
 ipcMain.handle(
   "update-search-history-entry",
   (
@@ -715,6 +770,11 @@ ipcMain.handle(
     });
   }
 );
+
+/**
+ * Handles the 'get-theme-preference' IPC request.
+ * Retrieves the user's stored theme preference.
+ */
 ipcMain.handle("get-theme-preference", (event): Promise<ThemePreference> => {
   if (!validateSender(event.senderFrame)) return Promise.resolve("system");
   return new Promise((resolve) => {
@@ -731,6 +791,11 @@ ipcMain.handle("get-theme-preference", (event): Promise<ThemePreference> => {
   });
 });
 
+/**
+ * Handles the 'set-theme-preference' IPC request.
+ * Stores the user's selected theme preference and applies it to the native theme source.
+ * Also notifies the renderer process about the change.
+ */
 ipcMain.handle(
   "set-theme-preference",
   (event, theme: ThemePreference): Promise<void> => {
@@ -766,7 +831,11 @@ ipcMain.handle(
   }
 );
 
-// --- Export Results Handler ---
+/**
+ * Handles the 'export-results' IPC request.
+ * Generates content in the specified format (CSV, JSON, Markdown) from the provided structured results,
+ * prompts the user for a save location, and writes the file.
+ */
 ipcMain.handle(
   "export-results",
   async (
@@ -806,13 +875,13 @@ ipcMain.handle(
 
       // Show save dialog
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-        title: i18nMain.t("dialogs:saveDialogTitle"),
-        buttonLabel: i18nMain.t("dialogs:saveDialogButtonLabel"),
+        title: i18nMain.t("dialogs:exportDialogTitle"), // Use specific key
+        buttonLabel: i18nMain.t("dialogs:exportDialogButtonLabel"), // Use specific key
         defaultPath: `file-content-aggregator-results.${fileExtension}`,
         filters: [
           { name: fileTypeName, extensions: [fileExtension] },
           {
-            name: i18nMain.t("dialogs:saveDialogFilterAll"),
+            name: i18nMain.t("dialogs:exportDialogFilterAll"), // Use specific key
             extensions: ["*"],
           },
         ],
@@ -839,7 +908,6 @@ ipcMain.handle(
             break;
         }
       } catch (genError: unknown) {
-        // --- ERROR HANDLING ---
         const specificErrorMsg =
           genError instanceof Error ? genError.message : String(genError);
         const errorMsg = i18nMain.t("dialogs:exportGenerationError", {
@@ -851,7 +919,6 @@ ipcMain.handle(
         );
         dialog.showErrorBox(i18nMain.t("dialogs:exportErrorTitle"), errorMsg);
         return { success: false, error: errorMsg };
-        // --- END  ---
       }
 
       // Write content to file
@@ -873,4 +940,3 @@ ipcMain.handle(
     }
   }
 );
-// ---------------------------------

@@ -1,10 +1,9 @@
 {
-  "saveDialogTitle": "Save Search Results",
-  "saveDialogButtonLabel": "Save",
-  "saveDialogFilterText": "Text Files",
-  "saveDialogFilterAll": "All Files",
   "errorTitle": "Dialog Error",
   "showError": "Error showing dialog: {{detail}}",
   "exportErrorTitle": "Export Error",
-  "exportGenerationError": "Failed to generate {{format}} content: {{detail}}"
+  "exportGenerationError": "Failed to generate {{format}} content: {{detail}}",
+  "exportDialogTitle": "Export Search Results",
+  "exportDialogButtonLabel": "Export",
+  "exportDialogFilterAll": "All Files"
 }

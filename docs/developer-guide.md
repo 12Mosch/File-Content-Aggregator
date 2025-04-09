@@ -125,7 +125,7 @@ file-content-aggregator/
 
 ### Electron Main vs. Renderer
 
-- **Main Process (`src/electron/main.ts`):** Runs in a Node.js environment. Has access to all Node.js APIs and Electron APIs for managing windows, menus, dialogs, system events, etc. It orchestrates the application lifecycle and performs backend tasks like file searching.
+- **Main Process (`src/electron/main.ts`):** Runs in a Node.js environment. Has access to all Node.js APIs and Electron APIs for managing windows, menus, dialogs, system events, etc. It orchestrates the application lifecycle and performs backend tasks like file searching and exporting results.
 - **Renderer Process (`src/ui/main.tsx` & components):** Runs the web page (`index.html`) inside a Chromium window. This is where the React UI lives. It _does not_ have direct access to Node.js or most Electron APIs for security reasons.
 
 ### Preload Script & Context Isolation
@@ -143,7 +143,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Renderer calls `window.electronAPI.invokeSomething(args)`.
   - Preload script uses `ipcRenderer.invoke('channel', args)`.
   - Main process listens with `ipcMain.handle('channel', async (event, args) => { ... return result; })`.
-  - _Examples:_ `search-files`, `export-results`, `get-initial-language`, `get-theme-preference`, history handlers.
+  - _Examples:_ `search-files`, `export-results`, `get-initial-language`, `get-theme-preference`, history handlers, `copy-to-clipboard`.
 - **Main -> Renderer (Send):** Used for updates or events initiated by the main process.
   - Main process uses `mainWindow.webContents.send('channel', data)`.
   - Preload script sets up a listener using `ipcRenderer.on('channel', listener)` and exposes a handler function via `contextBridge` (e.g., `onSearchProgress`, `onThemePreferenceChanged`).
