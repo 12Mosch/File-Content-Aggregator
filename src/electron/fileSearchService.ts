@@ -208,6 +208,14 @@ function isJsepUnaryExpression(node: unknown): node is Jsep.UnaryExpression {
   );
 }
 
+/**
+ * Finds all starting indices of a term (string or regex) within content.
+ * @param content The string to search within.
+ * @param term The string or RegExp to find.
+ * @param caseSensitive Whether string search should be case-sensitive.
+ * @param isRegex Whether the term is a RegExp object.
+ * @returns An array of starting indices.
+ */
 function findTermIndices(
   content: string,
   term: string | RegExp,
@@ -216,7 +224,9 @@ function findTermIndices(
 ): number[] {
   const indices: number[] = [];
   if (!term) return indices;
+
   if (isRegex && term instanceof RegExp) {
+    // Ensure the regex has the global flag for iterative searching
     const regex = new RegExp(
       term.source,
       term.flags.includes("g") ? term.flags : term.flags + "g"
@@ -224,6 +234,7 @@ function findTermIndices(
     let match;
     while ((match = regex.exec(content)) !== null) {
       indices.push(match.index);
+      // Prevent infinite loops with zero-width matches
       if (match.index === regex.lastIndex) {
         regex.lastIndex++;
       }
@@ -239,13 +250,22 @@ function findTermIndices(
   return indices;
 }
 
+// --- Word Boundary Cache and Helpers ---
 interface WordBoundary {
   word: string;
   start: number;
   end: number;
 }
+
+/**
+ * Extracts word boundaries (word, start index, end index) from content.
+ * Uses a simple regex for word detection.
+ * @param content The string to extract words from.
+ * @returns An array of WordBoundary objects.
+ */
 function getWordBoundaries(content: string): WordBoundary[] {
   const boundaries: WordBoundary[] = [];
+  // Simple regex for alphanumeric words
   const wordRegex = /\b[a-zA-Z0-9]+\b/g;
   let match;
   while ((match = wordRegex.exec(content)) !== null) {
@@ -257,31 +277,58 @@ function getWordBoundaries(content: string): WordBoundary[] {
   }
   return boundaries;
 }
+
+// Cache for word boundaries to avoid re-calculating for the same content
 const wordBoundariesCache = new Map<string, WordBoundary[]>();
+
+/**
+ * Finds the word index corresponding to a character index in the content.
+ * Uses the wordBoundariesCache for efficiency.
+ * @param charIndex The character index to find the word index for.
+ * @param content The string content.
+ * @returns The word index (0-based) or -1 if not found within/near a word.
+ */
 function getWordIndexFromCharIndex(charIndex: number, content: string): number {
   let boundaries = wordBoundariesCache.get(content);
   if (!boundaries) {
     boundaries = getWordBoundaries(content);
     wordBoundariesCache.set(content, boundaries);
   }
+
+  // Check if charIndex falls directly within a word boundary
   for (let i = 0; i < boundaries.length; i++) {
     if (charIndex >= boundaries[i].start && charIndex <= boundaries[i].end) {
       return i;
     }
   }
+
+  // If not directly within, check if it's immediately after a word (separated by whitespace)
+  // This helps associate indices in whitespace with the preceding word for distance calculation.
   for (let i = boundaries.length - 1; i >= 0; i--) {
     if (boundaries[i].end < charIndex) {
+      // Check if the space between the word end and charIndex is only whitespace
       if (
         /^\s*$/.test(content.substring(boundaries[i].end + 1, charIndex + 1))
       ) {
-        return i;
+        return i; // Associate with the preceding word
       }
+      // If non-whitespace is found, stop searching backwards
       break;
     }
   }
+
+  // If charIndex is before the first word or in non-whitespace before it
   return -1;
 }
 
+/**
+ * Evaluates a JSEP Abstract Syntax Tree (AST) against file content.
+ * Supports AND, OR, NOT logic, simple terms, regex literals, and NEAR proximity search.
+ * @param node The AST node to evaluate.
+ * @param content The file content string.
+ * @param caseSensitive Global case sensitivity setting for simple terms (not regex).
+ * @returns True if the AST node evaluates to true against the content, false otherwise.
+ */
 function evaluateBooleanAst(
   node: Jsep.Expression | unknown,
   content: string,
@@ -291,6 +338,7 @@ function evaluateBooleanAst(
     console.warn("evaluateBooleanAst called with non-Expression node:", node);
     return false;
   }
+
   try {
     switch (node.type) {
       case "LogicalExpression": {
@@ -302,13 +350,17 @@ function evaluateBooleanAst(
           );
           return false;
         }
+        // Evaluate left side first for potential short-circuiting
         const leftResult = evaluateBooleanAst(
           node.left,
           content,
           caseSensitive
         );
+        // Short-circuit OR
         if (node.operator === "OR" && leftResult) return true;
+        // Short-circuit AND
         if (node.operator === "AND" && !leftResult) return false;
+        // Evaluate right side only if necessary
         const rightResult = evaluateBooleanAst(
           node.right,
           content,
@@ -331,18 +383,21 @@ function evaluateBooleanAst(
         return false;
       }
       case "Identifier": {
+        // Treat identifiers as potential terms or regex literals
         if (!isJsepIdentifier(node)) return false;
         const termIdentifierStr = node.name;
         const regexFromIdentifier = parseRegexLiteral(termIdentifierStr);
         if (regexFromIdentifier) {
           return regexFromIdentifier.test(content);
         } else {
+          // Simple term search
           return caseSensitive
             ? content.includes(termIdentifierStr)
             : content.toLowerCase().includes(termIdentifierStr.toLowerCase());
         }
       }
       case "Literal": {
+        // Treat string literals as potential terms or regex literals
         if (!isJsepLiteral(node)) return false;
         if (typeof node.value === "string") {
           const termLiteralStr = node.value;
@@ -350,14 +405,17 @@ function evaluateBooleanAst(
           if (regexFromLiteral) {
             return regexFromLiteral.test(content);
           } else {
+            // Simple term search
             return caseSensitive
               ? content.includes(termLiteralStr)
               : content.toLowerCase().includes(termLiteralStr.toLowerCase());
           }
         }
+        // Boolean literals can be part of the AST (though unlikely from user input)
         if (typeof node.value === "boolean") {
           return node.value;
         }
+        // Numbers are only expected within NEAR
         if (typeof node.value === "number") {
           console.warn(
             `Numeric literal ${node.value} encountered outside NEAR function.`
@@ -368,6 +426,7 @@ function evaluateBooleanAst(
         return false;
       }
       case "CallExpression": {
+        // Handle function calls, specifically NEAR
         if (!isJsepCallExpression(node)) {
           console.warn("Node is not a valid CallExpression:", node);
           return false;
@@ -384,9 +443,12 @@ function evaluateBooleanAst(
           );
           return false;
         }
+
         const arg1Node = node.arguments[0];
         const arg2Node = node.arguments[1];
         const arg3Node = node.arguments[2];
+
+        // Extract term1 (string or regex)
         let term1: string | RegExp | null = null;
         let term1IsRegex = false;
         if (isJsepLiteral(arg1Node) && typeof arg1Node.value === "string") {
@@ -394,10 +456,13 @@ function evaluateBooleanAst(
           term1 = parseRegexLiteral(valueStr) || valueStr;
           term1IsRegex = term1 instanceof RegExp;
         } else if (isJsepIdentifier(arg1Node)) {
+          // Allow identifiers as terms/regex too
           const nameStr = arg1Node.name;
           term1 = parseRegexLiteral(nameStr) || nameStr;
           term1IsRegex = term1 instanceof RegExp;
         }
+
+        // Extract term2 (string or regex)
         let term2: string | RegExp | null = null;
         let term2IsRegex = false;
         if (isJsepLiteral(arg2Node) && typeof arg2Node.value === "string") {
@@ -409,24 +474,29 @@ function evaluateBooleanAst(
           term2 = parseRegexLiteral(nameStr) || nameStr;
           term2IsRegex = term2 instanceof RegExp;
         }
+
+        // Extract distance (number)
         let distance: number | null = null;
         if (
           isJsepLiteral(arg3Node) &&
           typeof arg3Node.value === "number" &&
           arg3Node.value >= 0
         ) {
-          distance = Math.floor(arg3Node.value);
+          distance = Math.floor(arg3Node.value); // Ensure integer distance
         }
+
         if (term1 === null || term2 === null || distance === null) {
           console.warn(
             `Invalid arguments for NEAR function. term1: ${String(term1)}, term2: ${String(term2)}, distance: ${String(distance)}`
           );
           return false;
         }
+
+        // Find indices of both terms
         const indices1 = findTermIndices(
           content,
           term1,
-          term1IsRegex ? false : caseSensitive,
+          term1IsRegex ? false : caseSensitive, // Use global caseSensitive only for simple terms
           term1IsRegex
         );
         const indices2 = findTermIndices(
@@ -435,24 +505,32 @@ function evaluateBooleanAst(
           term2IsRegex ? false : caseSensitive,
           term2IsRegex
         );
+
         if (indices1.length === 0 || indices2.length === 0) {
-          return false;
+          return false; // One of the terms not found
         }
+
+        // Ensure word boundaries are cached/calculated
         if (!wordBoundariesCache.has(content)) {
           wordBoundariesCache.set(content, getWordBoundaries(content));
         }
+
+        // Check word distance between all occurrences
         for (const index1 of indices1) {
           const wordIndex1 = getWordIndexFromCharIndex(index1, content);
-          if (wordIndex1 === -1) continue;
+          if (wordIndex1 === -1) continue; // Skip if index not associated with a word
+
           for (const index2 of indices2) {
             const wordIndex2 = getWordIndexFromCharIndex(index2, content);
             if (wordIndex2 === -1) continue;
+
+            // Check if the absolute difference in word indices is within the distance
             if (Math.abs(wordIndex1 - wordIndex2) <= distance) {
-              return true;
+              return true; // Found a pair within the specified distance
             }
           }
         }
-        return false;
+        return false; // No pair found within the distance
       }
       default: {
         console.warn(`Unsupported AST node type: ${String(node.type)}`);
@@ -468,10 +546,13 @@ function evaluateBooleanAst(
       "Node:",
       node
     );
+    // --- Added Cleanup ---
+    // Ensure the cache entry for this content is removed if evaluation fails
     if (typeof content === "string") {
       wordBoundariesCache.delete(content);
     }
-    return false;
+    // --- End Added Cleanup ---
+    return false; // Return false on any evaluation error
   }
 }
 // ----------------------------------------------------
@@ -504,6 +585,7 @@ export async function searchFiles(
   const outputLines: string[] = [];
   let wasCancelled = false;
 
+  // Ensure p-limit is loaded correctly
   if (typeof pLimit !== "function") {
     console.error(
       "pLimit was not loaded correctly. Type:",
@@ -530,6 +612,8 @@ export async function searchFiles(
     message: "Scanning directories...",
     status: "searching",
   });
+
+  // Prepare file patterns for fast-glob
   const includePatterns = extensions.map(
     (ext) => `**/*.${ext.replace(/^\./, "")}`
   );
@@ -538,6 +622,7 @@ export async function searchFiles(
   const globDepth = maxDepth && maxDepth > 0 ? maxDepth : Infinity;
   console.log(`Using glob depth: ${globDepth}`);
 
+  // --- Phase 1: Initial File Discovery using fast-glob ---
   try {
     if (checkCancellation()) {
       wasCancelled = true;
@@ -559,6 +644,7 @@ export async function searchFiles(
       };
     }
 
+    // Process each search path concurrently
     await Promise.all(
       searchPaths.map(async (searchPath) => {
         if (checkCancellation()) {
@@ -566,6 +652,8 @@ export async function searchFiles(
           return;
         }
         const normalizedPath = searchPath.replace(/\\/g, "/");
+
+        // Validate search path existence and type
         try {
           const stats = await fs.stat(searchPath);
           if (!stats.isDirectory()) {
@@ -616,27 +704,27 @@ export async function searchFiles(
           wasCancelled = true;
           return;
         }
-        // --- Fix: Use typed fg function ---
+
+        // Run fast-glob for the current path
         const found = await fg(includePatterns, {
           cwd: normalizedPath,
           absolute: true,
           onlyFiles: true,
-          dot: true,
-          stats: false,
-          suppressErrors: true,
+          dot: true, // Include dotfiles/folders
+          stats: false, // Don't need stats yet
+          suppressErrors: true, // Suppress glob errors (e.g., permission denied)
           deep: globDepth,
         });
-        // --- End Fix ---
 
         if (checkCancellation()) {
           wasCancelled = true;
           return;
         }
-        // --- Fix: Add explicit type to 'file' ---
+
+        // Add found files to the set (normalizing paths)
         found.forEach((file: string) =>
           allFoundFiles.add(file.replace(/\\/g, "/"))
         );
-        // --- End Fix ---
       })
     );
 
@@ -689,6 +777,7 @@ export async function searchFiles(
     };
   }
 
+  // --- Phase 2: Filtering based on Exclusions (File/Folder) ---
   const initialFiles = Array.from(allFoundFiles);
   let filesToProcess: string[] = initialFiles;
   let currentTotal = initialFileCount;
@@ -713,6 +802,7 @@ export async function searchFiles(
     };
   }
 
+  // Filter by excluded files (using picomatch and regex)
   if (excludeFiles && excludeFiles.length > 0 && filesToProcess.length > 0) {
     progressCallback({
       processed: 0,
@@ -725,6 +815,7 @@ export async function searchFiles(
       const isExcluded = excludeFiles.some((pattern) => {
         const regex = parseRegexLiteral(pattern);
         if (regex) return regex.test(filename);
+        // Use picomatch for glob patterns
         return picomatch.isMatch(filename, pattern, { dot: true });
       });
       return !isExcluded;
@@ -737,6 +828,7 @@ export async function searchFiles(
       status: "searching",
     });
   }
+
   if (checkCancellation()) {
     wasCancelled = true;
     progressCallback({
@@ -757,6 +849,7 @@ export async function searchFiles(
     };
   }
 
+  // Filter by excluded folders (using picomatch based on mode)
   if (
     excludeFolders &&
     excludeFolders.length > 0 &&
@@ -768,9 +861,10 @@ export async function searchFiles(
       message: `Filtering by excluded folder patterns (${folderExclusionMode})...`,
       status: "searching",
     });
-    const picoOptions = { dot: true, nocase: true };
+    const picoOptions = { dot: true, nocase: true }; // Case-insensitive folder matching
     const folderMatchers = excludeFolders.map((pattern) => {
       let matchPattern = pattern;
+      // Adjust pattern based on the selected matching mode
       switch (folderExclusionMode) {
         case "startsWith":
           matchPattern = pattern + "*";
@@ -779,18 +873,23 @@ export async function searchFiles(
           matchPattern = "*" + pattern;
           break;
         case "contains":
+          // Add wildcards only if none exist already
           if (!pattern.includes("*") && !pattern.includes("?"))
             matchPattern = "*" + pattern + "*";
           break;
         case "exact":
         default:
+          // No pattern adjustment needed for exact match
           break;
       }
       return picomatch(matchPattern, picoOptions);
     });
+
     filesToProcess = filesToProcess.filter((filePath) => {
       const dirPath = path.dirname(filePath);
+      // Split path into segments, handling both Windows and POSIX separators
       const segments = dirPath.split(/[\\/]/).filter(Boolean);
+      // Check if any segment matches any exclusion pattern
       const isExcluded = folderMatchers.some((isMatch) =>
         segments.some((segment) => isMatch(segment))
       );
@@ -804,6 +903,7 @@ export async function searchFiles(
       status: "searching",
     });
   }
+
   if (checkCancellation()) {
     wasCancelled = true;
     progressCallback({
@@ -824,11 +924,13 @@ export async function searchFiles(
     };
   }
 
+  // --- Phase 3: Filtering based on Metadata (Size/Date) ---
   const afterDate = parseDateStartOfDay(modifiedAfter);
   const beforeDate = parseDateEndOfDay(modifiedBefore);
   const hasSizeFilter =
     minSizeBytes !== undefined || maxSizeBytes !== undefined;
   const hasDateFilter = !!afterDate || !!beforeDate;
+
   if ((hasSizeFilter || hasDateFilter) && filesToProcess.length > 0) {
     const initialCountForStatFilter = filesToProcess.length;
     progressCallback({
@@ -837,38 +939,49 @@ export async function searchFiles(
       message: `Filtering ${initialCountForStatFilter} files by size/date (parallel)...`,
       status: "searching",
     });
+
+    // Get file stats concurrently using p-limit
     const statCheckPromises = filesToProcess.map((filePath) =>
       limit(async () => {
-        if (checkCancellation()) return null;
+        if (checkCancellation()) return null; // Check cancellation before stat call
         try {
           const stats = await fs.stat(filePath);
           const fileSize = stats.size;
           const mtime = stats.mtime;
+
+          // Check size filter
           const passSizeCheck =
             !hasSizeFilter ||
             ((minSizeBytes === undefined || fileSize >= minSizeBytes) &&
               (maxSizeBytes === undefined || fileSize <= maxSizeBytes));
+
+          // Check date filter
           const passDateCheck =
             !hasDateFilter ||
             ((!afterDate || mtime.getTime() >= afterDate.getTime()) &&
               (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
+
+          // Return filePath only if both checks pass
           return passSizeCheck && passDateCheck ? filePath : null;
         } catch (statError: unknown) {
+          // Log stat errors but don't stop the search, just exclude the file
           const message =
             statError instanceof Error ? statError.message : String(statError);
           console.warn(
             `Could not get stats for file during size/date filter: ${filePath}`,
             message
           );
-          return null;
+          return null; // Exclude file if stats fail
         }
       })
     );
+
     const statResults = await Promise.all(statCheckPromises);
+
     if (checkCancellation()) {
       wasCancelled = true;
       progressCallback({
-        processed: initialCountForStatFilter,
+        processed: initialCountForStatFilter, // Assume all were attempted
         total: initialCountForStatFilter,
         message: "Search cancelled during size/date filter.",
         status: "cancelled",
@@ -877,28 +990,31 @@ export async function searchFiles(
         output: "",
         structuredItems: [],
         filesFound: initialFileCount,
-        filesProcessed: 0,
+        filesProcessed: 0, // No files fully processed yet
         errorsEncountered: 0,
         pathErrors,
         fileReadErrors,
         wasCancelled,
       };
     }
+
+    // Filter out the null results (files that failed stat or didn't match)
     filesToProcess = statResults.filter(
       (result): result is string => result !== null
     );
     currentTotal = filesToProcess.length;
     progressCallback({
-      processed: initialCountForStatFilter,
+      processed: initialCountForStatFilter, // Show progress based on attempted stats
       total: initialCountForStatFilter,
       message: `Filtered ${currentTotal} files after size/date check.`,
       status: "searching",
     });
   }
+
   if (checkCancellation()) {
     wasCancelled = true;
     progressCallback({
-      processed: 0,
+      processed: 0, // Reset processed count as we didn't start content processing
       total: currentTotal,
       message: "Search cancelled after size/date filter.",
       status: "cancelled",
@@ -915,11 +1031,13 @@ export async function searchFiles(
     };
   }
 
+  // --- Phase 4: Content Matching (if applicable) ---
   let filesProcessedCounter = 0;
   const totalFilesToProcess = filesToProcess.length;
   let contentMatcher: ((content: string) => boolean) | null = null;
   let parseOrRegexError = false;
 
+  // Prepare content matcher based on mode and term
   if (contentSearchTerm) {
     switch (contentSearchMode) {
       case "regex": {
@@ -928,6 +1046,7 @@ export async function searchFiles(
         if (regex) {
           contentMatcher = (content) => regex.test(content);
         } else {
+          // Handle invalid regex pattern
           parseOrRegexError = true;
           const errorMsg = `Invalid regular expression pattern: ${contentSearchTerm}`;
           pathErrors.push(errorMsg);
@@ -952,27 +1071,34 @@ export async function searchFiles(
       }
       case "boolean": {
         try {
+          // Configure jsep for AND/OR/NOT/NEAR
           if (jsep.binary_ops["||"]) jsep.removeBinaryOp("||");
           if (jsep.binary_ops["&&"]) jsep.removeBinaryOp("&&");
           if (jsep.unary_ops["!"]) jsep.removeUnaryOp("!");
-          if (!jsep.binary_ops["AND"]) jsep.addBinaryOp("AND", 1);
+          if (!jsep.binary_ops["AND"]) jsep.addBinaryOp("AND", 1); // Higher precedence than OR
           if (!jsep.binary_ops["OR"]) jsep.addBinaryOp("OR", 0);
           if (!jsep.unary_ops["NOT"]) jsep.addUnaryOp("NOT");
+          // Note: NEAR is handled as a CallExpression within evaluateBooleanAst
+
           const parsedAst = jsep(contentSearchTerm);
           console.log(
             "Parsed Boolean AST:",
             JSON.stringify(parsedAst, null, 2)
           );
+          // Create matcher function that evaluates the AST
           contentMatcher = (content) => {
+            // Clear cache for this specific content before evaluation
             wordBoundariesCache.delete(content);
             const result = evaluateBooleanAst(
               parsedAst,
               content,
               caseSensitive
             );
+            // No need to clear cache here, evaluateBooleanAst handles cleanup on error
             return result;
           };
         } catch (parseError: unknown) {
+          // Handle boolean query parsing errors
           parseOrRegexError = true;
           let errorDetail = "Unknown parsing error";
           let errorIndex = -1;
@@ -981,6 +1107,7 @@ export async function searchFiles(
           } else {
             errorDetail = String(parseError);
           }
+          // Try to extract error index from jsep error
           if (
             typeof parseError === "object" &&
             parseError !== null &&
@@ -1009,13 +1136,14 @@ export async function searchFiles(
             errorsEncountered: 0,
             pathErrors,
             fileReadErrors,
-            wasCancelled: false,
+            wasCancelled: false, // Not cancelled, but errored
           };
         }
         break;
       }
       case "term":
       default: {
+        // Simple term matching
         if (caseSensitive) {
           contentMatcher = (content) => content.includes(contentSearchTerm);
         } else {
@@ -1028,6 +1156,7 @@ export async function searchFiles(
     }
   }
 
+  // Update progress before starting file processing loop
   if (totalFilesToProcess > 0 && !parseOrRegexError) {
     progressCallback({
       processed: 0,
@@ -1036,6 +1165,7 @@ export async function searchFiles(
       status: "searching",
     });
   } else if (pathErrors.length === 0 && !parseOrRegexError) {
+    // No files left to process after filtering, and no errors occurred
     progressCallback({
       processed: 0,
       total: 0,
@@ -1044,6 +1174,7 @@ export async function searchFiles(
     });
   }
 
+  // Process files only if no parsing/regex errors occurred
   if (!parseOrRegexError) {
     if (checkCancellation()) {
       wasCancelled = true;
@@ -1065,29 +1196,36 @@ export async function searchFiles(
       };
     }
 
+    // Process remaining files concurrently using p-limit
     const processingPromises = filesToProcess.map((file) =>
       limit(async () => {
         if (checkCancellation()) {
-          return null;
+          return null; // Skip processing if cancelled
         }
 
         const currentFileName = path.basename(file);
-        const displayFilePath = file.replace(/\\/g, "/");
+        const displayFilePath = file.replace(/\\/g, "/"); // Normalize path for display
         let fileContent: string | null = null;
         let structuredItemResult: StructuredItem | null = null;
         let outputLineResult: string | null = null;
         let fileReadErrorResult: FileReadError | null = null;
         let errorKeyForProgress: string | undefined = undefined;
-        let incrementCounter = true;
+        let incrementCounter = true; // Flag to control progress increment
 
         try {
           if (checkCancellation()) {
-            incrementCounter = false;
+            incrementCounter = false; // Don't increment if cancelled before read
             return null;
           }
+
+          // Read file content
           fileContent = await fs.readFile(file, { encoding: "utf8" });
+
+          // Check content against the matcher (if one exists)
           const contentMatches = !contentMatcher || contentMatcher(fileContent);
+
           if (contentMatches) {
+            // Matched: Add to text output and structured results with content
             outputLineResult = `${displayFilePath}\n\n${fileContent}\n`;
             structuredItemResult = {
               filePath: displayFilePath,
@@ -1095,18 +1233,21 @@ export async function searchFiles(
               readError: undefined,
             };
           } else {
+            // Did not match content query: Add to structured results without content
             structuredItemResult = {
               filePath: displayFilePath,
-              content: null,
+              content: null, // Indicate no match
               readError: undefined,
             };
           }
         } catch (error: unknown) {
+          // Handle file read errors
           const message =
             error instanceof Error ? error.message : String(error);
           console.error(`Error reading file '${file}':`, message);
-          let reasonKey = "readError";
+          let reasonKey = "readError"; // Default error reason
           const code = (error as { code?: string })?.code;
+          // Map common error codes to reason keys for i18n
           if (code === "EPERM" || code === "EACCES") {
             reasonKey = "readPermissionDenied";
           } else if (code === "ENOENT") {
@@ -1114,49 +1255,63 @@ export async function searchFiles(
           } else if (code === "EISDIR") {
             reasonKey = "pathIsDir";
           }
+          // Add structured item indicating the read error
           structuredItemResult = {
             filePath: displayFilePath,
             content: null,
             readError: reasonKey,
           };
+          // Add detailed error info for the final result summary
           fileReadErrorResult = {
             filePath: displayFilePath,
             reason: reasonKey,
             detail: message,
           };
-          errorKeyForProgress = reasonKey;
+          errorKeyForProgress = reasonKey; // For progress update message
         } finally {
+          // --- Cache Cleanup ---
+          // Always clear the word boundary cache for this content after processing
+          // (or attempting to process) it, regardless of success or error.
+          // This prevents the cache from growing indefinitely if the same large
+          // file is processed multiple times without matching or errors out.
           if (fileContent !== null) {
             wordBoundariesCache.delete(fileContent);
           }
+          // --- End Cache Cleanup ---
+
+          // Update progress after each file attempt (if not cancelled mid-operation)
           if (incrementCounter) {
             filesProcessedCounter++;
-            const cancelled = checkCancellation();
+            const cancelled = checkCancellation(); // Check cancellation status for progress message
             progressCallback({
               processed: filesProcessedCounter,
               total: totalFilesToProcess,
               currentFile: currentFileName,
               message: errorKeyForProgress
-                ? `Error: ${currentFileName}`
+                ? `Error: ${currentFileName}` // Show error in message
                 : cancelled
-                  ? "Cancelling..."
-                  : `Processed: ${currentFileName}`,
-              error: errorKeyForProgress,
-              status: cancelled ? "cancelling" : "searching",
+                  ? "Cancelling..." // Indicate cancellation in progress
+                  : `Processed: ${currentFileName}`, // Normal processing message
+              error: errorKeyForProgress, // Pass error key for potential UI highlighting
+              status: cancelled ? "cancelling" : "searching", // Update status
             });
           }
         }
+        // Return results for this file (or null if cancelled)
         return checkCancellation()
           ? null
           : { structuredItemResult, outputLineResult, fileReadErrorResult };
       })
     );
 
+    // Wait for all file processing promises to settle
     const resultsFromPromises = await Promise.all(processingPromises);
-    wasCancelled = checkCancellation();
+    wasCancelled = checkCancellation(); // Final cancellation check
 
+    // Aggregate results from all promises
     resultsFromPromises.forEach((result) => {
       if (result) {
+        // Add valid results to the respective arrays
         if (result.structuredItemResult) {
           structuredItems.push(result.structuredItemResult);
         }
@@ -1170,6 +1325,7 @@ export async function searchFiles(
     });
   }
 
+  // --- Final Progress Update and Return ---
   const finalStatus = wasCancelled ? "cancelled" : "completed";
   progressCallback({
     processed: filesProcessedCounter,
@@ -1180,8 +1336,10 @@ export async function searchFiles(
     status: finalStatus,
   });
 
+  // Join text output lines
   const finalOutput = outputLines.join("\n");
 
+  // Return the final search result object
   return {
     output: finalOutput,
     structuredItems: structuredItems,

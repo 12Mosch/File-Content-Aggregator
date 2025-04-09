@@ -184,7 +184,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Uses `fast-glob` for initial discovery.
   - Applies filters (extension, excludes, date, size) sequentially.
   - Uses `p-limit` to manage concurrency for file stats and reads.
-  - Parses boolean queries using `jsep` and evaluates the AST against file content using `evaluateBooleanAst`.
+  - Parses boolean queries using `jsep` and evaluates the AST against file content using `evaluateBooleanAst`. Includes robust error handling during evaluation, ensuring the internal word boundary cache is cleared even on failure to prevent potential memory leaks.
   - Handles proximity search (`NEAR`) logic within the AST evaluation.
   - Accepts and checks a `checkCancellation` function periodically.
   - Sends progress updates via the `progressCallback`.
