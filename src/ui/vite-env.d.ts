@@ -66,7 +66,8 @@ interface SearchParams {
   folderExclusionMode?: FolderExclusionMode;
   contentSearchTerm?: string; // The raw string query (term, regex, or boolean expression)
   contentSearchMode?: ContentSearchMode; // How to interpret contentSearchTerm
-  structuredQuery?: InternalQueryStructure | null; // Parsed query structure (used internally by UI)
+  // Use the specific type for UI interaction, but keep unknown for storage/IPC boundary
+  structuredQuery?: InternalQueryStructure | null;
   caseSensitive?: boolean; // Case sensitivity for simple terms in boolean query
   modifiedAfter?: string; // Date string (YYYY-MM-DD)
   modifiedBefore?: string; // Date string (YYYY-MM-DD)
@@ -81,7 +82,11 @@ export interface SearchHistoryEntry {
   timestamp: string; // ISO date string
   name?: string; // User-defined name
   isFavorite?: boolean;
-  searchParams: SearchParams; // The parameters used for this search
+  // Keep structuredQuery as unknown here, as it comes from storage (JSON)
+  // We will use a type guard when loading it back into the UI state.
+  searchParams: Omit<SearchParams, "structuredQuery"> & {
+    structuredQuery?: unknown | null;
+  };
 }
 
 // --- Electron API Definition (Exposed via Preload) ---

@@ -105,6 +105,7 @@ file-content-aggregator/
 │   │   ├── highlight.worker.ts # Web worker for syntax highlighting
 │   │   ├── i18n.ts           # i18next configuration for UI
 │   │   ├── index.css         # Main CSS entry point (Tailwind directives)
+│   │   ├── queryBuilderUtils.ts # Utilities for query builder (ID gen, type guard)
 │   │   └── vite-env.d.ts     # TypeScript definitions for Vite env & Electron API
 │   └── queryBuilderTypes.ts  # Shared types for the query builder structure
 ├── index.html                # HTML entry point for Vite/React UI
@@ -182,7 +183,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
 ## Core Logic Areas
 
 - **File Search (`fileSearchService.ts`):** Contains the main search orchestration logic.
-  - Uses `fast-glob` for initial discovery. **Traversal errors (e.g., permission denied in subdirectories) are now caught and reported in the `pathErrors` array, allowing the search to continue for other paths.**
+  - Uses `fast-glob` for initial discovery. Traversal errors (e.g., permission denied in subdirectories) are now caught and reported in the `pathErrors` array, allowing the search to continue for other paths.
   - Applies filters (extension, excludes, date, size) sequentially.
   - Uses `p-limit` to manage concurrency for file stats and reads.
   - Parses boolean queries using `jsep` and evaluates the AST against file content using `evaluateBooleanAst`. Includes robust error handling during evaluation, ensuring the internal word boundary cache is cleared even on failure to prevent potential memory leaks.
@@ -194,19 +195,20 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Main: Separate `i18next` instance configured in `main.ts`, uses `i18next-fs-backend` to load locales for dialogs.
 - **UI State Management:** Primarily uses standard React hooks (`useState`, `useCallback`, `useEffect`, `useMemo`). Global state like search results, progress, errors, history, and settings are managed in the root `App.tsx` component and passed down as props.
 - **Theming:**
-  - **Initialization:** The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` *before* the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
-  - **Updates:** The `ThemeHandler` component (`src/ui/ThemeManager.tsx`) listens for subsequent theme preference changes (via IPC `theme-preference-changed`) and OS theme changes (if preference is "System"). It calls `applyTheme` to update the `<html>` class when these changes occur.
-  - **Storage:** Preference is read/written via IPC to `electron-store` (handled in `main.ts`).
-  - **Styling:** Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.
+  - Initialization: The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` *before* the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
+  - Updates: The `ThemeHandler` component (`src/ui/ThemeManager.tsx`) listens for subsequent theme preference changes (via IPC `theme-preference-changed`) and OS theme changes (if preference is "System"). It calls `applyTheme` to update the `<html>` class when these changes occur.
+  - Storage: Preference is read/written via IPC to `electron-store` (handled in `main.ts`).
+  - Styling: Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.
 - **Search History:**
   - IPC handlers in `main.ts` manage CRUD operations using `electron-store`.
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
+  - **Loading:** When loading a history entry in `SearchForm.tsx`, the `structuredQuery` property (stored as `unknown`) is validated using the `isQueryStructure` type guard (`src/ui/queryBuilderUtils.ts`) before being set in the component's state, ensuring type safety.
 - **Exporting Results:**
   - The `export-results` IPC handler in `main.ts` takes the structured results data and the desired format (CSV, JSON, Markdown).
   - It uses helper functions (`generateCsv`, `generateJson`, `generateMarkdown`) to format the data.
   - It prompts the user for a save location using `dialog.showSaveDialog`.
   - It writes the generated content to the selected file using `fs.writeFile`.
-  - **Error Handling:** If an error occurs during content generation (e.g., JSON serialization failure), the specific error message is now included in the `dialog.showErrorBox` presented to the user, aiding debugging. File write errors are also handled.
+  - Error Handling: If an error occurs during content generation (e.g., JSON serialization failure), the specific error message is now included in the `dialog.showErrorBox` presented to the user, aiding debugging. File write errors are also handled.
 
 ## Building for Distribution
 

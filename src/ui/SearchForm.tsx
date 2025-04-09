@@ -4,6 +4,7 @@ import { format, parseISO, isValid, parse, type Locale } from "date-fns";
 import { enUS, de, es, fr, it, ja, pt, ru } from "date-fns/locale";
 import QueryBuilder from "./QueryBuilder";
 import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
+import { isQueryStructure } from "./queryBuilderUtils";
 import type { SearchHistoryEntry, SearchParams } from "./vite-env.d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -290,8 +291,21 @@ const SearchForm: React.FC<SearchFormProps> = ({
           : ""
       );
 
-      // Update query builder state
-      setQueryStructure(params.structuredQuery ?? null);
+      // --- query builder state using type guard ---
+      const loadedQuery = params.structuredQuery;
+      if (isQueryStructure(loadedQuery)) {
+        setQueryStructure(loadedQuery);
+      } else {
+        // Handle invalid/missing structure (e.g., log warning, set to null)
+        if (loadedQuery !== null && loadedQuery !== undefined) {
+          console.warn(
+            "Loaded history entry contained invalid structuredQuery:",
+            loadedQuery
+          );
+        }
+        setQueryStructure(null);
+      }
+      // ----------------------------------------------------
       setQueryCaseSensitive(params.caseSensitive ?? false);
 
       // Notify parent component that loading is complete
@@ -499,7 +513,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         excludeFiles: splitAndClean(formData.excludeFiles),
         excludeFolders: splitAndClean(formData.excludeFolders),
         folderExclusionMode: formData.folderExclusionMode,
-        // Send both structure and string for flexibility/logging
+        // Send the validated structure
         structuredQuery: queryStructure,
         contentSearchTerm: contentQueryString || undefined, // Send undefined if empty
         contentSearchMode: contentQueryString ? "boolean" : undefined, // Mode is boolean if query exists
