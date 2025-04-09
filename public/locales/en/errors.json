@@ -8,7 +8,7 @@
   "saveFailed": "Save failed: {{detail}}",
   "saveFailedBackend": "Failed to save file.",
   "invalidSender": "Invalid IPC sender",
-  "connectError": "Error: Could not connect to backend for progress updates.",
+  "connectError": "Could not connect to backend for progress updates.",
   "searchFunctionNA": "Search function not available.",
   "pathNotFound": "Search path not found: {{path}}",
   "pathNotDir": "Search path is not a directory: {{path}}",

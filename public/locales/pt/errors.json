@@ -8,7 +8,7 @@
   "saveFailed": "Salvamento falhou: {{detail}}",
   "saveFailedBackend": "Falha ao salvar o arquivo.",
   "invalidSender": "Remetente IPC inválido",
-  "connectError": "Erro: Não foi possível conectar ao backend para atualizações de progresso.",
+  "connectError": "Não foi possível conectar ao backend para atualizações de progresso.",
   "searchFunctionNA": "Função de pesquisa não disponível.",
   "pathNotFound": "Caminho de pesquisa não encontrado: {{path}}",
   "pathNotDir": "O caminho de pesquisa não é um diretório: {{path}}",

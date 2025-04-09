@@ -8,7 +8,7 @@
   "saveFailed": "Salvataggio fallito: {{detail}}",
   "saveFailedBackend": "Impossibile salvare il file.",
   "invalidSender": "Mittente IPC non valido",
-  "connectError": "Errore: Impossibile connettersi al backend per gli aggiornamenti di avanzamento.",
+  "connectError": "Impossibile connettersi al backend per gli aggiornamenti di avanzamento.",
   "searchFunctionNA": "Funzione di ricerca non disponibile.",
   "pathNotFound": "Percorso di ricerca non trovato: {{path}}",
   "pathNotDir": "Il percorso di ricerca non è una directory: {{path}}",

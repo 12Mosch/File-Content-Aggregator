@@ -8,7 +8,7 @@
   "saveFailed": "Speichern fehlgeschlagen: {{detail}}",
   "saveFailedBackend": "Fehler beim Speichern der Datei.",
   "invalidSender": "Ungültiger IPC-Absender",
-  "connectError": "Fehler: Konnte keine Verbindung zum Backend für Fortschrittsaktualisierungen herstellen.",
+  "connectError": "Konnte keine Verbindung zum Backend für Fortschrittsaktualisierungen herstellen.",
   "searchFunctionNA": "Suchfunktion nicht verfügbar.",
   "pathNotFound": "Suchpfad nicht gefunden: {{path}}",
   "pathNotDir": "Suchpfad ist kein Verzeichnis: {{path}}",

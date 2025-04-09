@@ -8,7 +8,7 @@
   "saveFailed": "Guardado fallido: {{detail}}",
   "saveFailedBackend": "Error al guardar el archivo.",
   "invalidSender": "Remitente IPC inválido",
-  "connectError": "Error: No se pudo conectar al backend para actualizaciones de progreso.",
+  "connectError": "No se pudo conectar al backend para actualizaciones de progreso.",
   "searchFunctionNA": "Función de búsqueda no disponible.",
   "pathNotFound": "Ruta de búsqueda no encontrada: {{path}}",
   "pathNotDir": "La ruta de búsqueda no es un directorio: {{path}}",

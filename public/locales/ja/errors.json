@@ -8,7 +8,7 @@
   "saveFailed": "保存に失敗しました: {{detail}}",
   "saveFailedBackend": "ファイルの保存に失敗しました。",
   "invalidSender": "無効なIPC送信者",
-  "connectError": "エラー: 進行状況更新のためにバックエンドに接続できませんでした。",
+  "connectError": "進行状況更新のためにバックエンドに接続できませんでした。",
   "searchFunctionNA": "検索機能が利用できません。",
   "pathNotFound": "検索パスが見つかりません: {{path}}",
   "pathNotDir": "検索パスはディレクトリではありません: {{path}}",

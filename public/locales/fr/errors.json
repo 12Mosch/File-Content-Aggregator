@@ -8,7 +8,7 @@
   "saveFailed": "Échec de l'enregistrement : {{detail}}",
   "saveFailedBackend": "Échec de l'enregistrement du fichier.",
   "invalidSender": "Expéditeur IPC invalide",
-  "connectError": "Erreur : Impossible de se connecter au backend pour les mises à jour de progression.",
+  "connectError": "Impossible de se connecter au backend pour les mises à jour de progression.",
   "searchFunctionNA": "Fonction de recherche non disponible.",
   "pathNotFound": "Chemin de recherche introuvable : {{path}}",
   "pathNotDir": "Le chemin de recherche n'est pas un répertoire : {{path}}",
