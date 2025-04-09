@@ -14,6 +14,7 @@ Welcome to the File Content Aggregator! This guide will help you install, config
   - [Results Summary](#results-summary)
   - [Results View (Tree View)](#results-view-tree-view)
   - [Filtering Results](#filtering-results)
+  - [Sorting Results](#sorting-results)
   - [Copying and Exporting Results](#copying-and-exporting-results)
 - [Search History](#search-history)
 - [Settings](#settings)
@@ -151,7 +152,7 @@ Above the results display, you'll see a summary:
 - **Files Found (Initial):** The total number of files matching your path and extension filters _before_ content/metadata filtering.
 - **Files Processed:** The number of files whose content or metadata was actually checked against your criteria.
 - **File Read Errors:** The number of files that couldn't be read due to permissions or other issues (details shown in the error section below the form if any occurred).
-- **Total Files:** The count of items currently displayed in the results view (changes based on filtering).
+- **Total Files:** The count of items currently displayed in the results view (changes based on filtering and sorting).
 
 ### Results View (Tree View)
 
@@ -170,6 +171,16 @@ The results are displayed in a Tree View:
 - Check the **Case-Sensitive** box next to it to make the filter match case.
 - This filter operates _only_ on the results already found by the main search; it doesn't perform a new file system search.
 
+### Sorting Results
+
+- Use the **Sort By** dropdown to select the criteria for sorting the results list:
+  - **File Path:** Sorts alphabetically by the full file path.
+  - **File Size:** Sorts numerically by the file size (requires file system access, may be slightly slower initially).
+  - **Date Modified:** Sorts chronologically by the file's last modification date (requires file system access).
+  - **Match Status:** Groups files based on whether they matched the content query (if provided).
+- Use the **Direction** dropdown to choose between **Ascending** (A-Z, smallest/oldest first, non-matched first) or **Descending** (Z-A, largest/newest first, matched first).
+- Sorting applies to the currently displayed (and potentially filtered) results.
+
 ### Copying and Exporting Results
 
 Below the results display area, you'll find options to copy or save the results:
@@ -179,9 +190,9 @@ Below the results display area, you'll find options to copy or save the results:
   - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (content or error message). Suitable for spreadsheets.
   - **JSON:** Creates a JSON file containing an array of all processed files, including their path, status, and content/error details. Suitable for programmatic use.
   - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status and content/error message in a code block. Suitable for documentation or readable reports.
-- **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard.
+- **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard. The copied data respects the current **sort order**.
   - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option instead for large result sets.
-- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. This is the recommended way to export large or structured results.
+- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. The saved data respects the current **sort order**. This is the recommended way to export large or structured results.
 
 ## Search History
 
@@ -225,6 +236,7 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
 - **Export Fails:** Ensure you have write permissions for the location where you are trying to save the file. Check for error messages displayed by the application.
 - **Copy Fails / Seems Incomplete:** The total size of the formatted results might exceed your system's clipboard limit. Use the "Save Results As..." option instead for large result sets.
 - **Content Not Loading in Tree View:** Check for "File Read Errors" displayed below the search form. The application might lack permission to read the specific file.
+- **Sorting by Size/Date is Slow:** Fetching metadata for sorting requires accessing each file's information, which can take time for very large result sets.
 
 ## Feedback and Support
 

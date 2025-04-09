@@ -25,6 +25,7 @@ This guide provides technical information for developers working on or contribut
   - [Exporting Results](#exporting-results)
   - [On-Demand Content Loading](#on-demand-content-loading)
   - [Copying Results](#copying-results)
+  - [Results Sorting](#results-sorting)
 - [Building for Distribution](#building-for-distribution)
 - [Security Considerations](#security-considerations)
 - [Code Style & Linting](#code-style--linting)
@@ -185,52 +186,61 @@ Communication between the Main and Renderer processes happens via IPC messages:
 ## Core Logic Areas
 
 - **File Search (`fileSearchService.ts`):** Contains the main search orchestration logic.
-  - Uses `fast-glob` with `suppressErrors: true` for initial discovery. This allows the scan to continue even if permission errors occur in subdirectories, ensuring all *accessible* files matching the pattern are found.
-  - **Error Handling:** Initial `fs.stat` checks on the top-level search paths are performed *before* globbing to catch immediate access issues (e.g., path not found, not a directory). Traversal errors (like `EPERM`) encountered by `fast-glob` are suppressed by the library itself but logged internally by the application if needed. Errors during later `fs.stat` (for metadata filtering) or `fs.readFile` (for content matching) are caught and reported per-file.
-  - **Error Relevance Filtering:** Before returning the final `SearchResult`, any captured path errors (primarily from the initial `fs.stat` checks) are filtered by `filterRelevantPathErrors`. This function checks if a directory that caused a permission error would have been excluded by the `excludeFolders` rules anyway. Only errors for non-excluded paths are included in the final `pathErrors` array shown to the user.
+  - Uses `fast-glob` with `suppressErrors: true` for initial discovery.
+  - **Error Handling:** Initial `fs.stat` checks on top-level paths. Traversal errors suppressed by `fast-glob`. Errors during later `fs.stat` or `fs.readFile` are caught and reported per-file.
+  - **Error Relevance Filtering:** Filters path errors based on `excludeFolders` rules.
+  - **Metadata Fetching:** Now performs `fs.stat` for all files passing exclusion filters to gather `size` and `mtime` for sorting, even if size/date filters are not active.
   - Applies filters (extension, excludes, date, size) sequentially.
   - Uses `p-limit` to manage concurrency for file stats and reads.
-  - Parses boolean queries using `jsep` and evaluates the AST against file content using `evaluateBooleanAst`. Includes robust error handling during evaluation, ensuring the internal word boundary cache is cleared even on failure to prevent potential memory leaks.
-  - Handles proximity search (`NEAR`) logic within the AST evaluation.
-  - Accepts and checks a `checkCancellation` function periodically.
-  - Sends progress updates via the `progressCallback`.
-  - **Memory Optimization:** The function no longer reads or returns the full content of matched files in the main result set. It only returns metadata (`filePath`, `matched`, `readError`).
+  - Parses boolean queries using `jsep` and evaluates the AST against file content.
+  - Handles proximity search (`NEAR`) logic.
+  - Accepts and checks a `checkCancellation` function.
+  - Sends progress updates via `progressCallback`.
+  - **Memory Optimization:** Does not read/return full content in the main result set.
+  - **Output:** Returns `StructuredItem[]` containing `filePath`, `matched`, `readError`, `size`, and `mtime`.
 - **Internationalization (i18n):**
-  - UI: Configured in `src/ui/i18n.ts`, uses `HttpApi` backend to load locales from `/public/locales`. `useTranslation` hook used in components. Language preference synced with `main.ts` via IPC.
-  - Main: Separate `i18next` instance configured in `main.ts`, uses `i18next-fs-backend` to load locales for dialogs.
-- **UI State Management:** Primarily uses standard React hooks (`useState`, `useCallback`, `useEffect`, `useMemo`). Global state like search results, progress, errors, history, and settings are managed in the root `App.tsx` component and passed down as props. Content for individual files in the tree view is fetched on demand and managed within `ResultsDisplay.tsx`.
+  - UI: Configured in `src/ui/i18n.ts`, uses `HttpApi` backend. `useTranslation` hook used. Language preference synced via IPC.
+  - Main: Separate `i18next` instance in `main.ts`, uses `i18next-fs-backend`.
+- **UI State Management:** Primarily uses standard React hooks. Global state (results, progress, errors, history, settings, sort state) managed in `App.tsx` and passed down. Content for individual files fetched on demand and managed within `ResultsDisplay.tsx`.
 - **Theming:**
-  - Initialization: The initial theme preference is fetched via IPC (`getThemePreference`) in `src/ui/main.tsx` _before_ the initial React render. The `applyTheme` function (from `ThemeManager.tsx`) is called immediately to set the correct `light`/`dark` class on the `<html>` element, preventing a theme flash.
-  - Updates: The `ThemeHandler` component (`src/ui/ThemeManager.tsx`) listens for subsequent theme preference changes (via IPC `theme-preference-changed`) and OS theme changes (if preference is "System"). It calls `applyTheme` to update the `<html>` class when these changes occur.
-  - Storage: Preference is read/written via IPC to `electron-store` (handled in `main.ts`).
-  - Styling: Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables defined in `index.css`.
+  - Initialization: Initial theme fetched via IPC in `src/ui/main.tsx` before render. `applyTheme` called immediately.
+  - Updates: `ThemeHandler` component listens for IPC changes and OS changes, calls `applyTheme`.
+  - Storage: Preference read/written via IPC to `electron-store`.
+  - Styling: Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables.
 - **Search History:**
-  - IPC handlers in `main.ts` manage CRUD operations using `electron-store`.
-  - **De-duplication:** The `add-search-history-entry` handler now checks if an entry with identical `searchParams` (excluding `structuredQuery` and array order) already exists. If found, it updates the existing entry's timestamp and moves it to the top instead of adding a duplicate.
+  - IPC handlers in `main.ts` manage CRUD using `electron-store`.
+  - **De-duplication:** `add-search-history-entry` updates existing entries with identical params.
   - UI handled by `HistoryModal.tsx` and `HistoryListItem.tsx`.
-  - Loading: When loading a history entry in `SearchForm.tsx`, the `structuredQuery` property (stored as `unknown`) is validated using the `isQueryStructure` type guard (`src/ui/queryBuilderUtils.ts`) before being set in the component's state, ensuring type safety.
+  - Loading: `isQueryStructure` type guard used when loading history.
 - **Exporting Results:**
-  - The `export-results` IPC handler in `main.ts` takes the structured results data (which *does not* include file content initially) and the desired format (TXT, CSV, JSON, Markdown).
-  - It calls `fetchContentForExport` to read the content of **matched** files concurrently.
-  - It then uses helper functions (`generateTxt`, `generateCsv`, etc.) to format the data *including the fetched content for matched files*.
-  - It prompts the user for a save location using `dialog.showSaveDialog`.
-  - It writes the generated content to the selected file using `fs.writeFile`.
-  - Error Handling: Errors during content fetching or generation are handled and reported.
+  - `export-results` IPC handler in `main.ts` takes `StructuredItem[]` (without content) and format.
+  - Calls `fetchContentForExport` to read content of **matched** files.
+  - Uses helper functions (`generateTxt`, `generateCsv`, etc.) to format data including fetched content.
+  - Prompts user for save location using `dialog.showSaveDialog`.
+  - Writes the generated content to file.
 - **On-Demand Content Loading:**
-  - A new IPC channel `get-file-content` is handled in `main.ts`.
-  - The renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` when a user expands an item in the tree view.
-  - The main process reads only the requested file's content and returns it (or an error key for translation).
-  - `ResultsDisplay.tsx` uses a `contentCacheRef` (Map) to store fetched content and manage loading/error states (`idle`, `loading`, `loaded`, `error`) for individual tree items.
+  - `get-file-content` IPC channel handled in `main.ts`.
+  - Renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` on item expansion.
+  - Main process reads and returns content or error key.
+  - `ResultsDisplay.tsx` uses `contentCacheRef` (Map) to store fetched content and manage loading states.
 - **Copying Results:**
-  - **Copy All Results:** The "Copy Results" button in `ResultsDisplay.tsx` triggers the `handleCopyResults` function.
-    - This function calls the `generate-export-content` IPC handler in `main.ts`, passing the current `filteredStructuredItems` and the selected `exportFormat`.
-    - The `generate-export-content` handler calls `fetchContentForExport` to read content for **matched** files.
-    - It then generates the content string in the requested format (including content for matched files) and returns it to the renderer.
-    - The renderer uses the `copy-to-clipboard` IPC handler to place the generated string onto the system clipboard.
-    - A warning is shown if the number of items being copied is large, as the resulting string might exceed clipboard limits.
-  - **Copy Individual File Content:** The copy icon (📄) in an expanded `TreeRow` in `ResultsDisplay.tsx` triggers `handleCopyFileContent`.
-    - This function directly uses the content already loaded into the `contentCache` for that specific file.
-    - It calls the `copy-to-clipboard` IPC handler with the fetched content.
+  - **Copy All Results:** Button triggers `handleCopyResults` in `ResultsDisplay.tsx`.
+    - Calls `generate-export-content` IPC handler.
+    - Handler calls `fetchContentForExport` for matched files.
+    - Generates content string (including content) and returns it.
+    - Renderer uses `copy-to-clipboard` IPC handler.
+    - Warning shown for large result sets.
+  - **Copy Individual File Content:** Icon triggers `handleCopyFileContent` in `ResultsDisplay.tsx`.
+    - Uses content already loaded in `contentCache`.
+    - Calls `copy-to-clipboard` IPC handler.
+- **Results Sorting:**
+  - Implemented in `ResultsDisplay.tsx`.
+  - State variables `sortKey` and `sortDirection` manage the current sort order.
+  - UI controls (Select dropdowns) allow user selection.
+  - `useMemo` hook calculates `sortedItems` based on the current `filteredStructuredItems` and sort state.
+  - The sorting function handles comparisons for `filePath` (string), `size` (number), `mtime` (number), and `matched` (boolean), including handling `undefined` metadata values.
+  - `VariableSizeList` is updated to use `sortedItems`.
+  - `resetAfterIndex` is called when sort state changes to ensure the list re-renders correctly.
 
 ## Building for Distribution
 
@@ -252,24 +262,24 @@ Communication between the Main and Renderer processes happens via IPC messages:
 
 Security is paramount in Electron applications. Key measures taken:
 
-- **Context Isolation:** **Enabled** (`contextIsolation: true`). Prevents direct access between the renderer's web content and Electron/Node.js APIs.
-- **Sandbox:** **Enabled** (`sandbox: true`). Further restricts the renderer process's capabilities.
-- **Preload Script (`contextBridge`):** Only specific, necessary functions are exposed from the preload script to the renderer via `window.electronAPI`.
-- **Content Security Policy (CSP):** A strict CSP is applied via `session.defaultSession.webRequest.onHeadersReceived` in `main.ts` to limit resource loading and script execution sources.
-- **IPC Sender Validation:** All `ipcMain.handle` and `ipcMain.on` listeners in `main.ts` use `validateSender` to ensure messages come from the expected renderer window frame.
-- **No Node Integration in Renderer:** `nodeIntegration: false` is set for the renderer's webPreferences.
-- **External Links:** Use `shell.openExternal` (if needed, currently not implemented) instead of opening links directly in the app window.
-- **Input Validation:** While basic validation exists (e.g., date parsing), further sanitization could be added if handling more complex user inputs that might be used in shell commands or file paths (though currently, file operations are handled safely by Node APIs).
+- **Context Isolation:** **Enabled** (`contextIsolation: true`).
+- **Sandbox:** **Enabled** (`sandbox: true`).
+- **Preload Script (`contextBridge`):** Only necessary functions exposed via `window.electronAPI`.
+- **Content Security Policy (CSP):** Strict CSP applied via `session.defaultSession.webRequest.onHeadersReceived`.
+- **IPC Sender Validation:** All `ipcMain.handle` and `ipcMain.on` listeners use `validateSender`.
+- **No Node Integration in Renderer:** `nodeIntegration: false`.
+- **External Links:** Use `shell.openExternal` (if needed).
+- **Input Validation:** Basic validation exists; further sanitization could be added if necessary.
 
 Refer to the official [Electron Security Documentation](https://www.electronjs.org/docs/latest/tutorial/security) for more details.
 
 ## Code Style & Linting
 
-- **TypeScript:** Used throughout the project for type safety.
-- **ESLint:** Configured (`eslint.config.js` or similar) for code quality and consistency. Run `npm run lint` to check and potentially fix issues.
-- **Prettier:** Used for automatic code formatting (likely integrated with ESLint or run separately).
-- **TSDoc:** Used for documenting functions, classes, and interfaces (`/** ... */`). Aim for clear explanations, especially for exported members and complex logic.
+- **TypeScript:** Used throughout.
+- **ESLint:** Configured for code quality. Run `npm run lint`.
+- **Prettier:** Used for automatic code formatting.
+- **TSDoc:** Used for documenting functions, classes, and interfaces.
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on reporting issues, suggesting features, and submitting pull requests.
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.

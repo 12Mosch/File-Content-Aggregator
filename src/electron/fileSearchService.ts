@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
+import type { Stats } from "fs";
 import picomatch from "picomatch";
 import type { Options as FastGlobOptions } from "fast-glob";
 import type PLimit from "p-limit";
@@ -72,11 +73,13 @@ interface PathErrorDetail {
   code?: string; // Error code (e.g., 'EPERM', 'ENOENT')
 }
 
-// Modified: Removed 'content' property
+// Modified: Added size and mtime
 export interface StructuredItem {
   filePath: string;
   matched: boolean; // Indicates if content matched (if query was present)
   readError?: string;
+  size?: number;
+  mtime?: number;
 }
 
 // Modified: Removed 'output' property
@@ -669,7 +672,6 @@ export async function searchFiles(
   const detailedPathErrors: PathErrorDetail[] = [];
   const fileReadErrors: FileReadError[] = [];
   const structuredItems: StructuredItem[] = [];
-  // const outputLines: string[] = [];
   let wasCancelled = false;
 
   // Ensure p-limit is loaded correctly
@@ -686,7 +688,6 @@ export async function searchFiles(
       message: "Internal error: Concurrency limiter failed to load.",
     });
     return {
-      // output: "", // Removed
       structuredItems: [],
       filesFound: 0,
       filesProcessed: 0,
@@ -1036,72 +1037,51 @@ export async function searchFiles(
     };
   }
 
-  // --- Phase 3: Filtering based on Metadata (Size/Date) ---
-  const afterDate = parseDateStartOfDay(modifiedAfter);
-  const beforeDate = parseDateEndOfDay(modifiedBefore);
-  const hasSizeFilter =
-    minSizeBytes !== undefined || maxSizeBytes !== undefined;
-  const hasDateFilter = !!afterDate || !!beforeDate;
-
-  if ((hasSizeFilter || hasDateFilter) && filesToProcess.length > 0) {
-    const initialCountForStatFilter = filesToProcess.length;
+  // --- Phase 3: Get Metadata (Size/Date) for ALL remaining files ---
+  // This is now done for all files to enable sorting, even if filters aren't active.
+  const filesWithMetadata: { filePath: string; stats: Stats | null }[] = [];
+  if (filesToProcess.length > 0) {
+    const initialCountForStat = filesToProcess.length;
     progressCallback({
       processed: 0,
-      total: initialCountForStatFilter,
-      message: `Filtering ${initialCountForStatFilter} files by size/date (parallel)...`,
+      total: initialCountForStat,
+      message: `Fetching metadata for ${initialCountForStat} files (parallel)...`,
       status: "searching",
     });
 
-    // Get file stats concurrently using p-limit
-    const statCheckPromises = filesToProcess.map((filePath) =>
+    const statPromises = filesToProcess.map((filePath) =>
       limit(async () => {
-        if (checkCancellation()) return null; // Check cancellation before stat call
+        if (checkCancellation()) return null;
         try {
           const stats = await fs.stat(filePath);
-          const fileSize = stats.size;
-          const mtime = stats.mtime;
-
-          // Check size filter
-          const passSizeCheck =
-            !hasSizeFilter ||
-            ((minSizeBytes === undefined || fileSize >= minSizeBytes) &&
-              (maxSizeBytes === undefined || fileSize <= maxSizeBytes));
-
-          // Check date filter
-          const passDateCheck =
-            !hasDateFilter ||
-            ((!afterDate || mtime.getTime() >= afterDate.getTime()) &&
-              (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
-
-          // Return filePath only if both checks pass
-          return passSizeCheck && passDateCheck ? filePath : null;
+          return { filePath, stats };
         } catch (statError: unknown) {
-          // Log stat errors but don't stop the search, just exclude the file
           const message =
             statError instanceof Error ? statError.message : String(statError);
           console.warn(
-            `Could not get stats for file during size/date filter: ${filePath}`,
+            `Could not get stats for file: ${filePath}`,
             message
           );
-          return null; // Exclude file if stats fail
+          // Return null stats if error occurs, file will be processed without metadata
+          return { filePath, stats: null };
         }
       })
     );
 
-    const statResults = await Promise.all(statCheckPromises);
+    const statResults = await Promise.all(statPromises);
 
     if (checkCancellation()) {
       wasCancelled = true;
       progressCallback({
-        processed: initialCountForStatFilter, // Assume all were attempted
-        total: initialCountForStatFilter,
-        message: "Search cancelled during size/date filter.",
+        processed: initialCountForStat,
+        total: initialCountForStat,
+        message: "Search cancelled during metadata fetch.",
         status: "cancelled",
       });
       return {
         structuredItems: [],
         filesFound: initialFileCount,
-        filesProcessed: 0, // No files fully processed yet
+        filesProcessed: 0,
         errorsEncountered: 0,
         pathErrors: filterRelevantPathErrors(
           detailedPathErrors,
@@ -1113,17 +1093,62 @@ export async function searchFiles(
       };
     }
 
-    // Filter out the null results (files that failed stat or didn't match)
-    filesToProcess = statResults.filter(
-      (result): result is string => result !== null
-    );
-    currentTotal = filesToProcess.length;
+    // Filter out null results (only happens if cancelled mid-flight)
+    statResults.forEach((result) => {
+      if (result) {
+        filesWithMetadata.push(result);
+      }
+    });
+
     progressCallback({
-      processed: initialCountForStatFilter, // Show progress based on attempted stats
-      total: initialCountForStatFilter,
+      processed: initialCountForStat,
+      total: initialCountForStat,
+      message: `Metadata fetched for ${filesWithMetadata.length} files. Filtering by size/date...`,
+      status: "searching",
+    });
+  }
+
+  // --- Phase 3b: Filtering based on Metadata (Size/Date) ---
+  const afterDate = parseDateStartOfDay(modifiedAfter);
+  const beforeDate = parseDateEndOfDay(modifiedBefore);
+  const hasSizeFilter =
+    minSizeBytes !== undefined || maxSizeBytes !== undefined;
+  const hasDateFilter = !!afterDate || !!beforeDate;
+
+  let filesToProcessWithMetadata = filesWithMetadata;
+  if ((hasSizeFilter || hasDateFilter) && filesToProcessWithMetadata.length > 0) {
+    filesToProcessWithMetadata = filesToProcessWithMetadata.filter(
+      ({ stats }) => {
+        if (!stats) return false;
+
+        const fileSize = stats.size;
+        const mtime = stats.mtime;
+
+        // Check size filter
+        const passSizeCheck =
+          !hasSizeFilter ||
+          ((minSizeBytes === undefined || fileSize >= minSizeBytes) &&
+            (maxSizeBytes === undefined || fileSize <= maxSizeBytes));
+
+        // Check date filter
+        const passDateCheck =
+          !hasDateFilter ||
+          ((!afterDate || mtime.getTime() >= afterDate.getTime()) &&
+            (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
+
+        return passSizeCheck && passDateCheck;
+      }
+    );
+    currentTotal = filesToProcessWithMetadata.length;
+    progressCallback({
+      processed: filesWithMetadata.length, // Show progress based on attempted stats
+      total: filesWithMetadata.length,
       message: `Filtered ${currentTotal} files after size/date check.`,
       status: "searching",
     });
+  } else {
+    // If no size/date filters, all files with metadata pass
+    currentTotal = filesToProcessWithMetadata.length;
   }
 
   if (checkCancellation()) {
@@ -1151,7 +1176,7 @@ export async function searchFiles(
 
   // --- Phase 4: Content Matching (if applicable) ---
   let filesProcessedCounter = 0;
-  const totalFilesToProcess = filesToProcess.length;
+  const totalFilesToProcess = filesToProcessWithMetadata.length;
   let contentMatcher: ((content: string) => boolean) | null = null;
   let parseOrRegexError = false;
 
@@ -1196,7 +1221,7 @@ export async function searchFiles(
           if (jsep.binary_ops["||"]) jsep.removeBinaryOp("||");
           if (jsep.binary_ops["&&"]) jsep.removeBinaryOp("&&");
           if (jsep.unary_ops["!"]) jsep.removeUnaryOp("!");
-          if (!jsep.binary_ops["AND"]) jsep.addBinaryOp("AND", 1); // Higher precedence than OR
+          if (!jsep.binary_ops["AND"]) jsep.addBinaryOp("AND", 1);
           if (!jsep.binary_ops["OR"]) jsep.addBinaryOp("OR", 0);
           if (!jsep.unary_ops["NOT"]) jsep.addUnaryOp("NOT");
           // Note: NEAR is handled as a CallExpression within evaluateBooleanAst
@@ -1324,99 +1349,102 @@ export async function searchFiles(
     }
 
     // Process remaining files concurrently using p-limit
-    const processingPromises = filesToProcess.map((file) =>
-      limit(async () => {
-        if (checkCancellation()) {
-          return null; // Skip processing if cancelled
-        }
-
-        const currentFileName = path.basename(file);
-        const displayFilePath = file.replace(/\\/g, "/"); // Normalize path for display
-        let fileContent: string | null = null;
-        let structuredItemResult: StructuredItem | null = null;
-        // let outputLineResult: string | null = null;
-        let fileReadErrorResult: FileReadError | null = null;
-        let errorKeyForProgress: string | undefined = undefined;
-        let incrementCounter = true; // Flag to control progress increment
-        let contentMatches = !contentMatcher; // Default to true if no content query
-
-        try {
+    const processingPromises = filesToProcessWithMetadata.map(
+      ({ filePath, stats }) =>
+        limit(async () => {
           if (checkCancellation()) {
-            incrementCounter = false; // Don't increment if cancelled before read
             return null;
           }
 
-          // Only read content if there's a content matcher
-          if (contentMatcher) {
-            fileContent = await fs.readFile(file, { encoding: "utf8" });
-            contentMatches = contentMatcher(fileContent);
-          }
+          const currentFileName = path.basename(filePath);
+          const displayFilePath = filePath.replace(/\\/g, "/");
+          let fileContent: string | null = null;
+          let structuredItemResult: StructuredItem | null = null;
+          let fileReadErrorResult: FileReadError | null = null;
+          let errorKeyForProgress: string | undefined = undefined;
+          let incrementCounter = true; // Flag to control progress increment
+          let contentMatches = !contentMatcher; // Default to true if no content query
 
-          // Always add a structured item, indicating match status
-          structuredItemResult = {
-            filePath: displayFilePath,
-            matched: contentMatches, // Store match status
-            readError: undefined,
-          };
+          try {
+            if (checkCancellation()) {
+              incrementCounter = false; // Don't increment if cancelled before read
+              return null;
+            }
 
-        } catch (error: unknown) {
-          // Handle file read errors
-          const message =
-            error instanceof Error ? error.message : String(error);
-          console.error(`Error reading file '${file}':`, message);
-          let reasonKey = "readError"; // Default error reason
-          const code = (error as { code?: string })?.code;
-          // Map common error codes to reason keys for i18n
-          if (code === "EPERM" || code === "EACCES") {
-            reasonKey = "readPermissionDenied";
-          } else if (code === "ENOENT") {
-            reasonKey = "fileNotFoundDuringRead";
-          } else if (code === "EISDIR") {
-            reasonKey = "pathIsDir";
-          }
-          // Add structured item indicating the read error
-          structuredItemResult = {
-            filePath: displayFilePath,
-            matched: false, // Cannot match if read failed
-            readError: reasonKey,
-          };
-          // Add detailed error info for the final result summary
-          fileReadErrorResult = {
-            filePath: displayFilePath,
-            reason: reasonKey,
-            detail: message,
-          };
-          errorKeyForProgress = reasonKey; // For progress update message
-        } finally {
-          // --- Cache Cleanup ---
-          if (fileContent !== null) {
-            wordBoundariesCache.delete(fileContent);
-          }
-          // --- End Cache Cleanup ---
+            // Only read content if there's a content matcher
+            if (contentMatcher) {
+              fileContent = await fs.readFile(filePath, { encoding: "utf8" });
+              contentMatches = contentMatcher(fileContent);
+            }
 
-          // Update progress after each file attempt (if not cancelled mid-operation)
-          if (incrementCounter) {
-            filesProcessedCounter++;
-            const cancelled = checkCancellation(); // Check cancellation status for progress message
-            progressCallback({
-              processed: filesProcessedCounter,
-              total: totalFilesToProcess,
-              currentFile: currentFileName,
-              message: errorKeyForProgress
-                ? `Error: ${currentFileName}` // Show error in message
-                : cancelled
-                  ? "Cancelling..." // Indicate cancellation in progress
-                  : `Processed: ${currentFileName}`, // Normal processing message
-              error: errorKeyForProgress, // Pass error key for potential UI highlighting
-              status: cancelled ? "cancelling" : "searching", // Update status
-            });
+            // Always add a structured item, indicating match status and metadata
+            structuredItemResult = {
+              filePath: displayFilePath,
+              matched: contentMatches, // Store match status
+              readError: undefined,
+              size: stats?.size, // Add size from stats
+              mtime: stats?.mtime.getTime(), // Add mtime timestamp from stats
+            };
+          } catch (error: unknown) {
+            // Handle file read errors
+            const message =
+              error instanceof Error ? error.message : String(error);
+            console.error(`Error reading file '${filePath}':`, message);
+            let reasonKey = "readError"; // Default error reason
+            const code = (error as { code?: string })?.code;
+            // Map common error codes to reason keys for i18n
+            if (code === "EPERM" || code === "EACCES") {
+              reasonKey = "readPermissionDenied";
+            } else if (code === "ENOENT") {
+              reasonKey = "fileNotFoundDuringRead";
+            } else if (code === "EISDIR") {
+              reasonKey = "pathIsDir";
+            }
+            // Add structured item indicating the read error and metadata (if available)
+            structuredItemResult = {
+              filePath: displayFilePath,
+              matched: false, // Cannot match if read failed
+              readError: reasonKey,
+              size: stats?.size, // Still include metadata if stats were successful
+              mtime: stats?.mtime.getTime(),
+            };
+            // Add detailed error info for the final result summary
+            fileReadErrorResult = {
+              filePath: displayFilePath,
+              reason: reasonKey,
+              detail: message,
+            };
+            errorKeyForProgress = reasonKey; // For progress update message
+          } finally {
+            // --- Cache Cleanup ---
+            if (fileContent !== null) {
+              wordBoundariesCache.delete(fileContent);
+            }
+            // --- End Cache Cleanup ---
+
+            // Update progress after each file attempt (if not cancelled mid-operation)
+            if (incrementCounter) {
+              filesProcessedCounter++;
+              const cancelled = checkCancellation(); // Check cancellation status for progress message
+              progressCallback({
+                processed: filesProcessedCounter,
+                total: totalFilesToProcess,
+                currentFile: currentFileName,
+                message: errorKeyForProgress
+                  ? `Error: ${currentFileName}` // Show error in message
+                  : cancelled
+                    ? "Cancelling..." // Indicate cancellation in progress
+                    : `Processed: ${currentFileName}`, // Normal processing message
+                error: errorKeyForProgress, // Pass error key for potential UI highlighting
+                status: cancelled ? "cancelling" : "searching", // Update status
+              });
+            }
           }
-        }
-        // Return results for this file (or null if cancelled)
-        return checkCancellation()
-          ? null
-          : { structuredItemResult, fileReadErrorResult };
-      })
+          // Return results for this file (or null if cancelled)
+          return checkCancellation()
+            ? null
+            : { structuredItemResult, fileReadErrorResult };
+        })
     );
 
     // Wait for all file processing promises to settle

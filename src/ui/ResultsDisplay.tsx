@@ -21,7 +21,14 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { StructuredItem, ExportFormat } from "./vite-env.d";
-import { Copy, AlertTriangle, Save, Loader2 } from "lucide-react";
+import {
+  Copy,
+  AlertTriangle,
+  Save,
+  Loader2,
+  ArrowDown,
+  ArrowUp,
+} from "lucide-react";
 
 // Constants
 const TREE_ITEM_HEADER_HEIGHT = 32;
@@ -53,6 +60,11 @@ interface ContentCacheEntry {
 }
 type ContentCache = Map<string, ContentCacheEntry>;
 
+// --- Sorting Types ---
+type SortKey = "filePath" | "size" | "mtime" | "matched";
+type SortDirection = "asc" | "desc";
+// ---------------------
+
 interface ResultsDisplayProps {
   filteredStructuredItems: StructuredItem[] | null;
   summary: {
@@ -72,7 +84,7 @@ interface ResultsDisplayProps {
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
 interface TreeRowData {
-  items: StructuredItem[];
+  items: StructuredItem[]; // Now expects sorted items
   itemDisplayStates: ItemDisplayStates;
   toggleExpand: (filePath: string) => void;
   showFullContentHandler: (filePath: string) => void;
@@ -440,6 +452,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
   const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
 
+  // --- Sorting State ---
+  const [sortKey, setSortKey] = useState<SortKey>("filePath");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  // ---------------------
+
   // Fetch default export format on mount
   useEffect(() => {
     if (window.electronAPI?.getDefaultExportFormat) {
@@ -545,10 +562,62 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     [t]
   );
 
-  const treeItemData: TreeRowData | null = useMemo(() => {
+  // --- Sorting Logic ---
+  const sortedItems = useMemo(() => {
     if (!filteredStructuredItems) return null;
+    const itemsToSort = [...filteredStructuredItems];
+
+    itemsToSort.sort((a, b) => {
+      let compareA: string | number | boolean | undefined;
+      let compareB: string | number | boolean | undefined;
+
+      switch (sortKey) {
+        case "filePath":
+          compareA = a.filePath.toLowerCase();
+          compareB = b.filePath.toLowerCase();
+          break;
+        case "size":
+          compareA = a.size;
+          compareB = b.size;
+          break;
+        case "mtime":
+          compareA = a.mtime;
+          compareB = b.mtime;
+          break;
+        case "matched":
+          // Treat read errors as not matched for sorting purposes
+          compareA = a.readError ? false : a.matched;
+          compareB = b.readError ? false : b.matched;
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle undefined values (e.g., size/mtime if stats failed)
+      // Place undefined values at the end when ascending, beginning when descending
+      if (compareA === undefined && compareB === undefined) return 0;
+      if (compareA === undefined) return sortDirection === "asc" ? 1 : -1;
+      if (compareB === undefined) return sortDirection === "asc" ? -1 : 1;
+
+      // Perform comparison
+      let comparison = 0;
+      if (compareA < compareB) {
+        comparison = -1;
+      } else if (compareA > compareB) {
+        comparison = 1;
+      }
+
+      return sortDirection === "asc" ? comparison : comparison * -1;
+    });
+
+    return itemsToSort;
+  }, [filteredStructuredItems, sortKey, sortDirection]);
+  // ---------------------
+
+  const treeItemData: TreeRowData | null = useMemo(() => {
+    if (!sortedItems) return null; // Use sortedItems here
     return {
-      items: filteredStructuredItems,
+      items: sortedItems, // Pass sorted items to the list
       itemDisplayStates: itemDisplayStates,
       toggleExpand: onToggleExpand,
       showFullContentHandler: onShowFullContent,
@@ -562,7 +631,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       requestContent: requestContent,
     };
   }, [
-    filteredStructuredItems,
+    sortedItems, // Depend on sortedItems
     itemDisplayStates,
     onToggleExpand,
     onShowFullContent,
@@ -578,8 +647,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   const getTreeItemSize = useCallback(
     (index: number): number => {
-      if (!filteredStructuredItems) return TREE_ITEM_HEADER_HEIGHT;
-      const item = filteredStructuredItems[index];
+      if (!sortedItems) return TREE_ITEM_HEADER_HEIGHT; // Use sortedItems
+      const item = sortedItems[index]; // Use sortedItems
       if (!item) return TREE_ITEM_HEADER_HEIGHT;
 
       const displayState = itemDisplayStates.get(item.filePath);
@@ -637,7 +706,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         TREE_ITEM_PADDING_Y
       );
     },
-    [filteredStructuredItems, itemDisplayStates, contentUpdateCounter] // Depend on contentUpdateCounter
+    [sortedItems, itemDisplayStates, contentUpdateCounter] // Depend on sortedItems and contentUpdateCounter
   );
 
   // Effect for initializing and terminating the worker
@@ -697,7 +766,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     setContentUpdateCounter(0); // Reset content counter
   }, [filteredStructuredItems]); // Depend on the results structure
 
-  // Effect to reset list scroll/size when view mode or data changes significantly
+  // Effect to reset list scroll/size when view mode, data, filter, or sort changes
   useEffect(() => {
     if (treeListRef.current) {
       treeListRef.current.resetAfterIndex(0, true);
@@ -709,11 +778,14 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     contentUpdateCounter,
     isFilterActive,
     filteredStructuredItems,
+    sortKey, // Add sort dependencies
+    sortDirection, // Add sort dependencies
   ]);
 
   // --- Handle Copy Results ---
   const handleCopyResults = useCallback(async () => {
-    if (!filteredStructuredItems || filteredStructuredItems.length === 0) {
+    if (!sortedItems || sortedItems.length === 0) {
+      // Use sortedItems
       setCopyStatus(t("exportButtonNoResults"));
       setTimeout(() => setCopyStatus(""), 3000);
       return;
@@ -733,10 +805,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     setCopyStatus(t("copyButtonCopying"));
     try {
-      // Generate content in the selected format
+      // Generate content in the selected format using sortedItems
       const { content, error } =
         await window.electronAPI.invokeGenerateExportContent(
-          filteredStructuredItems,
+          sortedItems,
           exportFormat
         );
 
@@ -757,11 +829,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     } finally {
       setTimeout(() => setCopyStatus(""), 5000);
     }
-  }, [filteredStructuredItems, exportFormat, t, isCopyLarge]);
+  }, [sortedItems, exportFormat, t, isCopyLarge]); // Depend on sortedItems
 
   // --- Handle Export ---
   const handleExport = () => {
-    if (!filteredStructuredItems || filteredStructuredItems.length === 0) {
+    if (!sortedItems || sortedItems.length === 0) {
+      // Use sortedItems
       setExportStatus(t("exportButtonNoResults"));
       setTimeout(() => setExportStatus(""), 3000);
       return;
@@ -774,9 +847,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
 
     setExportStatus(t("exportButtonExporting"));
-    // Pass items *without* content for export
+    // Pass sorted items *without* content for export
     window.electronAPI
-      .exportResults(filteredStructuredItems, exportFormat)
+      .exportResults(sortedItems, exportFormat)
       .then(({ success, error }) => {
         if (success) {
           setExportStatus(t("exportButtonSuccess"));
@@ -805,7 +878,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const getSummaryLabelKey = (): string => {
     return isFilterActive ? "summaryTotalFilesFiltered" : "summaryTotalFiles";
   };
-  const summaryCount = filteredStructuredItems?.length ?? 0;
+  const summaryCount = sortedItems?.length ?? 0; // Use sortedItems length
 
   return (
     <div className="mt-6 p-4 border border-border rounded-lg bg-card flex flex-col flex-grow min-h-[300px] overflow-hidden">
@@ -837,33 +910,96 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <span>{t("clipboardWarning")}</span>
         </p>
       )}
-      <div className="flex-grow border border-border rounded-md bg-background overflow-hidden min-h-[200px]">
-        <AutoSizer>
-          {({ height, width }) =>
-            // Always render Tree View (or null if no data)
-            treeItemData ? (
-              <VariableSizeList
-                ref={treeListRef}
-                height={height}
-                itemCount={treeItemData.items.length}
-                itemSize={getTreeItemSize}
-                width={width}
-                itemData={treeItemData}
-                overscanCount={5}
-                estimatedItemSize={
-                  TREE_ITEM_HEADER_HEIGHT + TREE_ITEM_CONTENT_LINE_HEIGHT * 5
-                }
-                // Update itemKey to depend on content/highlight updates too
-                itemKey={(index, data) =>
-                  `${data.items[index]?.filePath ?? index}-${itemDisplayVersion}-${highlightUpdateCounter}-${contentUpdateCounter}`
-                }
-              >
-                {TreeRow}
-              </VariableSizeList>
-            ) : null
-          }
-        </AutoSizer>
+
+      {/* --- Results List Container (Now includes Sorting) --- */}
+      <div className="flex-grow flex flex-col border border-border rounded-md bg-background overflow-hidden min-h-[200px]">
+        {/* --- Sorting Controls (Moved Inside) --- */}
+        <div className="flex flex-wrap gap-4 items-center p-2 border-b border-border shrink-0 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="sortKeySelect" className="text-sm shrink-0">
+              {t("sortLabel")}
+            </Label>
+            <Select
+              value={sortKey}
+              onValueChange={(value) => setSortKey(value as SortKey)}
+              disabled={!sortedItems}
+            >
+              <SelectTrigger id="sortKeySelect" className="w-[180px] h-9">
+                <SelectValue placeholder={t("sortLabel")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="filePath">
+                  {t("sortKeyFilePath")}
+                </SelectItem>
+                <SelectItem value="size">
+                  {t("sortKeyFileSize")}
+                </SelectItem>
+                <SelectItem value="mtime">
+                  {t("sortKeyDateModified")}
+                </SelectItem>
+                <SelectItem value="matched">
+                  {t("sortKeyMatchStatus")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="sortDirectionSelect" className="text-sm shrink-0">
+              {t("sortDirectionLabel")}
+            </Label>
+            <Select
+              value={sortDirection}
+              onValueChange={(value) =>
+                setSortDirection(value as SortDirection)
+              }
+              disabled={!sortedItems}
+            >
+              <SelectTrigger id="sortDirectionSelect" className="w-[120px] h-9">
+                <SelectValue placeholder={t("sortDirectionLabel")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">
+                  <ArrowUp className="inline h-4 w-4 mr-1" />
+                  {t("sortAsc")}
+                </SelectItem>
+                <SelectItem value="desc">
+                  <ArrowDown className="inline h-4 w-4 mr-1" />
+                  {t("sortDesc")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {/* --- AutoSizer and List Wrapper --- */}
+        <div className="flex-grow overflow-hidden">
+          <AutoSizer>
+            {({ height, width }) =>
+              treeItemData ? (
+                <VariableSizeList
+                  ref={treeListRef}
+                  height={height}
+                  itemCount={treeItemData.items.length}
+                  itemSize={getTreeItemSize}
+                  width={width}
+                  itemData={treeItemData}
+                  overscanCount={5}
+                  estimatedItemSize={
+                    TREE_ITEM_HEADER_HEIGHT + TREE_ITEM_CONTENT_LINE_HEIGHT * 5
+                  }
+                  // Update itemKey to depend on content/highlight/sort updates too
+                  itemKey={(index, data) =>
+                    `${data.items[index]?.filePath ?? index}-${itemDisplayVersion}-${highlightUpdateCounter}-${contentUpdateCounter}-${sortKey}-${sortDirection}`
+                  }
+                >
+                  {TreeRow}
+                </VariableSizeList>
+              ) : null
+            }
+          </AutoSizer>
+        </div>
       </div>
+      {/* ---------------------------------------------------- */}
+
       {/* --- Export/Copy Area --- */}
       <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0">
         {/* Format Select */}
@@ -874,7 +1010,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <Select
             value={exportFormat}
             onValueChange={(value) => setExportFormat(value as ExportFormat)}
-            disabled={!filteredStructuredItems || !!exportStatus || !!copyStatus}
+            disabled={!sortedItems || !!exportStatus || !!copyStatus}
           >
             <SelectTrigger id="exportFormatSelect" className="w-[100px] h-9">
               <SelectValue placeholder={t("exportFormatLabel")} />
@@ -898,7 +1034,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         {/* Copy Button */}
         <Button
           onClick={handleCopyResults}
-          disabled={!filteredStructuredItems || !!copyStatus || !!exportStatus}
+          disabled={!sortedItems || !!copyStatus || !!exportStatus}
           variant="outline"
         >
           <Copy className="mr-2 h-4 w-4" />
@@ -907,7 +1043,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         {/* Save Button */}
         <Button
           onClick={handleExport}
-          disabled={!filteredStructuredItems || !!exportStatus || !!copyStatus}
+          disabled={!sortedItems || !!exportStatus || !!copyStatus}
           variant="secondary"
         >
           <Save className="mr-2 h-4 w-4" />

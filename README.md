@@ -25,6 +25,7 @@ A cross-platform desktop application built with Electron and React to efficientl
   - **Virtualization:** Uses `react-window` and `react-virtualized-auto-sizer` to handle potentially huge numbers of files and large result sets smoothly.
   - **Syntax Highlighting:** Highlights code snippets in the tree view using `highlight.js` in a web worker for performance.
   - **Results Filtering:** Filter the displayed results (tree view) on the fly based on file path or error messages.
+  - **Results Sorting:** Sort the displayed results by File Path, File Size, Date Modified, or Match Status (Ascending/Descending).
   - **Copy & Export:**
     - **Copy Individual File Content:** Use the copy icon (📄) in an expanded item's header to copy only that specific file's full content.
     - **Copy All Results:** Use the "Copy Results" button to copy the metadata and content (for matched files) of *all processed files* (formatted as TXT, CSV, JSON, or Markdown) to the clipboard. (⚠️ May be truncated for very large result sets).
@@ -62,8 +63,9 @@ Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub R
 4.  View progress and results in the **Tree View**. Use the **Cancel Search** button if needed.
 5.  Expand items in the Tree View (`▶`/`▼`) to see content previews (if matched and readable). Content is loaded on demand.
 6.  Use the **Filter Results** input to narrow down the displayed files based on path or error.
-7.  Use the **Export Format** dropdown (TXT, CSV, JSON, MD) and the **Copy Results** button to copy the formatted list of all processed files (including content for matched files) to the clipboard (⚠️ may be truncated for very large result sets). Use the **Save Results As...** button to save the formatted list (including content for matched files) to a file. Use the copy icon (📄) in an expanded item's header to copy only that specific file's content (once loaded).
-8.  Access **Settings** (⚙️) or **Search History** (🕒) using the buttons in the header.
+7.  Use the **Sort By** and **Direction** dropdowns to sort the results list.
+8.  Use the **Export Format** dropdown (TXT, CSV, JSON, MD) and the **Copy Results** button to copy the formatted list of all processed files (including content for matched files) to the clipboard (⚠️ may be truncated for very large result sets). Use the **Save Results As...** button to save the formatted list (including content for matched files) to a file. Use the copy icon (📄) in an expanded item's header to copy only that specific file's content (once loaded).
+9.  Access **Settings** (⚙️) or **Search History** (🕒) using the buttons in the header.
 
 ## Development
 

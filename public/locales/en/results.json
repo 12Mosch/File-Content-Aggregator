@@ -36,5 +36,13 @@
   "loadingContent": "Loading content...",
   "contentError": "Error loading content",
   "noContentPreview": "No content preview available.",
-  "notMatched": "Content did not match query."
+  "notMatched": "Content did not match query.",
+  "sortLabel": "Sort By:",
+  "sortDirectionLabel": "Direction:",
+  "sortKeyFilePath": "File Path",
+  "sortKeyFileSize": "File Size",
+  "sortKeyDateModified": "Date Modified",
+  "sortKeyMatchStatus": "Match Status",
+  "sortAsc": "Ascending",
+  "sortDesc": "Descending"
 }

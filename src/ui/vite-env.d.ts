@@ -25,9 +25,10 @@ interface ProgressData {
 /** Represents a single file's result in the structured view (content fetched on demand) */
 interface StructuredItem {
   filePath: string;
-  // content: string | null; // Removed: Content is fetched on demand
   matched: boolean; // Indicates if content matched (if query was present)
   readError?: string; // Key indicating the type of read error, if any
+  size?: number; // File size in bytes
+  mtime?: number; // Modification time (timestamp)
 }
 
 /** Detailed information about a file read error */
@@ -39,8 +40,7 @@ interface FileReadError {
 
 /** The overall result object returned by the search process (no aggregated output) */
 interface SearchResult {
-  // output: string; // Removed: Aggregated output is no longer generated
-  structuredItems: StructuredItem[]; // Data for tree view (without content)
+  structuredItems: StructuredItem[]; // Data for tree view (with metadata)
   filesProcessed: number; // Count of files actually read/checked
   filesFound: number; // Count of files found initially matching path/extension
   errorsEncountered: number; // Count of file read errors
