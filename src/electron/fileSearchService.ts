@@ -64,6 +64,14 @@ export interface FileReadError {
   detail?: string;
 }
 
+// Interface for path errors captured during globbing or initial checks
+interface PathErrorDetail {
+  searchPath: string; // The top-level path being searched when error occurred
+  errorPath: string; // The specific path that caused the error (if available)
+  message: string; // The error message
+  code?: string; // Error code (e.g., 'EPERM', 'ENOENT')
+}
+
 export interface StructuredItem {
   filePath: string;
   content: string | null;
@@ -76,7 +84,7 @@ export interface SearchResult {
   filesProcessed: number;
   filesFound: number;
   errorsEncountered: number;
-  pathErrors: string[];
+  pathErrors: string[]; // User-facing, filtered error messages
   fileReadErrors: FileReadError[];
   wasCancelled?: boolean;
 }
@@ -181,7 +189,6 @@ function isJsepCallExpression(node: unknown): node is Jsep.CallExpression {
     Array.isArray(node.arguments)
   );
 }
-// --- Fix: Use Jsep namespace for type guard ---
 function isJsepLogicalExpression(node: unknown): node is Jsep.Expression & {
   type: "LogicalExpression";
   operator: string;
@@ -196,7 +203,6 @@ function isJsepLogicalExpression(node: unknown): node is Jsep.Expression & {
     "operator" in node
   );
 }
-// --- End Fix ---
 function isJsepUnaryExpression(node: unknown): node is Jsep.UnaryExpression {
   return (
     isJsepExpression(node) &&
@@ -553,6 +559,87 @@ function evaluateBooleanAst(
     return false; // Return false on any evaluation error
   }
 }
+
+/**
+ * Checks if a directory path matches any of the exclusion patterns.
+ * @param dirPath The directory path to check.
+ * @param excludeFolders Array of exclusion patterns.
+ * @param folderExclusionMode The matching mode.
+ * @returns True if the directory should be excluded, false otherwise.
+ */
+function isDirectoryExcluded(
+  dirPath: string,
+  excludeFolders: string[],
+  folderExclusionMode: FolderExclusionMode
+): boolean {
+  if (!excludeFolders || excludeFolders.length === 0) {
+    return false;
+  }
+
+  const picoOptions = { dot: true, nocase: true }; // Case-insensitive folder matching
+  const folderMatchers = excludeFolders.map((pattern) => {
+    let matchPattern = pattern;
+    switch (folderExclusionMode) {
+      case "startsWith":
+        matchPattern = pattern + "*";
+        break;
+      case "endsWith":
+        matchPattern = "*" + pattern;
+        break;
+      case "contains":
+        if (!pattern.includes("*") && !pattern.includes("?"))
+          matchPattern = "*" + pattern + "*";
+        break;
+      case "exact":
+      default:
+        break;
+    }
+    return picomatch(matchPattern, picoOptions);
+  });
+
+  // Split path into segments, handling both Windows and POSIX separators
+  const segments = dirPath.replace(/\\/g, "/").split("/").filter(Boolean);
+
+  // Check if any segment matches any exclusion pattern
+  return folderMatchers.some((isMatch) =>
+    segments.some((segment) => isMatch(segment))
+  );
+}
+
+/**
+ * Filters path errors to remove those related to directories that would have been excluded anyway.
+ * @param allPathErrors Array of all captured path errors.
+ * @param excludeFolders Array of folder exclusion patterns.
+ * @param folderExclusionMode The matching mode for folder exclusions.
+ * @returns Array of relevant path error messages for the user.
+ */
+function filterRelevantPathErrors(
+  allPathErrors: PathErrorDetail[],
+  excludeFolders: string[],
+  folderExclusionMode: FolderExclusionMode
+): string[] {
+  return allPathErrors
+    .filter((errorDetail) => {
+      // Keep non-permission errors or errors without a specific path
+      // Also keep errors related to the top-level search path itself (e.g., ENOENT)
+      if (
+        errorDetail.code !== "EPERM" ||
+        !errorDetail.errorPath ||
+        errorDetail.errorPath === errorDetail.searchPath
+      ) {
+        return true;
+      }
+      // Check if the directory causing the EPERM error should be excluded
+      const shouldExclude = isDirectoryExcluded(
+        errorDetail.errorPath,
+        excludeFolders,
+        folderExclusionMode
+      );
+      // Keep the error only if the directory should NOT be excluded
+      return !shouldExclude;
+    })
+    .map((errorDetail) => errorDetail.message); // Return only the message string
+}
 // ----------------------------------------------------
 
 // --- Main Search Function ---
@@ -577,7 +664,8 @@ export async function searchFiles(
     maxDepth,
   } = params;
 
-  const pathErrors: string[] = [];
+  // Store detailed path errors including the path that caused them
+  const detailedPathErrors: PathErrorDetail[] = [];
   const fileReadErrors: FileReadError[] = [];
   const structuredItems: StructuredItem[] = [];
   const outputLines: string[] = [];
@@ -591,14 +679,18 @@ export async function searchFiles(
       "Value:",
       pLimit
     );
-    pathErrors.push("Internal error: Concurrency limiter failed to load.");
+    detailedPathErrors.push({
+      searchPath: "Initialization",
+      errorPath: "",
+      message: "Internal error: Concurrency limiter failed to load.",
+    });
     return {
       output: "",
       structuredItems: [],
       filesFound: 0,
       filesProcessed: 0,
       errorsEncountered: 0,
-      pathErrors,
+      pathErrors: ["Internal error: Concurrency limiter failed to load."],
       fileReadErrors,
     };
   }
@@ -636,7 +728,7 @@ export async function searchFiles(
         filesFound: 0,
         filesProcessed: 0,
         errorsEncountered: 0,
-        pathErrors,
+        pathErrors: [],
         fileReadErrors,
         wasCancelled,
       };
@@ -651,28 +743,34 @@ export async function searchFiles(
         }
         const normalizedPath = searchPath.replace(/\\/g, "/");
 
-        // Validate search path existence and type
+        // Validate search path existence and type BEFORE globbing
         try {
           const stats = await fs.stat(searchPath);
           if (!stats.isDirectory()) {
             const errorMsg = `Search path is not a directory: ${searchPath}`;
             console.warn(errorMsg);
-            pathErrors.push(errorMsg);
+            detailedPathErrors.push({
+              searchPath: searchPath,
+              errorPath: searchPath,
+              message: errorMsg,
+              code: "ENOTDIR",
+            });
             progressCallback({
               processed: 0,
               total: 0,
               message: `Skipping non-directory: ${searchPath}`,
               status: "searching",
             });
-            return;
+            return; // Skip this path
           }
         } catch (statError: unknown) {
           let message = "Unknown error";
           let reason = "Access Error";
           let errorMsg = `Error accessing search path: ${searchPath}`;
+          let code: string | undefined;
           if (statError instanceof Error) {
             message = statError.message;
-            const code = (statError as { code?: string }).code;
+            code = (statError as NodeJS.ErrnoException).code;
             if (code === "ENOENT") {
               reason = "Path Not Found";
               errorMsg = `Search path not found: ${searchPath}`;
@@ -687,7 +785,12 @@ export async function searchFiles(
             errorMsg = `Error accessing search path: ${searchPath} - ${message}`;
           }
           console.warn(`Path Error (${reason}): ${errorMsg}`, message);
-          pathErrors.push(errorMsg);
+          detailedPathErrors.push({
+            searchPath: searchPath,
+            errorPath: searchPath,
+            message: errorMsg,
+            code: code,
+          });
           progressCallback({
             processed: 0,
             total: 0,
@@ -695,7 +798,7 @@ export async function searchFiles(
             error: message,
             status: "error",
           });
-          return;
+          return; // Skip this path
         }
 
         if (checkCancellation()) {
@@ -704,15 +807,16 @@ export async function searchFiles(
         }
 
         try {
-          // Run fast-glob for the current path, catching errors
+          // Run fast-glob, suppressing errors to continue scan
           const found = await fg(includePatterns, {
             cwd: normalizedPath,
             absolute: true,
             onlyFiles: true,
             dot: true,
             stats: false,
-            suppressErrors: false,
+            suppressErrors: true, // Suppress errors to get accessible files
             deep: globDepth,
+            // errorHandler removed as it's not typed and suppressErrors handles continuation
           });
 
           if (checkCancellation()) {
@@ -720,23 +824,26 @@ export async function searchFiles(
             return;
           }
 
-          // Add found files to the set (normalizing paths)
+          // Add successfully found files to the set
           found.forEach((file: string) =>
             allFoundFiles.add(file.replace(/\\/g, "/"))
           );
+
+          // Note: With suppressErrors: true, we won't get EPERM errors here.
+          // We rely on later fs.stat/fs.readFile errors if needed.
         } catch (globError: unknown) {
-          // Handle errors during fast-glob traversal (e.g., permission denied in subfolder)
+          // Catch unexpected errors *other* than traversal issues suppressed above
           const message =
             globError instanceof Error ? globError.message : String(globError);
-          console.warn(
-            `Error during file discovery within path "${searchPath}":`,
+          console.error(
+            `Unexpected error during fast-glob execution for path "${searchPath}":`,
             message
           );
-          // Add a specific error message to pathErrors for the user
-          pathErrors.push(
-            `Traversal error in "${searchPath}": Some files/folders might have been skipped due to access issues (${message}).`
-          );
-          // Continue with the next search path
+          detailedPathErrors.push({
+            searchPath: searchPath,
+            errorPath: searchPath,
+            message: `Unexpected error scanning "${searchPath}": ${message}`,
+          });
         }
       })
     );
@@ -754,7 +861,11 @@ export async function searchFiles(
         filesFound: 0,
         filesProcessed: 0,
         errorsEncountered: 0,
-        pathErrors,
+        pathErrors: filterRelevantPathErrors(
+          detailedPathErrors,
+          excludeFolders,
+          folderExclusionMode
+        ),
         fileReadErrors,
         wasCancelled,
       };
@@ -772,7 +883,11 @@ export async function searchFiles(
     const message = error instanceof Error ? error.message : String(error);
     console.error("Error during file discovery phase:", message);
     const errorMsg = `Unexpected error during file search setup: ${message}`;
-    pathErrors.push(errorMsg);
+    detailedPathErrors.push({
+      searchPath: "Setup",
+      errorPath: "",
+      message: errorMsg,
+    });
     progressCallback({
       processed: 0,
       total: 0,
@@ -786,7 +901,7 @@ export async function searchFiles(
       filesFound: 0,
       filesProcessed: 0,
       errorsEncountered: 0,
-      pathErrors,
+      pathErrors: [errorMsg], // Return the raw error here
       fileReadErrors,
     };
   }
@@ -810,7 +925,11 @@ export async function searchFiles(
       filesFound: initialFileCount,
       filesProcessed: 0,
       errorsEncountered: 0,
-      pathErrors,
+      pathErrors: filterRelevantPathErrors(
+        detailedPathErrors,
+        excludeFolders,
+        folderExclusionMode
+      ),
       fileReadErrors,
       wasCancelled,
     };
@@ -857,7 +976,11 @@ export async function searchFiles(
       filesFound: initialFileCount,
       filesProcessed: 0,
       errorsEncountered: 0,
-      pathErrors,
+      pathErrors: filterRelevantPathErrors(
+        detailedPathErrors,
+        excludeFolders,
+        folderExclusionMode
+      ),
       fileReadErrors,
       wasCancelled,
     };
@@ -875,40 +998,16 @@ export async function searchFiles(
       message: `Filtering by excluded folder patterns (${folderExclusionMode})...`,
       status: "searching",
     });
-    const picoOptions = { dot: true, nocase: true }; // Case-insensitive folder matching
-    const folderMatchers = excludeFolders.map((pattern) => {
-      let matchPattern = pattern;
-      // Adjust pattern based on the selected matching mode
-      switch (folderExclusionMode) {
-        case "startsWith":
-          matchPattern = pattern + "*";
-          break;
-        case "endsWith":
-          matchPattern = "*" + pattern;
-          break;
-        case "contains":
-          // Add wildcards only if none exist already
-          if (!pattern.includes("*") && !pattern.includes("?"))
-            matchPattern = "*" + pattern + "*";
-          break;
-        case "exact":
-        default:
-          // No pattern adjustment needed for exact match
-          break;
-      }
-      return picomatch(matchPattern, picoOptions);
-    });
 
-    filesToProcess = filesToProcess.filter((filePath) => {
-      const dirPath = path.dirname(filePath);
-      // Split path into segments, handling both Windows and POSIX separators
-      const segments = dirPath.split(/[\\/]/).filter(Boolean);
-      // Check if any segment matches any exclusion pattern
-      const isExcluded = folderMatchers.some((isMatch) =>
-        segments.some((segment) => isMatch(segment))
-      );
-      return !isExcluded;
-    });
+    filesToProcess = filesToProcess.filter(
+      (filePath) =>
+        !isDirectoryExcluded(
+          path.dirname(filePath),
+          excludeFolders,
+          folderExclusionMode
+        )
+    );
+
     currentTotal = filesToProcess.length;
     progressCallback({
       processed: 0,
@@ -932,7 +1031,11 @@ export async function searchFiles(
       filesFound: initialFileCount,
       filesProcessed: 0,
       errorsEncountered: 0,
-      pathErrors,
+      pathErrors: filterRelevantPathErrors(
+        detailedPathErrors,
+        excludeFolders,
+        folderExclusionMode
+      ),
       fileReadErrors,
       wasCancelled,
     };
@@ -1006,7 +1109,11 @@ export async function searchFiles(
         filesFound: initialFileCount,
         filesProcessed: 0, // No files fully processed yet
         errorsEncountered: 0,
-        pathErrors,
+        pathErrors: filterRelevantPathErrors(
+          detailedPathErrors,
+          excludeFolders,
+          folderExclusionMode
+        ),
         fileReadErrors,
         wasCancelled,
       };
@@ -1039,7 +1146,11 @@ export async function searchFiles(
       filesFound: initialFileCount,
       filesProcessed: 0,
       errorsEncountered: 0,
-      pathErrors,
+      pathErrors: filterRelevantPathErrors(
+        detailedPathErrors,
+        excludeFolders,
+        folderExclusionMode
+      ),
       fileReadErrors,
       wasCancelled,
     };
@@ -1063,7 +1174,11 @@ export async function searchFiles(
           // Handle invalid regex pattern
           parseOrRegexError = true;
           const errorMsg = `Invalid regular expression pattern: ${contentSearchTerm}`;
-          pathErrors.push(errorMsg);
+          detailedPathErrors.push({
+            searchPath: "Query Parsing",
+            errorPath: "",
+            message: errorMsg,
+          });
           progressCallback({
             processed: 0,
             total: 0,
@@ -1077,7 +1192,7 @@ export async function searchFiles(
             filesFound: initialFileCount,
             filesProcessed: 0,
             errorsEncountered: 0,
-            pathErrors,
+            pathErrors: [errorMsg], // Return raw error
             fileReadErrors,
           };
         }
@@ -1134,7 +1249,11 @@ export async function searchFiles(
             errorDetail += ` near character ${errorIndex + 1}`;
           }
           const errorMsg = `Invalid boolean query syntax: ${errorDetail}`;
-          pathErrors.push(errorMsg);
+          detailedPathErrors.push({
+            searchPath: "Query Parsing",
+            errorPath: "",
+            message: errorMsg,
+          });
           progressCallback({
             processed: 0,
             total: 0,
@@ -1148,7 +1267,7 @@ export async function searchFiles(
             filesFound: initialFileCount,
             filesProcessed: 0,
             errorsEncountered: 0,
-            pathErrors,
+            pathErrors: [errorMsg], // Return raw error
             fileReadErrors,
             wasCancelled: false, // Not cancelled, but errored
           };
@@ -1178,7 +1297,7 @@ export async function searchFiles(
       message: `Processing ${totalFilesToProcess} files (parallel)...`,
       status: "searching",
     });
-  } else if (pathErrors.length === 0 && !parseOrRegexError) {
+  } else if (detailedPathErrors.length === 0 && !parseOrRegexError) {
     // No files left to process after filtering, and no errors occurred
     progressCallback({
       processed: 0,
@@ -1204,7 +1323,11 @@ export async function searchFiles(
         filesFound: initialFileCount,
         filesProcessed: 0,
         errorsEncountered: 0,
-        pathErrors,
+        pathErrors: filterRelevantPathErrors(
+          detailedPathErrors,
+          excludeFolders,
+          folderExclusionMode
+        ),
         fileReadErrors,
         wasCancelled,
       };
@@ -1353,6 +1476,13 @@ export async function searchFiles(
   // Join text output lines
   const finalOutput = outputLines.join("\n");
 
+  // Filter path errors for relevance before returning
+  const relevantPathErrors = filterRelevantPathErrors(
+    detailedPathErrors,
+    excludeFolders,
+    folderExclusionMode
+  );
+
   // Return the final search result object
   return {
     output: finalOutput,
@@ -1360,7 +1490,7 @@ export async function searchFiles(
     filesFound: initialFileCount,
     filesProcessed: filesProcessedCounter,
     errorsEncountered: fileReadErrors.length,
-    pathErrors: pathErrors,
+    pathErrors: relevantPathErrors, // Return filtered errors
     fileReadErrors: fileReadErrors,
     wasCancelled: wasCancelled,
   };

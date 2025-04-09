@@ -183,7 +183,9 @@ Communication between the Main and Renderer processes happens via IPC messages:
 ## Core Logic Areas
 
 - **File Search (`fileSearchService.ts`):** Contains the main search orchestration logic.
-  - Uses `fast-glob` for initial discovery. Traversal errors (e.g., permission denied in subdirectories) are now caught and reported in the `pathErrors` array, allowing the search to continue for other paths.
+  - Uses `fast-glob` with `suppressErrors: true` for initial discovery. This allows the scan to continue even if permission errors occur in subdirectories, ensuring all *accessible* files matching the pattern are found.
+  - **Error Handling:** Initial `fs.stat` checks on the top-level search paths are performed *before* globbing to catch immediate access issues (e.g., path not found, not a directory). Traversal errors (like `EPERM`) encountered by `fast-glob` are suppressed by the library itself but logged internally by the application if needed. Errors during later `fs.stat` (for metadata filtering) or `fs.readFile` (for content matching) are caught and reported per-file.
+  - **Error Relevance Filtering:** Before returning the final `SearchResult`, any captured path errors (primarily from the initial `fs.stat` checks) are filtered by `filterRelevantPathErrors`. This function checks if a directory that caused a permission error would have been excluded by the `excludeFolders` rules anyway. Only errors for non-excluded paths are included in the final `pathErrors` array shown to the user.
   - Applies filters (extension, excludes, date, size) sequentially.
   - Uses `p-limit` to manage concurrency for file stats and reads.
   - Parses boolean queries using `jsep` and evaluates the AST against file content using `evaluateBooleanAst`. Includes robust error handling during evaluation, ensuring the internal word boundary cache is cleared even on failure to prevent potential memory leaks.
