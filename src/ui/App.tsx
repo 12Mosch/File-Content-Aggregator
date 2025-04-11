@@ -34,8 +34,7 @@ const FILTER_DEBOUNCE_DELAY = 300;
 function App() {
   const { t } = useTranslation(["common", "errors", "results", "form"]);
 
-  // Removed: State for aggregated text results
-  // const [results, setResults] = useState<string | null>(null);
+  // State for the original, unfiltered results from the backend
   const [structuredResults, setStructuredResults] = useState<
     StructuredItem[] | null
   >(null);
@@ -54,9 +53,12 @@ function App() {
     new Map()
   );
   const [itemDisplayVersion, setItemDisplayVersion] = useState(0);
+  // State for the raw filter input
   const [resultsFilterTerm, setResultsFilterTerm] = useState<string>("");
+  // State for filter case sensitivity
   const [resultsFilterCaseSensitive, setResultsFilterCaseSensitive] =
     useState<boolean>(false);
+  // Debounced filter term to pass down to ResultsDisplay
   const debouncedFilterTerm = useDebounce(
     resultsFilterTerm,
     FILTER_DEBOUNCE_DELAY
@@ -223,7 +225,7 @@ function App() {
       setItemDisplayVersion(0);
       setProgress({ processed: 0, total: 0, message: "Starting search..." });
       setGeneralError(null);
-      setResultsFilterTerm("");
+      setResultsFilterTerm(""); // Reset filter on new search
 
       if (
         window.electronAPI?.addSearchHistoryEntry &&
@@ -252,8 +254,7 @@ function App() {
         const searchResult: SearchResult =
           await window.electronAPI.invokeSearch(backendParams);
 
-        // setResults(searchResult.output); // Removed
-        setStructuredResults(searchResult.structuredItems);
+        setStructuredResults(searchResult.structuredItems); // Set the original results
         setSearchSummary({
           filesFound: searchResult.filesFound,
           filesProcessed: searchResult.filesProcessed,
@@ -374,35 +375,10 @@ function App() {
     [updateItemDisplayState]
   );
 
+  // Determine if the filter input has content (used by ResultsDisplay)
   const isFilterActive = debouncedFilterTerm.trim().length > 0;
 
-  // Removed: filteredTextLines is no longer needed
-  // const filteredTextLines = useMemo(() => { ... }, [results, ...]);
-
-  const filteredStructuredResults = useMemo(() => {
-    if (!structuredResults) return null;
-    if (!isFilterActive) return structuredResults;
-    const term = debouncedFilterTerm;
-    const caseSensitive = resultsFilterCaseSensitive;
-    // Filter based on filePath only, as content isn't available here
-    return structuredResults.filter((item) => {
-      const filePathMatch = caseSensitive
-        ? item.filePath.includes(term)
-        : item.filePath.toLowerCase().includes(term.toLowerCase());
-      // Add check for readError matching
-      const errorMatch =
-        item.readError &&
-        (caseSensitive
-          ? item.readError.includes(term)
-          : item.readError.toLowerCase().includes(term.toLowerCase()));
-      return filePathMatch || errorMatch;
-    });
-  }, [
-    structuredResults,
-    debouncedFilterTerm,
-    resultsFilterCaseSensitive,
-    isFilterActive,
-  ]);
+  // Removed: filteredStructuredResults useMemo hook is no longer needed here
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 max-w-screen-xl flex flex-col gap-6">
@@ -494,9 +470,10 @@ function App() {
 
         {isLoading && progress && <ProgressBar {...progress} />}
 
-        {/* Changed: Show results section only if structuredResults exist */}
+        {/* Filter controls are now part of the results section */}
         {!isLoading && structuredResults !== null && searchSummary && (
           <section className="flex flex-col gap-4 mt-4">
+            {/* Filter Input Section */}
             <div className="flex flex-wrap items-center gap-4 p-3 bg-card border border-border rounded-lg">
               <Label
                 htmlFor="resultsFilterInput"
@@ -507,7 +484,7 @@ function App() {
               <Input
                 type="text"
                 id="resultsFilterInput"
-                value={resultsFilterTerm}
+                value={resultsFilterTerm} // Use the raw input value here
                 onChange={(e) => setResultsFilterTerm(e.target.value)}
                 placeholder={t("results:filterResultsPlaceholder")}
                 className="flex-grow min-w-[200px] h-9"
@@ -529,8 +506,9 @@ function App() {
               </div>
             </div>
 
+            {/* Pass original results and debounced filter term */}
             <ResultsDisplay
-              filteredStructuredItems={filteredStructuredResults}
+              structuredItems={structuredResults}
               summary={searchSummary}
               viewMode="tree" // Hardcode to tree view
               itemDisplayStates={itemDisplayStates}
@@ -538,7 +516,7 @@ function App() {
               onToggleExpand={handleToggleExpand}
               onShowFullContent={handleShowFullContent}
               isFilterActive={isFilterActive}
-              filterTerm={debouncedFilterTerm}
+              filterTerm={debouncedFilterTerm} // Pass debounced term
               filterCaseSensitive={resultsFilterCaseSensitive}
             />
           </section>

@@ -9,6 +9,8 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { VariableSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
+// Correctly import Fuse class and IFuseOptions type
+import Fuse, { type IFuseOptions } from "fuse.js";
 import HighlightMatches from "./HighlightMatches";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +39,17 @@ const TREE_ITEM_PADDING_Y = 8;
 const MAX_PREVIEW_LINES = 50;
 const SHOW_MORE_BUTTON_HEIGHT = 30;
 const LARGE_COPY_ITEMS_THRESHOLD = 5000;
+// Fuse.js options for fuzzy filtering
+// Use the imported IFuseOptions type directly
+const FUSE_OPTIONS: IFuseOptions<StructuredItem> = {
+  includeScore: false, // Don't need score for simple filtering
+  // Search in `filePath` and `readError` fields
+  keys: ["filePath", "readError"],
+  threshold: 0.4, // Adjust threshold for fuzziness (0 = exact, 1 = match anything)
+  // isCaseSensitive: false, // Default is false, controlled by checkbox
+  minMatchCharLength: 2, // Minimum characters to trigger fuzzy search
+  // ignoreLocation: true, // Search anywhere in the string
+};
 
 // Types
 interface ItemDisplayState {
@@ -66,7 +79,8 @@ type SortDirection = "asc" | "desc";
 // ---------------------
 
 interface ResultsDisplayProps {
-  filteredStructuredItems: StructuredItem[] | null;
+  // Changed: Now receives the *original* unfiltered items
+  structuredItems: StructuredItem[] | null;
   summary: {
     filesFound: number;
     filesProcessed: number;
@@ -78,7 +92,7 @@ interface ResultsDisplayProps {
   onToggleExpand: (filePath: string) => void;
   onShowFullContent: (filePath: string) => void;
   isFilterActive: boolean;
-  filterTerm: string;
+  filterTerm: string; // This is the debounced term passed from App.tsx
   filterCaseSensitive: boolean;
 }
 
@@ -89,8 +103,8 @@ interface TreeRowData {
   toggleExpand: (filePath: string) => void;
   showFullContentHandler: (filePath: string) => void;
   t: TFunction<("results" | "errors")[], undefined>; // Use TFunction type
-  filterTerm: string;
-  filterCaseSensitive: boolean;
+  filterTerm: string; // Keep for highlighting (this is the debounced term)
+  filterCaseSensitive: boolean; // Keep for highlighting
   highlightCache: HighlightCache;
   requestHighlighting: (
     filePath: string,
@@ -178,8 +192,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     toggleExpand,
     showFullContentHandler,
     t,
-    filterTerm,
-    filterCaseSensitive,
+    filterTerm, // Keep for highlighting (this is the debounced term)
+    filterCaseSensitive, // Keep for highlighting
     highlightCache,
     requestHighlighting,
     onCopyContent,
@@ -332,10 +346,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
           {isExpanded ? "▼" : "▶"}
         </span>
         <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
+          {/* Use HighlightMatches for the file path */}
           <HighlightMatches
             text={item.filePath}
-            term={filterTerm}
-            caseSensitive={filterCaseSensitive}
+            term={filterTerm} // Pass filter term for highlighting
+            caseSensitive={filterCaseSensitive} // Pass case sensitivity
           />
         </span>
         {/* Only show copy button if content is loadable (no initial read error) */}
@@ -359,7 +374,14 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
           {/* Handle initial read error */}
           {item.readError ? (
             <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
-              {t(`errors:${item.readError}`, { defaultValue: item.readError })}
+              {/* Highlight error message if filter term matches */}
+              <HighlightMatches
+                text={t(`errors:${item.readError}`, {
+                  defaultValue: item.readError,
+                })}
+                term={filterTerm}
+                caseSensitive={filterCaseSensitive}
+              />
             </span>
           ) : // Handle content loading states
           contentInfo.status === "loading" ? (
@@ -429,7 +451,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
 
 // --- Main ResultsDisplay Component ---
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
-  filteredStructuredItems,
+  structuredItems, // Changed: Now receives original items
   summary,
   viewMode, // Keep for potential future use or simplified display
   itemDisplayStates,
@@ -437,7 +459,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   onToggleExpand,
   onShowFullContent,
   isFilterActive,
-  filterTerm,
+  filterTerm, // This is the debounced term passed from App.tsx
   filterCaseSensitive,
 }) => {
   const { t } = useTranslation(["results", "errors"]);
@@ -451,6 +473,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
   const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
   const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
+  // Removed fuseInstanceRef, instance is created within useMemo
 
   // --- Sorting State ---
   const [sortKey, setSortKey] = useState<SortKey>("filePath");
@@ -469,10 +492,40 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
   }, []);
 
-  // Check if the number of items to copy is large
+  // --- Fuzzy Filtering Logic ---
+  const filteredItems = useMemo(() => {
+    if (!structuredItems) return null;
+    // Use the debounced filterTerm passed via props
+    const currentFilterTerm = filterTerm.trim();
+    if (
+      !isFilterActive ||
+      currentFilterTerm.length < FUSE_OPTIONS.minMatchCharLength!
+    ) {
+      // If filter is not active or too short, return original items
+      return structuredItems;
+    }
+
+    // Create a new Fuse instance whenever data or case sensitivity changes
+    console.log(
+      `Creating Fuse instance for filtering (Term: "${currentFilterTerm}", Case Sensitive: ${filterCaseSensitive})`
+    );
+    const fuse = new Fuse(structuredItems, {
+      ...FUSE_OPTIONS,
+      isCaseSensitive: filterCaseSensitive, // Set case sensitivity
+    });
+
+    // Perform the fuzzy search using the debounced term
+    const results = fuse.search(currentFilterTerm);
+    console.log(`Fuse search for "${currentFilterTerm}" found ${results.length} items.`);
+    // Fuse returns results containing the original item, map back to StructuredItem[]
+    return results.map((result) => result.item);
+  }, [structuredItems, isFilterActive, filterTerm, filterCaseSensitive]); // Depend on the debounced filterTerm prop
+  // ---------------------------
+
+  // Check if the number of items to copy is large (based on filtered items)
   const isCopyLarge = useMemo(
-    () => (filteredStructuredItems?.length ?? 0) > LARGE_COPY_ITEMS_THRESHOLD,
-    [filteredStructuredItems]
+    () => (filteredItems?.length ?? 0) > LARGE_COPY_ITEMS_THRESHOLD,
+    [filteredItems]
   );
 
   // Function to request content for a specific file
@@ -564,8 +617,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   // --- Sorting Logic ---
   const sortedItems = useMemo(() => {
-    if (!filteredStructuredItems) return null;
-    const itemsToSort = [...filteredStructuredItems];
+    // Sort the *filtered* items
+    if (!filteredItems) return null;
+    const itemsToSort = [...filteredItems];
 
     itemsToSort.sort((a, b) => {
       let compareA: string | number | boolean | undefined;
@@ -611,7 +665,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     });
 
     return itemsToSort;
-  }, [filteredStructuredItems, sortKey, sortDirection]);
+  }, [filteredItems, sortKey, sortDirection]); // Depend on filteredItems now
   // ---------------------
 
   const treeItemData: TreeRowData | null = useMemo(() => {
@@ -622,8 +676,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       toggleExpand: onToggleExpand,
       showFullContentHandler: onShowFullContent,
       t: t,
-      filterTerm,
-      filterCaseSensitive,
+      filterTerm, // Pass filter term for highlighting (debounced)
+      filterCaseSensitive, // Pass case sensitivity for highlighting
       highlightCache: highlightCacheRef.current,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
@@ -636,8 +690,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     onToggleExpand,
     onShowFullContent,
     t,
-    filterTerm,
-    filterCaseSensitive,
+    filterTerm, // Keep for highlighting (debounced)
+    filterCaseSensitive, // Keep for highlighting
     requestHighlighting,
     handleCopyFileContent,
     contentUpdateCounter, // Depend on content counter
@@ -764,7 +818,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     contentCacheRef.current.clear(); // Clear content cache too
     setHighlightUpdateCounter(0);
     setContentUpdateCounter(0); // Reset content counter
-  }, [filteredStructuredItems]); // Depend on the results structure
+    // No need to clear fuseInstanceRef here, it's handled in useMemo
+  }, [structuredItems]); // Depend on the original results structure
 
   // Effect to reset list scroll/size when view mode, data, filter, or sort changes
   useEffect(() => {
@@ -777,7 +832,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     highlightUpdateCounter,
     contentUpdateCounter,
     isFilterActive,
-    filteredStructuredItems,
+    sortedItems, // Depend on sortedItems now
     sortKey, // Add sort dependencies
     sortDirection, // Add sort dependencies
   ]);

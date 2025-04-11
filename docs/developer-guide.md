@@ -26,6 +26,7 @@ This guide provides technical information for developers working on or contribut
   - [On-Demand Content Loading](#on-demand-content-loading)
   - [Copying Results](#copying-results)
   - [Results Sorting](#results-sorting)
+  - [Results Filtering (Fuzzy)](#results-filtering-fuzzy)
 - [Building for Distribution](#building-for-distribution)
 - [Security Considerations](#security-considerations)
 - [Code Style & Linting](#code-style--linting)
@@ -182,6 +183,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
 - **highlight.js:** Library for syntax highlighting. Executed in a Web Worker (`highlight.worker.ts`) to avoid blocking the main UI thread.
 - **date-fns:** Modern utility library for date parsing, formatting, and manipulation.
 - **electron-store:** Simple data persistence library for Electron apps. Used for storing settings and search history.
+- **Fuse.js:** Lightweight fuzzy-search library. Used for filtering the results list in the UI.
 
 ## Core Logic Areas
 
@@ -201,7 +203,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
 - **Internationalization (i18n):**
   - UI: Configured in `src/ui/i18n.ts`, uses `HttpApi` backend. `useTranslation` hook used. Language preference synced via IPC.
   - Main: Separate `i18next` instance in `main.ts`, uses `i18next-fs-backend`.
-- **UI State Management:** Primarily uses standard React hooks. Global state (results, progress, errors, history, settings, sort state) managed in `App.tsx` and passed down. Content for individual files fetched on demand and managed within `ResultsDisplay.tsx`.
+- **UI State Management:** Primarily uses standard React hooks. Global state (original results, progress, errors, history, settings, sort state, raw filter term) managed in `App.tsx` and passed down. Filtered results are derived within `ResultsDisplay.tsx`. Content for individual files fetched on demand and managed within `ResultsDisplay.tsx`.
 - **Theming:**
   - Initialization: Initial theme fetched via IPC in `src/ui/main.tsx` before render. `applyTheme` called immediately.
   - Updates: `ThemeHandler` component listens for IPC changes and OS changes, calls `applyTheme`.
@@ -237,10 +239,18 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Implemented in `ResultsDisplay.tsx`.
   - State variables `sortKey` and `sortDirection` manage the current sort order.
   - UI controls (Select dropdowns) allow user selection.
-  - `useMemo` hook calculates `sortedItems` based on the current `filteredStructuredItems` and sort state.
+  - `useMemo` hook calculates `sortedItems` based on the current `filteredItems` (which are derived from `structuredItems` and the fuzzy filter) and sort state.
   - The sorting function handles comparisons for `filePath` (string), `size` (number), `mtime` (number), and `matched` (boolean), including handling `undefined` metadata values.
   - `VariableSizeList` is updated to use `sortedItems`.
-  - `resetAfterIndex` is called when sort state changes to ensure the list re-renders correctly.
+  - `resetAfterIndex` is called when sort state or filtered items change to ensure the list re-renders correctly.
+- **Results Filtering (Fuzzy):**
+  - Implemented in `ResultsDisplay.tsx`.
+  - Uses `Fuse.js` library for fuzzy matching.
+  - A `Fuse` instance is created within a `useMemo` hook whenever the source `structuredItems` or `filterCaseSensitive` prop changes. The instance is configured to search the `filePath` and `readError` keys.
+  - The debounced `filterTerm` prop (originating from `App.tsx`) is used with `fuse.search()`.
+  - The `filteredItems` memoized value holds the results of the fuzzy search.
+  - The `Case-Sensitive` checkbox in `App.tsx` controls the `filterCaseSensitive` prop passed to `ResultsDisplay`.
+  - The `VariableSizeList` renders the `filteredItems` (after sorting).
 
 ## Building for Distribution
 

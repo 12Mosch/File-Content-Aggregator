@@ -13,7 +13,7 @@ Welcome to the File Content Aggregator! This guide will help you install, config
 - [Understanding Results](#understanding-results)
   - [Results Summary](#results-summary)
   - [Results View (Tree View)](#results-view-tree-view)
-  - [Filtering Results](#filtering-results)
+  - [Filtering Results (Fuzzy Search)](#filtering-results-fuzzy-search)
   - [Sorting Results](#sorting-results)
   - [Copying and Exporting Results](#copying-and-exporting-results)
 - [Search History](#search-history)
@@ -165,10 +165,12 @@ The results are displayed in a Tree View:
 - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
 - **Copy Icon (📄):** Click the copy icon in the header of an expanded item to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
 
-### Filtering Results
+### Filtering Results (Fuzzy Search)
 
-- Use the **Filter Results** input box above the results display to quickly filter the _currently displayed_ results in the Tree View.
-- Check the **Case-Sensitive** box next to it to make the filter match case.
+- Use the **Fuzzy Filter Results** input box above the results display to quickly filter the _currently displayed_ results in the Tree View.
+- This filter uses **fuzzy matching**, meaning it will find approximate matches, not just exact ones. For example, filtering for "config" might also show files like "configuration" or "cnfig".
+- The filter searches within the **File Path** and any **Read Error** messages displayed in the list.
+- Check the **Case-Sensitive** box next to it to make the fuzzy filter match case.
 - This filter operates _only_ on the results already found by the main search; it doesn't perform a new file system search.
 
 ### Sorting Results
@@ -190,9 +192,9 @@ Below the results display area, you'll find options to copy or save the results:
   - **CSV:** Creates a Comma Separated Value file with columns for FilePath, Status (Matched, Read Error, Not Matched), and Details (content or error message). Suitable for spreadsheets.
   - **JSON:** Creates a JSON file containing an array of all processed files, including their path, status, and content/error details. Suitable for programmatic use.
   - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status and content/error message in a code block. Suitable for documentation or readable reports.
-- **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard. The copied data respects the current **sort order**.
+- **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard. The copied data respects the current **sort order** and **filter**.
   - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option instead for large result sets.
-- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. The saved data respects the current **sort order**. This is the recommended way to export large or structured results.
+- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. The saved data respects the current **sort order** and **filter**. This is the recommended way to export large or structured results.
 
 ## Search History
 
@@ -237,6 +239,10 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
 - **Copy Fails / Seems Incomplete:** The total size of the formatted results might exceed your system's clipboard limit. Use the "Save Results As..." option instead for large result sets.
 - **Content Not Loading in Tree View:** Check for "File Read Errors" displayed below the search form. The application might lack permission to read the specific file.
 - **Sorting by Size/Date is Slow:** Fetching metadata for sorting requires accessing each file's information, which can take time for very large result sets.
+- **Fuzzy Filter Not Working as Expected:**
+  - Ensure you've typed at least 2 characters in the filter box.
+  - The fuzzy match might be less precise than expected. Try refining your filter term.
+  - Remember it only filters the file path and error messages shown in the list, not the file content itself.
 
 ## Feedback and Support
 
