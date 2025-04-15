@@ -201,7 +201,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - **Memory Optimization:** Does not read/return full content in the main result set.
   - **Output:** Returns `StructuredItem[]` containing `filePath`, `matched`, `readError`, `size`, and `mtime`.
 - **Internationalization (i18n):**
-  - UI: Configured in `src/ui/i18n.ts`, uses `HttpApi` backend. `useTranslation` hook used. Language preference synced via IPC.
+  - UI: Configured in `src/ui/i18n.ts`, uses `HttpApi` backend. The i18n instance is configured in `i18n.ts` but only initialized once in `main.tsx` to prevent duplicate initialization warnings. `useTranslation` hook used throughout components. Language preference synced via IPC.
   - Main: Separate `i18next` instance in `main.ts`, uses `i18next-fs-backend`.
 - **UI State Management:** Primarily uses standard React hooks. Global state (original results, progress, errors, history, settings, sort state, raw filter term) managed in `App.tsx` and passed down. Filtered results are derived within `ResultsDisplay.tsx`. Content for individual files fetched on demand and managed within `ResultsDisplay.tsx`.
 - **Theming:**
