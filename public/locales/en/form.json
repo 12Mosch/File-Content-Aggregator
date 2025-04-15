@@ -22,7 +22,7 @@
   "queryBuilderTypeTerm": "Term",
   "queryBuilderTypeRegex": "Regex",
   "queryBuilderTypeNear": "NEAR",
-  "queryBuilderTermPlaceholder": "Enter simple text...",
+  "queryBuilderTermPlaceholder": "Enter simple text or \"quoted term\"...",
   "queryBuilderRegexPlaceholder": "regex pattern",
   "queryBuilderFlagsPlaceholder": "flags",
   "queryBuilderNearTerm1Placeholder": "Term 1 (text or /regex/)",

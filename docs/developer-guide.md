@@ -225,6 +225,9 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` on item expansion.
   - Main process reads and returns content or error key.
   - `ResultsDisplay.tsx` uses `contentCacheRef` (Map) to store fetched content and manage loading states.
+  - **Content Highlighting:**
+    - Plain text files use `HighlightMatches` component to highlight search terms.
+    - Syntax-highlighted code (via highlight.js in a Web Worker) uses `highlightTermsInHtml` utility to post-process the HTML and highlight search terms within the syntax-highlighted content.
 - **Copying Results:**
   - **Copy All Results:** Button triggers `handleCopyResults` in `ResultsDisplay.tsx`.
     - Calls `generate-export-content` IPC handler.

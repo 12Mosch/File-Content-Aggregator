@@ -123,6 +123,7 @@ This powerful tool lets you define complex search criteria for the _content_ of 
   - **Term:** Finds simple text.
     - Enter the text directly (e.g., `database connection`).
     - Use quotes (`"`) if your text includes spaces or keywords like `AND`, `OR`, `NOT`, `NEAR` (e.g., `"user OR admin"`).
+    - Quoted terms like `"database"` will be automatically highlighted without the quotes in the search results.
     - The **Case-Sensitive** checkbox _below_ the builder applies _only_ to these simple `Term` conditions.
   - **Regex:** Finds text matching a regular expression pattern.
     - Enter the pattern between slashes (`/pattern/flags`).
@@ -244,8 +245,10 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - The fuzzy match might be less precise than expected. Try refining your filter term.
   - Remember it only filters the file path and error messages shown in the list, not the file content itself.
 - **Search Term Highlighting Not Working:**
-  - Highlighting only applies to the content preview of files that *matched* the Content Query.
-  - Highlighting might not work perfectly within syntax-highlighted code blocks due to technical limitations. It works best on plain text previews.
+  - Highlighting only applies to the content preview of files that _matched_ the Content Query.
+  - Search terms are highlighted in both plain text and syntax-highlighted code previews, making it easy to locate the relevant parts of matched files.
+  - Quoted terms like `"database"` are automatically highlighted without the quotes.
+  - Hover over highlighted terms to see more information about the highlighting feature.
 
 ## Feedback and Support
 
