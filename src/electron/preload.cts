@@ -199,6 +199,15 @@ const electronAPI = {
   /** Sets the default export format preference. */
   setDefaultExportFormat: (format: ExportFormat): Promise<void> =>
     ipcRenderer.invoke("set-default-export-format", format),
+
+  // --- File System Operations ---
+  /**
+   * Opens the specified file with the default system application.
+   * @param filePath The absolute path to the file to open.
+   * @returns A promise resolving with an object indicating success or failure (with an optional error message).
+   */
+  openFile: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("open-file", filePath),
 };
 
 // --- Expose API to Renderer ---

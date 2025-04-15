@@ -36,6 +36,7 @@ import {
   Loader2,
   ArrowDown,
   ArrowUp,
+  ExternalLink,
 } from "lucide-react";
 
 // Constants
@@ -341,6 +342,25 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     }
   };
 
+  const handleOpenFileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.electronAPI?.openFile) {
+      console.log(`Requesting to open file: ${item.filePath}`);
+      window.electronAPI
+        .openFile(item.filePath)
+        .then(({ success, error }) => {
+          if (!success && error) {
+            console.error(`Error opening file '${item.filePath}':`, error);
+          }
+        })
+        .catch((err) => {
+          console.error(`Failed to open file '${item.filePath}':`, err);
+        });
+    } else {
+      console.warn("openFile API not available.");
+    }
+  };
+
   // Determine if content is available for the copy button
   const canCopy = contentInfo.status === "loaded" && !!contentInfo.content;
 
@@ -370,17 +390,29 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
         </span>
         {/* Only show copy button if content is loadable (no initial read error) */}
         {!item.readError && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-2 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={handleCopyClick}
-            title={t("results:copyFileContentButton")}
-            aria-label={t("results:copyFileContentButton")}
-            disabled={!canCopy} // Disable if content not loaded
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-2 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={handleCopyClick}
+              title={t("results:copyFileContentButton")}
+              aria-label={t("results:copyFileContentButton")}
+              disabled={!canCopy} // Disable if content not loaded
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={handleOpenFileClick}
+              title={t("results:openFileButton")}
+              aria-label={t("results:openFileButton")}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </>
         )}
       </div>
       {/* Content Area */}

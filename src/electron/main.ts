@@ -8,6 +8,7 @@ import {
   protocol,
   nativeTheme,
   WebFrameMain,
+  shell,
 } from "electron";
 import path from "path";
 import fs from "fs/promises";
@@ -426,7 +427,7 @@ function generateMarkdown(items: ExportItem[]): string {
       const details =
         item.status === "Read Error"
           ? `Error: ${item.details}`
-          : item.details ?? "No content.";
+          : (item.details ?? "No content.");
 
       return `## ${item.filePath} (Status: ${item.status})\n\n\`\`\`\n${details}\n\`\`\`\n`;
     })
@@ -442,7 +443,7 @@ function generateTxt(items: ExportItem[]): string {
       const details =
         item.status === "Read Error"
           ? `Error: ${item.details}`
-          : item.details ?? "No content.";
+          : (item.details ?? "No content.");
 
       return `${item.filePath} (Status: ${item.status})\n${details}\n`;
     })
@@ -1239,5 +1240,34 @@ ipcMain.handle(
       }
       resolve();
     });
+  }
+);
+
+/**
+ * Handles the 'open-file' IPC request.
+ * Opens the specified file with the default system application.
+ */
+ipcMain.handle(
+  "open-file",
+  async (
+    event,
+    filePath: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!validateSender(event.senderFrame)) {
+      return { success: false, error: "Invalid sender." };
+    }
+    if (!filePath) {
+      return { success: false, error: "No file path provided." };
+    }
+
+    console.log(`IPC: Received request to open file: ${filePath}`);
+    try {
+      await shell.openPath(filePath);
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error opening file '${filePath}':`, message);
+      return { success: false, error: "openFileError" };
+    }
   }
 );

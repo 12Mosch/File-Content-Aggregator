@@ -157,6 +157,10 @@ export interface IElectronAPI {
   getDefaultExportFormat: () => Promise<ExportFormat>;
   /** Sets the default export format preference. */
   setDefaultExportFormat: (format: ExportFormat) => Promise<void>;
+
+  // File System Operations
+  /** Opens the specified file with the default system application. */
+  openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 // --- Global Window Augmentation ---
