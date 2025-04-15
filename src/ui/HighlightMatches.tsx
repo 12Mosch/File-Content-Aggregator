@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface HighlightMatchesProps {
   text: string | null | undefined;
@@ -22,18 +23,42 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
   terms,
   caseSensitive,
 }) => {
+  const { t } = useTranslation();
+
+  // Debug: Log the terms being used for highlighting
+  console.log(
+    "HighlightMatches received terms:",
+    terms,
+    "caseSensitive:",
+    caseSensitive
+  );
+
   if (!text) {
     return <>{""}</>;
   }
 
-  const validTerms = terms.filter((term) => {
-    if (typeof term === "string") return term.trim().length > 0;
+  // Ensure terms is an array and filter out empty terms
+  const termsArray = Array.isArray(terms) ? terms : [];
+  const validTerms = termsArray.filter((term) => {
+    if (typeof term === "string") {
+      const trimmed = term.trim();
+      return trimmed.length > 0;
+    }
     return term instanceof RegExp;
   });
 
+  // Debug: Log the valid terms after filtering
+  console.log(
+    "Valid terms after filtering:",
+    validTerms.map((t) => (typeof t === "string" ? t : t.toString()))
+  );
+
   if (validTerms.length === 0) {
+    // No valid terms to highlight, just return the text
     return <>{text}</>;
   }
+
+  console.log("Valid terms for HighlightMatches:", validTerms);
 
   const matches: Match[] = [];
 
@@ -43,7 +68,26 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
       let regex: RegExp;
       if (typeof term === "string") {
         // Create regex for string term, respecting caseSensitive prop
-        regex = new RegExp(escapeRegExp(term), caseSensitive ? "g" : "gi");
+        // Process the term to handle various formats
+        let searchTerm = term.trim();
+
+        // Check for "Term:" prefix
+        const termMatch = searchTerm.match(/^Term:\s*(.+)$/i);
+        if (termMatch && termMatch[1]) {
+          searchTerm = termMatch[1].trim();
+          // Term extracted successfully
+        }
+
+        // Check for quoted strings like "database"
+        const quotedMatch = searchTerm.match(/^"(.+)"$/);
+        if (quotedMatch && quotedMatch[1]) {
+          searchTerm = quotedMatch[1].trim();
+          // Quoted term extracted successfully
+        }
+        regex = new RegExp(
+          escapeRegExp(searchTerm),
+          caseSensitive ? "g" : "gi"
+        );
       } else {
         // Use the provided RegExp object, ensure it has the global flag
         regex = new RegExp(
@@ -96,10 +140,23 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
     // Add the highlighted match, ensuring not to double-highlight overlapping parts
     // Only add the mark if this match starts at or after the end of the previous one
     if (match.start >= lastIndex) {
+      // Create tooltip text based on the match type
+      let tooltipText = t("results:highlightingTerms");
+      if (typeof match.term === "string" && match.term.match(/^"(.+)"$/)) {
+        tooltipText += " - " + t("results:highlightingQuotedTerms");
+      }
+
       resultElements.push(
         <mark
           key={`mark-${match.start}-${i}`}
-          className="bg-primary/80 text-primary-foreground px-0.5 rounded-[0.2rem] font-medium"
+          className="bg-primary/80 text-primary-foreground px-0.5 rounded-[0.2rem] font-medium cursor-help inline-block"
+          title={tooltipText}
+          style={{
+            display: "inline-block",
+            backgroundColor: "#ff5500",
+            color: "white",
+            opacity: 0.9,
+          }}
         >
           {text.substring(match.start, match.end)}
         </mark>

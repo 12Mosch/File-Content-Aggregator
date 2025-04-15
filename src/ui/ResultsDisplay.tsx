@@ -28,6 +28,7 @@ import type {
   QueryStructure, // Import QueryStructure
 } from "./vite-env.d";
 import { extractSearchTermsFromQuery } from "./queryBuilderUtils"; // Import the new utility
+import { highlightTermsInHtml } from "./highlightHtmlUtils"; // Import the new HTML highlighting utility
 import {
   Copy,
   AlertTriangle,
@@ -101,6 +102,7 @@ interface ResultsDisplayProps {
   filterCaseSensitive: boolean; // Case sensitivity for path highlighting
   searchQueryStructure: QueryStructure | null; // Added: The query structure used for the search
   searchQueryCaseSensitive: boolean; // Added: Case sensitivity used for the search query
+  searchHighlightTerms?: string[]; // Added: Direct search terms for highlighting
 }
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
@@ -225,7 +227,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
 
   // Use the default entry when getting from cache to ensure consistent type
   const contentInfo: ContentCacheEntry = item
-    ? contentCache.get(item.filePath) ?? defaultContentEntry
+    ? (contentCache.get(item.filePath) ?? defaultContentEntry)
     : defaultContentEntry;
 
   // Effect to request content when expanded and not already loaded/loading
@@ -270,11 +272,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
   }, [contentInfo.content, showFull]);
 
   const highlightInfo: HighlightCacheEntry = item
-    ? highlightCache.get(item.filePath) ?? {
+    ? (highlightCache.get(item.filePath) ?? {
         status: "idle",
         html: undefined,
         error: undefined,
-      }
+      })
     : { status: "idle", html: undefined, error: undefined };
 
   // Effect for requesting highlighting (now depends on contentPreview)
@@ -360,7 +362,9 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
           {/* Use HighlightMatches for the file path with pathFilterTerm */}
           <HighlightMatches
             text={item.filePath}
-            terms={[pathFilterTerm]} // Pass fuzzy filter term for path
+            terms={
+              pathFilterTerm && pathFilterTerm.trim() ? [pathFilterTerm] : []
+            } // Only pass non-empty path filter term
             caseSensitive={pathFilterCaseSensitive} // Pass case sensitivity for path
           />
         </span>
@@ -418,7 +422,12 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
                   <code>
                     <HighlightMatches
                       text={contentPreview}
-                      terms={contentHighlightTerms} // Use content terms
+                      terms={
+                        contentHighlightTerms &&
+                        contentHighlightTerms.length > 0
+                          ? contentHighlightTerms
+                          : []
+                      } // Use content terms if available
                       caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
                     />
                   </code>
@@ -433,27 +442,43 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
                     <code>
                       <HighlightMatches
                         text={contentPreview}
-                        terms={contentHighlightTerms} // Use content terms
+                        terms={
+                          contentHighlightTerms &&
+                          contentHighlightTerms.length > 0
+                            ? contentHighlightTerms
+                            : []
+                        } // Use content terms if available
                         caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
                       />
                     </code>
                   </>
                 ) : highlightInfo.status === "done" && highlightInfo.html ? (
                   // Syntax highlighted: Apply content term highlighting *after* syntax highlighting
-                  // This requires parsing the HTML, which is complex and potentially risky.
-                  // Simpler approach: Render syntax highlighted HTML directly.
-                  // TODO: Consider a post-processing step or library for highlighting within HTML if needed.
-                  // For now, render syntax highlighting without term highlighting on top.
+                  // Use our new utility function to highlight search terms within the HTML
                   <code
                     className={`language-${language} hljs block`}
-                    dangerouslySetInnerHTML={{ __html: highlightInfo.html }}
+                    dangerouslySetInnerHTML={{
+                      __html: highlightTermsInHtml(
+                        highlightInfo.html,
+                        contentHighlightTerms &&
+                          contentHighlightTerms.length > 0
+                          ? contentHighlightTerms
+                          : [],
+                        contentHighlightCaseSensitive
+                      ),
+                    }}
                   />
                 ) : (
                   // Fallback: Plaintext highlighting
                   <code>
                     <HighlightMatches
                       text={contentPreview}
-                      terms={contentHighlightTerms} // Use content terms
+                      terms={
+                        contentHighlightTerms &&
+                        contentHighlightTerms.length > 0
+                          ? contentHighlightTerms
+                          : []
+                      } // Use content terms if available
                       caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
                     />
                   </code>
@@ -501,6 +526,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   filterCaseSensitive, // Case sensitivity for path highlighting
   searchQueryStructure, // Added prop
   searchQueryCaseSensitive, // Added prop
+  searchHighlightTerms = [], // Direct search terms for highlighting
 }) => {
   const { t } = useTranslation(["results", "errors"]);
   const [copyStatus, setCopyStatus] = useState<string>("");
@@ -522,8 +548,71 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   // Extract search terms for content highlighting
   const contentHighlightTerms = useMemo(() => {
-    return extractSearchTermsFromQuery(searchQueryStructure);
-  }, [searchQueryStructure]);
+    // First, check if we have direct search terms from props
+    if (searchHighlightTerms && searchHighlightTerms.length > 0) {
+      console.log("Using direct search highlight terms:", searchHighlightTerms);
+      return searchHighlightTerms;
+    }
+
+    // If no direct terms and no search query structure, return empty array
+    if (!searchQueryStructure) {
+      return [];
+    }
+
+    // Get terms from the query structure - the extraction function now handles quoted strings
+    const terms = extractSearchTermsFromQuery(searchQueryStructure);
+    console.log("Search terms for highlighting:", terms);
+
+    // Debug: Check if terms array is empty
+    if (!terms || terms.length === 0) {
+      console.warn(
+        "No search terms extracted from query structure:",
+        searchQueryStructure
+      );
+
+      // If we have a search query structure but no terms were extracted,
+      // try to extract terms directly from the conditions
+      if (
+        searchQueryStructure.conditions &&
+        searchQueryStructure.conditions.length > 0
+      ) {
+        // Look for term conditions and extract their values
+        const fallbackTerms = searchQueryStructure.conditions
+          .filter(
+            (cond) =>
+              cond &&
+              "type" in cond &&
+              cond.type === "term" &&
+              typeof cond.value === "string" &&
+              cond.value.trim().length > 0
+          )
+          .map((cond) => ("value" in cond ? cond.value.trim() : ""))
+          .filter((term) => term.length > 0); // Filter out any empty strings
+
+        if (fallbackTerms.length > 0) {
+          console.log("Using fallback terms for highlighting:", fallbackTerms);
+          return fallbackTerms;
+        }
+      }
+
+      // If we still don't have any terms, try to use a default term
+      if (
+        searchQueryStructure.conditions &&
+        searchQueryStructure.conditions.length > 0
+      ) {
+        // Just use a default term based on the operator
+        const defaultTerm =
+          searchQueryStructure.operator === "AND" ? "AND" : "OR";
+        console.log("Using default term based on operator:", defaultTerm);
+        return [defaultTerm];
+      }
+
+      // If all else fails, return empty array
+      return [];
+    }
+
+    return terms;
+  }, [searchQueryStructure, searchHighlightTerms]);
 
   // --- Determine if a content query was active ---
   const hasContentQuery = useMemo(() => {
@@ -1058,9 +1147,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 <SelectValue placeholder={t("sortLabel")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="filePath">
-                  {t("sortKeyFilePath")}
-                </SelectItem>
+                <SelectItem value="filePath">{t("sortKeyFilePath")}</SelectItem>
                 <SelectItem value="size">{t("sortKeyFileSize")}</SelectItem>
                 <SelectItem value="mtime">
                   {t("sortKeyDateModified")}
@@ -1162,8 +1249,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               <SelectValue placeholder={t("exportFormatLabel")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="txt">{t("results:exportFormatTXT")}</SelectItem>
-              <SelectItem value="csv">{t("results:exportFormatCSV")}</SelectItem>
+              <SelectItem value="txt">
+                {t("results:exportFormatTXT")}
+              </SelectItem>
+              <SelectItem value="csv">
+                {t("results:exportFormatCSV")}
+              </SelectItem>
               <SelectItem value="json">
                 {t("results:exportFormatJSON")}
               </SelectItem>

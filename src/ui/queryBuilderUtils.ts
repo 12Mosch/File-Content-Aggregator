@@ -144,24 +144,51 @@ export function extractSearchTermsFromQuery(
       // It's a Condition
       switch (item.type) {
         case "term": {
-          if (item.value.trim()) {
-            terms.push(item.value);
+          const trimmedValue = item.value.trim();
+          if (trimmedValue) {
+            // For term conditions, we need to handle the actual search term
+            // If the value contains "Term: " prefix, extract just the term part
+            const termMatch = trimmedValue.match(/^Term:\s*(.+)$/i);
+            if (termMatch && termMatch[1]) {
+              // If it matches the "Term: value" pattern, use just the value part
+              const extractedTerm = termMatch[1].trim();
+              if (extractedTerm) {
+                terms.push(extractedTerm);
+                console.log(
+                  `Extracted term from 'Term:' prefix: '${extractedTerm}'`
+                );
+              }
+            } else {
+              // Otherwise use the whole value
+              terms.push(trimmedValue);
+              console.log(`Using term value directly: '${trimmedValue}'`);
+            }
+          } else {
+            console.warn("Skipping empty term condition");
           }
           break;
         }
         case "regex": {
-          if (item.value.trim()) {
+          const trimmedPattern = item.value.trim();
+          if (trimmedPattern) {
             try {
               // Create RegExp object from pattern and flags
-              const regex = new RegExp(item.value, item.flags || "");
+              const regex = new RegExp(trimmedPattern, item.flags || "");
               terms.push(regex);
+              console.log(`Created RegExp: ${regex}`);
             } catch (e) {
               console.warn(
-                `Could not create RegExp from value: "${item.value}", flags: "${item.flags}"`,
+                `Could not create RegExp from value: "${trimmedPattern}", flags: "${item.flags}"`,
                 e
               );
-              // Optionally push the raw string as a fallback? Or ignore? Let's ignore for now.
+              // Optionally push the raw string as a fallback
+              console.log(
+                `Using regex pattern as plain text fallback: '${trimmedPattern}'`
+              );
+              terms.push(trimmedPattern);
             }
+          } else {
+            console.warn("Skipping empty regex condition");
           }
           break;
         }
@@ -169,13 +196,31 @@ export function extractSearchTermsFromQuery(
           // Extract terms from NEAR, attempting to parse regex literals
           const term1 = item.term1.trim();
           const term2 = item.term2.trim();
+
           if (term1) {
             const regex1 = parseRegexLiteral(term1);
-            terms.push(regex1 || term1);
+            if (regex1) {
+              terms.push(regex1);
+              console.log(`Created RegExp from NEAR term1: ${regex1}`);
+            } else {
+              terms.push(term1);
+              console.log(`Using NEAR term1 as plain text: '${term1}'`);
+            }
+          } else {
+            console.warn("Skipping empty NEAR term1");
           }
+
           if (term2) {
             const regex2 = parseRegexLiteral(term2);
-            terms.push(regex2 || term2);
+            if (regex2) {
+              terms.push(regex2);
+              console.log(`Created RegExp from NEAR term2: ${regex2}`);
+            } else {
+              terms.push(term2);
+              console.log(`Using NEAR term2 as plain text: '${term2}'`);
+            }
+          } else {
+            console.warn("Skipping empty NEAR term2");
           }
           break;
         }
@@ -185,17 +230,66 @@ export function extractSearchTermsFromQuery(
 
   traverse(query);
 
+  // Process terms to handle quoted strings
+  const processedTerms = terms.map((term) => {
+    if (typeof term === "string") {
+      // Remove quotes from terms like "database"
+      const quotedMatch = term.match(/^"(.+)"$/);
+      if (quotedMatch && quotedMatch[1]) {
+        console.log(
+          `[queryBuilderUtils] Extracted term from quoted string: '${quotedMatch[1]}'`
+        );
+        return quotedMatch[1];
+      }
+    }
+    return term;
+  });
+
   // Deduplicate terms (important for performance and avoiding redundant highlights)
   // Need a custom way to deduplicate RegExp objects
   const uniqueTermsMap = new Map<string, string | RegExp>();
-  terms.forEach((term) => {
+  processedTerms.forEach((term) => {
     const key = term instanceof RegExp ? term.toString() : term;
     if (!uniqueTermsMap.has(key)) {
       uniqueTermsMap.set(key, term);
     }
   });
 
-  return Array.from(uniqueTermsMap.values());
+  const result = Array.from(uniqueTermsMap.values());
+
+  // Ensure we have at least one valid term
+  const validResults = result.filter((term) => {
+    if (typeof term === "string") {
+      return term.trim().length > 0;
+    }
+    return term instanceof RegExp;
+  });
+
+  console.log("Extracted search terms from query:", validResults);
+
+  // If we have no valid terms but had a query, add a fallback term
+  if (validResults.length === 0 && query) {
+    console.warn("No valid terms extracted from query, using fallback");
+    if (
+      "value" in query &&
+      typeof query.value === "string" &&
+      query.value.trim()
+    ) {
+      validResults.push(query.value.trim());
+    } else if ("conditions" in query && query.conditions.length > 0) {
+      // Try to extract a term from the first condition
+      const firstCondition = query.conditions[0];
+      if (
+        "value" in firstCondition &&
+        typeof firstCondition.value === "string" &&
+        firstCondition.value.trim()
+      ) {
+        validResults.push(firstCondition.value.trim());
+      }
+    }
+  }
+
+  return validResults;
 }
 
 /**
@@ -221,32 +315,51 @@ export const convertStructuredQueryToString = (
       switch (item.type) {
         case "term": {
           // *** FIX: Always quote simple terms ***
+          // First check if the value is empty or just whitespace
+          const trimmedValue = item.value.trim();
+          if (!trimmedValue) {
+            console.warn("Empty term value detected, skipping");
+            return ""; // Return empty string for empty terms
+          }
           // Escape any existing double quotes within the value
-          const escapedValue = item.value.replace(/"/g, '\\"');
+          const escapedValue = trimmedValue.replace(/"/g, '\\"');
           return `"${escapedValue}"`;
         }
         case "regex": {
+          // Check if the pattern is empty or just whitespace
+          const trimmedPattern = item.value.trim();
+          if (!trimmedPattern) {
+            console.warn("Empty regex pattern detected, skipping");
+            return ""; // Return empty string for empty patterns
+          }
           // Ensure flags are valid and format as /pattern/flags
           const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
           // Escape forward slashes within the pattern itself
-          const escapedPattern = item.value.replace(/\//g, "\\/");
+          const escapedPattern = trimmedPattern.replace(/\//g, "\\/");
           return `/${escapedPattern}/${validFlags}`;
         }
         case "near": {
           // Format NEAR function, quoting terms if necessary
           const formatNearTerm = (term: string) => {
+            // First check if the term is empty or just whitespace
+            const trimmedTerm = term.trim();
+            if (!trimmedTerm) {
+              console.warn("Empty NEAR term detected");
+              return '""'; // Return empty quoted string for empty terms
+            }
+
             // If it looks like a regex literal, pass it through
-            if (term.startsWith("/") && term.endsWith("/")) {
+            if (trimmedTerm.startsWith("/") && trimmedTerm.endsWith("/")) {
               // Also escape internal forward slashes for NEAR parsing
-              const match = term.match(/^\/(.+)\/([gimyus]*)$/);
+              const match = trimmedTerm.match(/^\/(.+)\/([gimyus]*)$/);
               if (match) {
                 return `/${match[1].replace(/\//g, "\\/")}/${match[2]}`;
               }
               // Fallback if regex parsing fails (shouldn't happen often)
-              return term;
+              return trimmedTerm;
             }
             // Otherwise, treat as a simple term and quote it, escaping internal quotes
-            return `"${term.replace(/"/g, '\\"')}"`;
+            return `"${trimmedTerm.replace(/"/g, '\\"')}"`;
           };
           return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
         }

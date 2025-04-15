@@ -118,6 +118,34 @@
       "rlig" 1,
       "calt" 1;
   }
+
+  /* Style for search term matches within syntax-highlighted code */
+  .search-term-match {
+    background-color: #ff5500 !important;
+    color: white !important;
+    padding-left: 0.125rem !important;
+    padding-right: 0.125rem !important;
+    border-radius: 0.2rem !important;
+    font-weight: 500 !important;
+    cursor: help !important;
+    display: inline !important;
+    opacity: 0.9 !important;
+    text-decoration: none !important;
+  }
+
+  /* Style for mark elements used in HighlightMatches */
+  mark {
+    background-color: #ff5500 !important;
+    color: white !important;
+    padding-left: 0.125rem !important;
+    padding-right: 0.125rem !important;
+    border-radius: 0.2rem !important;
+    font-weight: 500 !important;
+    cursor: help !important;
+    display: inline-block !important;
+    opacity: 0.9 !important;
+    text-decoration: none !important;
+  }
 }
 
 @custom-variant dark (&:is(.dark *));

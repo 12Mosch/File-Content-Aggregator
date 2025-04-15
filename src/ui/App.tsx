@@ -74,6 +74,10 @@ function App() {
   // State to store the case sensitivity used for the last search query
   const [lastSearchQueryCaseSensitive, setLastSearchQueryCaseSensitive] =
     useState<boolean>(false);
+  // State to store the direct search terms for highlighting
+  const [searchHighlightTerms, setSearchHighlightTerms] = useState<string[]>(
+    []
+  );
 
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
@@ -233,9 +237,78 @@ function App() {
       setProgress({ processed: 0, total: 0, message: "Starting search..." });
       setGeneralError(null);
       setResultsFilterTerm(""); // Reset filter on new search
+
       // Store the query structure and case sensitivity used for this search
       setLastSearchQueryStructure(params.structuredQuery ?? null);
       setLastSearchQueryCaseSensitive(params.caseSensitive ?? false); // Store case sensitivity
+
+      // Log the search parameters for debugging
+      console.log("Search params:", params);
+
+      // Extract search terms for highlighting
+      const highlightTerms: string[] = [];
+
+      // First try to get terms from contentSearchTerm
+      if (params.contentSearchTerm) {
+        console.log("Content search term:", params.contentSearchTerm);
+        // If the content search term is a quoted string like "database", extract the term
+        const quotedMatch = params.contentSearchTerm.match(/^"(.+)"$/);
+        if (quotedMatch && quotedMatch[1]) {
+          const extractedTerm = quotedMatch[1].trim();
+          console.log(
+            "Extracted content term from backend param:",
+            extractedTerm
+          );
+          if (extractedTerm) {
+            highlightTerms.push(extractedTerm);
+          }
+        } else {
+          // If not quoted, use the raw term
+          const rawTerm = params.contentSearchTerm.trim();
+          if (rawTerm) {
+            highlightTerms.push(rawTerm);
+          }
+        }
+      }
+
+      // Also try to extract terms from structured query if available
+      if (params.structuredQuery) {
+        try {
+          // Extract terms from term conditions
+          const extractTermsFromConditions = (conditions: any[]) => {
+            conditions.forEach((cond) => {
+              if (cond && typeof cond === "object") {
+                if (
+                  "type" in cond &&
+                  cond.type === "term" &&
+                  typeof cond.value === "string" &&
+                  cond.value.trim()
+                ) {
+                  highlightTerms.push(cond.value.trim());
+                } else if (
+                  "conditions" in cond &&
+                  Array.isArray(cond.conditions)
+                ) {
+                  extractTermsFromConditions(cond.conditions);
+                }
+              }
+            });
+          };
+
+          if (
+            params.structuredQuery.conditions &&
+            Array.isArray(params.structuredQuery.conditions)
+          ) {
+            extractTermsFromConditions(params.structuredQuery.conditions);
+          }
+        } catch (err) {
+          console.warn("Error extracting terms from structured query:", err);
+        }
+      }
+
+      // Store the extracted terms for highlighting
+      console.log("Setting search highlight terms:", highlightTerms);
+      setSearchHighlightTerms(highlightTerms);
 
       if (
         window.electronAPI?.addSearchHistoryEntry &&
@@ -530,6 +603,7 @@ function App() {
               filterCaseSensitive={resultsFilterCaseSensitive} // Pass case sensitivity for path highlighting
               searchQueryStructure={lastSearchQueryStructure} // Pass the query structure for content highlighting
               searchQueryCaseSensitive={lastSearchQueryCaseSensitive} // Pass the query case sensitivity
+              searchHighlightTerms={searchHighlightTerms} // Pass the direct search terms for highlighting
             />
           </section>
         )}
