@@ -14,6 +14,7 @@ import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
 import {
   isQueryStructure,
   convertStructuredQueryToString,
+  generateId,
 } from "./queryBuilderUtils";
 import type { SearchHistoryEntry, SearchParams } from "./vite-env.d";
 import { Input } from "@/components/ui/input";
@@ -70,7 +71,7 @@ interface SearchFormProps {
   onSubmit: (params: SearchParams) => void;
   isLoading: boolean;
   historyEntryToLoad: SearchHistoryEntry | null;
-  onLoadComplete: () => void;
+  onLoadComplete: (params: SearchParams) => void;
 }
 
 // Helper to convert size in bytes back to value and unit for the form
@@ -182,7 +183,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
   // Effect to load data from history entry
   useEffect(() => {
     if (historyEntryToLoad) {
+      console.log("Loading history entry:", historyEntryToLoad);
       const params = historyEntryToLoad.searchParams;
+      console.log("History entry search params:", params);
       const minSize = bytesToSizeForm(params.minSizeBytes);
       const maxSize = bytesToSizeForm(params.maxSizeBytes);
 
@@ -260,8 +263,42 @@ const SearchForm: React.FC<SearchFormProps> = ({
       // --- query builder state using type guard ---
       const loadedQuery = params.structuredQuery;
       let initialQueryStructure: QueryStructure | null = null;
+
+      // First check if we have a valid structured query
       if (isQueryStructure(loadedQuery)) {
+        console.log(
+          "Found valid structured query in history entry:",
+          loadedQuery
+        );
         initialQueryStructure = loadedQuery;
+      }
+      // If no valid structured query but we have a contentSearchTerm, create a simple term condition
+      else if (params.contentSearchTerm) {
+        console.log(
+          "Creating structured query from contentSearchTerm:",
+          params.contentSearchTerm
+        );
+        // Extract the term from the contentSearchTerm (remove quotes if present)
+        let termValue = params.contentSearchTerm;
+        const quotedMatch = termValue.match(/^"(.+)"$/);
+        if (quotedMatch && quotedMatch[1]) {
+          termValue = quotedMatch[1];
+        }
+
+        // Create a new structured query with a single term condition
+        initialQueryStructure = {
+          id: generateId(),
+          operator: "AND",
+          conditions: [
+            {
+              id: generateId(),
+              type: "term",
+              value: termValue,
+              caseSensitive: params.caseSensitive ?? false,
+            },
+          ],
+          isRoot: true,
+        };
       } else {
         // Handle invalid/missing structure (e.g., log warning, set to null)
         if (loadedQuery !== null && loadedQuery !== undefined) {
@@ -272,15 +309,104 @@ const SearchForm: React.FC<SearchFormProps> = ({
         }
         initialQueryStructure = null;
       }
+
       // Set state to pass down as initial prop
+      console.log(
+        "Setting query structure from history:",
+        initialQueryStructure
+      );
       setQueryStructure(initialQueryStructure);
       // ----------------------------------------------------
       const initialCaseSensitive = params.caseSensitive ?? false;
       // Set state to pass down as initial prop
       setQueryCaseSensitive(initialCaseSensitive);
 
-      // Notify parent component that loading is complete
-      onLoadComplete();
+      // Prepare search parameters to pass to onLoadComplete
+      // This is similar to handleSubmit but uses the loaded parameters
+      const splitAndClean = (str: string) =>
+        str
+          .split(/[\n,]+/) // Split by newline or comma
+          .map((s) => s.trim())
+          .filter(Boolean); // Remove empty strings
+
+      // Convert the query structure to string
+      let contentQueryString = "";
+
+      // If we have a structured query, convert it to a string
+      if (initialQueryStructure) {
+        contentQueryString = convertStructuredQueryToString(
+          initialQueryStructure
+        );
+        console.log(
+          "Converted structured query to string:",
+          contentQueryString
+        );
+      }
+      // If we don't have a structured query but have a contentSearchTerm, use that directly
+      else if (params.contentSearchTerm) {
+        contentQueryString = params.contentSearchTerm;
+        console.log("Using contentSearchTerm directly:", contentQueryString);
+      }
+
+      const hasContentQuery =
+        contentQueryString && contentQueryString.trim().length > 0;
+
+      // Base parameters without content query specifics
+      const baseParams: Omit<
+        SearchParams,
+        | "contentSearchTerm"
+        | "contentSearchMode"
+        | "caseSensitive"
+        | "structuredQuery"
+      > = {
+        searchPaths: splitAndClean(formData.searchPaths),
+        extensions: splitAndClean(formData.extensions),
+        excludeFiles: splitAndClean(formData.excludeFiles),
+        excludeFolders: splitAndClean(formData.excludeFolders),
+        folderExclusionMode: formData.folderExclusionMode,
+        modifiedAfter: formData.modifiedAfter
+          ? format(formData.modifiedAfter, "yyyy-MM-dd")
+          : undefined,
+        modifiedBefore: formData.modifiedBefore
+          ? format(formData.modifiedBefore, "yyyy-MM-dd")
+          : undefined,
+        maxDepth: parseInt(formData.maxDepthValue, 10) || undefined,
+      };
+
+      // Calculate size in bytes
+      const minSizeNum = parseFloat(formData.minSizeValue);
+      if (!isNaN(minSizeNum) && minSizeNum >= 0) {
+        baseParams.minSizeBytes = minSizeNum * SIZE_UNITS[formData.minSizeUnit];
+      }
+      const maxSizeNum = parseFloat(formData.maxSizeValue);
+      if (!isNaN(maxSizeNum) && maxSizeNum >= 0) {
+        baseParams.maxSizeBytes = maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
+      }
+
+      // Conditionally add content query parameters
+      let submitParams: SearchParams;
+      if (hasContentQuery) {
+        submitParams = {
+          ...baseParams,
+          contentSearchTerm: contentQueryString,
+          contentSearchMode: "boolean",
+          caseSensitive: initialCaseSensitive,
+          structuredQuery: initialQueryStructure, // Include the structured query
+        };
+      } else {
+        submitParams = {
+          ...baseParams,
+          contentSearchTerm: undefined,
+          contentSearchMode: undefined,
+          caseSensitive: undefined,
+          structuredQuery: null,
+        };
+      }
+
+      console.log("Loaded search parameters from history:", submitParams);
+
+      // Notify parent component that loading is complete and pass the parameters
+      onLoadComplete(submitParams);
     }
   }, [historyEntryToLoad, onLoadComplete, currentLocale]); // Depend on currentLocale
 
@@ -464,10 +590,25 @@ const SearchForm: React.FC<SearchFormProps> = ({
         .filter(Boolean); // Remove empty strings
 
     // Convert the query structure to string using the state value
-    const contentQueryString =
-      convertStructuredQueryToString(currentQueryStructure);
+    let contentQueryString = "";
+    if (currentQueryStructure) {
+      contentQueryString = convertStructuredQueryToString(
+        currentQueryStructure
+      );
+      console.log(
+        "Submit: Converted structured query to string:",
+        contentQueryString
+      );
+    }
+
     const hasContentQuery =
       contentQueryString && contentQueryString.trim().length > 0;
+    console.log(
+      "Submit: Has content query:",
+      hasContentQuery,
+      "Query:",
+      contentQueryString
+    );
 
     // Base parameters without content query specifics
     const baseParams: Omit<
@@ -519,7 +660,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         contentSearchTerm: contentQueryString, // Use the converted string
         contentSearchMode: "boolean", // Set mode to boolean when using builder
         caseSensitive: currentQueryCaseSensitive, // Use state value
-        // structuredQuery is NOT sent to backend
+        structuredQuery: currentQueryStructure, // Include the structured query for history
       };
     } else {
       submitParams = {
@@ -528,7 +669,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         contentSearchTerm: undefined,
         contentSearchMode: undefined,
         caseSensitive: undefined,
-        // structuredQuery is NOT sent to backend
+        structuredQuery: null,
       };
     }
 

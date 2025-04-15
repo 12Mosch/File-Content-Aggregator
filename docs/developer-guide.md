@@ -228,6 +228,9 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - **Content Highlighting:**
     - Plain text files use `HighlightMatches` component to highlight search terms.
     - Syntax-highlighted code (via highlight.js in a Web Worker) uses `highlightTermsInHtml` utility to post-process the HTML and highlight search terms within the syntax-highlighted content.
+    - Search terms are extracted from both the raw content query string and the structured query.
+    - When loading a search from history, the search terms are extracted and used for highlighting.
+    - The `highlightHtmlUtils.ts` file contains the logic for highlighting search terms within HTML content.
 - **Copying Results:**
   - **Copy All Results:** Button triggers `handleCopyResults` in `ResultsDisplay.tsx`.
     - Calls `generate-export-content` IPC handler.

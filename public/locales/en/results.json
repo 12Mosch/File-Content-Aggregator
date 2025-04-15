@@ -36,6 +36,7 @@
   "highlightError": "Highlighting Error",
   "highlightingTerms": "Search terms are highlighted in orange in content previews",
   "highlightingQuotedTerms": "Quoted terms like \"database\" are automatically highlighted without quotes",
+  "searchTermHighlight": "Search terms from your query are highlighted in orange",
   "loadingContent": "Loading content...",
   "contentError": "Error loading content",
   "noContentPreview": "No content preview available.",

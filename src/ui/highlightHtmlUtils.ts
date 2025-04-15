@@ -132,9 +132,16 @@ export function highlightTermsInHtml(
             span.className = "search-term-match";
             span.textContent = match[0];
 
+            // Add inline styles for better visibility
+            span.style.backgroundColor = "#ff5500";
+            span.style.color = "white";
+            span.style.padding = "0 2px";
+            span.style.borderRadius = "2px";
+            span.style.fontWeight = "bold";
+
             // Add title attribute for tooltip
             let tooltipText =
-              "Search terms are highlighted in content previews";
+              "Search terms from your query are highlighted in orange";
             if (typeof term === "string" && term.match(/^"(.+)"$/)) {
               tooltipText +=
                 ' - Quoted terms like "database" are automatically highlighted without quotes';

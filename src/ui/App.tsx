@@ -16,7 +16,11 @@ import type {
   SearchParams,
   QueryStructure, // Import QueryStructure type
 } from "./vite-env.d";
-import { generateId } from "./queryBuilderUtils";
+import {
+  generateId,
+  isQueryStructure,
+  extractSearchTermsFromQuery,
+} from "./queryBuilderUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,98 +135,119 @@ function App() {
 
   const handleLoadSearchFromHistory = useCallback(
     (entry: SearchHistoryEntry) => {
+      console.log("Loading search from history:", entry);
       setHistoryEntryToLoad(entry);
       closeHistoryModal();
+
+      // Extract search terms for highlighting from the loaded history entry
+      const params = entry.searchParams;
+      const highlightTerms: string[] = [];
+
+      // First try to get terms from contentSearchTerm
+      if (params.contentSearchTerm) {
+        console.log(
+          "Content search term from history:",
+          params.contentSearchTerm
+        );
+        // If the content search term is a quoted string like "database", extract the term
+        const quotedMatch = params.contentSearchTerm.match(/^"(.+)"$/);
+        if (quotedMatch && quotedMatch[1]) {
+          const extractedTerm = quotedMatch[1].trim();
+          console.log(
+            "Extracted content term from history param:",
+            extractedTerm
+          );
+          if (extractedTerm) {
+            highlightTerms.push(extractedTerm);
+          }
+        } else {
+          // If not quoted, use the raw term
+          const rawTerm = params.contentSearchTerm.trim();
+          if (rawTerm) {
+            highlightTerms.push(rawTerm);
+          }
+        }
+      }
+
+      // Also try to extract terms from structured query if available
+      if (params.structuredQuery) {
+        try {
+          // Use the extractSearchTermsFromQuery utility if it's a valid query structure
+          if (isQueryStructure(params.structuredQuery)) {
+            const extractedTerms = extractSearchTermsFromQuery(
+              params.structuredQuery
+            );
+            console.log(
+              "Extracted terms from history structured query:",
+              extractedTerms
+            );
+
+            // Add extracted terms to highlight terms
+            extractedTerms.forEach((term) => {
+              if (typeof term === "string") {
+                highlightTerms.push(term);
+              } else if (term instanceof RegExp) {
+                // For RegExp, use the source as a string
+                highlightTerms.push(term.source);
+              }
+            });
+          }
+        } catch (err) {
+          console.warn(
+            "Error extracting terms from history structured query:",
+            err
+          );
+        }
+      }
+
+      // If we don't have a structured query but have a contentSearchTerm, create a simple term condition
+      if (!params.structuredQuery && params.contentSearchTerm) {
+        console.log(
+          "Creating structured query from contentSearchTerm:",
+          params.contentSearchTerm
+        );
+        // Extract the term from the contentSearchTerm (remove quotes if present)
+        let termValue = params.contentSearchTerm;
+        const quotedMatch = termValue.match(/^"(.+)"$/);
+        if (quotedMatch && quotedMatch[1]) {
+          termValue = quotedMatch[1];
+        }
+
+        // Create a new structured query with a single term condition
+        const newStructuredQuery = {
+          id: generateId(),
+          operator: "AND",
+          conditions: [
+            {
+              id: generateId(),
+              type: "term",
+              value: termValue,
+              caseSensitive: params.caseSensitive ?? false,
+            },
+          ],
+          isRoot: true,
+        };
+
+        // Update the history entry with the new structured query
+        entry.searchParams.structuredQuery = newStructuredQuery;
+      }
+
+      // Store the extracted terms for highlighting
+      console.log(
+        "Setting search highlight terms from history:",
+        highlightTerms
+      );
+      setSearchHighlightTerms(highlightTerms);
+
+      // Store the query structure and case sensitivity for highlighting
+      if (isQueryStructure(params.structuredQuery)) {
+        setLastSearchQueryStructure(params.structuredQuery);
+      } else {
+        setLastSearchQueryStructure(null);
+      }
+      setLastSearchQueryCaseSensitive(params.caseSensitive ?? false);
     },
     []
-  );
-
-  const handleHistoryLoadComplete = useCallback(() => {
-    setHistoryEntryToLoad(null);
-  }, []);
-
-  const handleDeleteHistoryEntry = useCallback(
-    async (entryId: string) => {
-      if (window.electronAPI?.deleteSearchHistoryEntry) {
-        try {
-          await window.electronAPI.deleteSearchHistoryEntry(entryId);
-          setSearchHistory((prev) =>
-            prev.filter((entry) => entry.id !== entryId)
-          );
-        } catch (err: unknown) {
-          console.error(
-            "UI: Failed to delete history entry:",
-            err instanceof Error ? err.message : err
-          );
-          setGeneralError(t("errors:historyDeleteFailed"));
-        }
-      } else {
-        setGeneralError(t("errors:historyApiNA"));
-      }
-    },
-    [t]
-  );
-
-  const handleClearHistory = useCallback(async () => {
-    if (window.electronAPI?.clearSearchHistory) {
-      try {
-        const success = await window.electronAPI.clearSearchHistory();
-        if (success) {
-          setSearchHistory([]);
-          console.log("UI: History cleared successfully.");
-        } else {
-          console.log(
-            "UI: History clear cancelled by user or failed in backend."
-          );
-        }
-      } catch (err: unknown) {
-        console.error(
-          "UI: Failed to clear history:",
-          err instanceof Error ? err.message : err
-        );
-        setGeneralError(t("errors:historyClearFailed"));
-      }
-    } else {
-      setGeneralError(t("errors:historyApiNA"));
-    }
-  }, [t]);
-
-  const handleUpdateHistoryEntry = useCallback(
-    async (
-      entryId: string,
-      updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
-    ) => {
-      if (window.electronAPI?.updateSearchHistoryEntry) {
-        try {
-          const success = await window.electronAPI.updateSearchHistoryEntry(
-            entryId,
-            updates
-          );
-          if (success) {
-            setSearchHistory((prev) =>
-              prev.map((entry) =>
-                entry.id === entryId ? { ...entry, ...updates } : entry
-              )
-            );
-          } else {
-            console.warn(
-              `UI: Failed to update history entry ${entryId} in backend.`
-            );
-            setGeneralError(t("errors:historyUpdateFailed"));
-          }
-        } catch (err: unknown) {
-          console.error(
-            `UI: Error updating history entry ${entryId}:`,
-            err instanceof Error ? err.message : err
-          );
-          setGeneralError(t("errors:historyUpdateFailed"));
-        }
-      } else {
-        console.warn("UI: updateSearchHistoryEntry API not available.");
-        setGeneralError(t("errors:historyApiNA"));
-      }
-    },
-    [t]
   );
 
   const handleSearchSubmit = useCallback(
@@ -408,6 +433,108 @@ function App() {
         setProgress(null);
       } finally {
         setIsLoading(false);
+      }
+    },
+    [t]
+  );
+
+  const handleHistoryLoadComplete = useCallback(
+    (params: SearchParams) => {
+      // Clear the history entry to load
+      setHistoryEntryToLoad(null);
+
+      // Execute the search with the loaded parameters
+      if (params && params.searchPaths && params.searchPaths.length > 0) {
+        console.log("Executing search with loaded history parameters:", params);
+        void handleSearchSubmit(params);
+      } else {
+        console.warn(
+          "Cannot execute search: Invalid or empty search parameters"
+        );
+      }
+    },
+    [handleSearchSubmit]
+  );
+
+  const handleDeleteHistoryEntry = useCallback(
+    async (entryId: string) => {
+      if (window.electronAPI?.deleteSearchHistoryEntry) {
+        try {
+          await window.electronAPI.deleteSearchHistoryEntry(entryId);
+          setSearchHistory((prev) =>
+            prev.filter((entry) => entry.id !== entryId)
+          );
+        } catch (err: unknown) {
+          console.error(
+            "UI: Failed to delete history entry:",
+            err instanceof Error ? err.message : err
+          );
+          setGeneralError(t("errors:historyDeleteFailed"));
+        }
+      } else {
+        setGeneralError(t("errors:historyApiNA"));
+      }
+    },
+    [t]
+  );
+
+  const handleClearHistory = useCallback(async () => {
+    if (window.electronAPI?.clearSearchHistory) {
+      try {
+        const success = await window.electronAPI.clearSearchHistory();
+        if (success) {
+          setSearchHistory([]);
+          console.log("UI: History cleared successfully.");
+        } else {
+          console.log(
+            "UI: History clear cancelled by user or failed in backend."
+          );
+        }
+      } catch (err: unknown) {
+        console.error(
+          "UI: Failed to clear history:",
+          err instanceof Error ? err.message : err
+        );
+        setGeneralError(t("errors:historyClearFailed"));
+      }
+    } else {
+      setGeneralError(t("errors:historyApiNA"));
+    }
+  }, [t]);
+
+  const handleUpdateHistoryEntry = useCallback(
+    async (
+      entryId: string,
+      updates: Partial<Pick<SearchHistoryEntry, "name" | "isFavorite">>
+    ) => {
+      if (window.electronAPI?.updateSearchHistoryEntry) {
+        try {
+          const success = await window.electronAPI.updateSearchHistoryEntry(
+            entryId,
+            updates
+          );
+          if (success) {
+            setSearchHistory((prev) =>
+              prev.map((entry) =>
+                entry.id === entryId ? { ...entry, ...updates } : entry
+              )
+            );
+          } else {
+            console.warn(
+              `UI: Failed to update history entry ${entryId} in backend.`
+            );
+            setGeneralError(t("errors:historyUpdateFailed"));
+          }
+        } catch (err: unknown) {
+          console.error(
+            `UI: Error updating history entry ${entryId}:`,
+            err instanceof Error ? err.message : err
+          );
+          setGeneralError(t("errors:historyUpdateFailed"));
+        }
+      } else {
+        console.warn("UI: updateSearchHistoryEntry API not available.");
+        setGeneralError(t("errors:historyApiNA"));
       }
     },
     [t]
