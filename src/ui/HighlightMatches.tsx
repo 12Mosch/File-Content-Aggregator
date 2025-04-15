@@ -153,7 +153,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
           title={tooltipText}
           style={{
             display: "inline-block",
-            backgroundColor: "#ff5500",
+            backgroundColor: "#8a2be2", // Violet color
             color: "white",
             opacity: 0.9,
           }}

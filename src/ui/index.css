@@ -121,7 +121,7 @@
 
   /* Style for search term matches within syntax-highlighted code */
   .search-term-match {
-    background-color: #ff5500 !important;
+    background-color: #8a2be2 !important; /* Violet color */
     color: white !important;
     padding-left: 0.125rem !important;
     padding-right: 0.125rem !important;
@@ -135,7 +135,7 @@
 
   /* Style for mark elements used in HighlightMatches */
   mark {
-    background-color: #ff5500 !important;
+    background-color: #8a2be2 !important; /* Violet color */
     color: white !important;
     padding-left: 0.125rem !important;
     padding-right: 0.125rem !important;
