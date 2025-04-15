@@ -14,6 +14,7 @@ import type {
   StructuredItem,
   SearchHistoryEntry,
   SearchParams,
+  QueryStructure, // Import QueryStructure type
 } from "./vite-env.d";
 import { generateId } from "./queryBuilderUtils";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,12 @@ function App() {
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const [historyEntryToLoad, setHistoryEntryToLoad] =
     useState<SearchHistoryEntry | null>(null);
+  // State to store the query structure used for the last search
+  const [lastSearchQueryStructure, setLastSearchQueryStructure] =
+    useState<QueryStructure | null>(null);
+  // State to store the case sensitivity used for the last search query
+  const [lastSearchQueryCaseSensitive, setLastSearchQueryCaseSensitive] =
+    useState<boolean>(false);
 
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
@@ -226,6 +233,9 @@ function App() {
       setProgress({ processed: 0, total: 0, message: "Starting search..." });
       setGeneralError(null);
       setResultsFilterTerm(""); // Reset filter on new search
+      // Store the query structure and case sensitivity used for this search
+      setLastSearchQueryStructure(params.structuredQuery ?? null);
+      setLastSearchQueryCaseSensitive(params.caseSensitive ?? false); // Store case sensitivity
 
       if (
         window.electronAPI?.addSearchHistoryEntry &&
@@ -506,7 +516,7 @@ function App() {
               </div>
             </div>
 
-            {/* Pass original results and debounced filter term */}
+            {/* Pass original results, debounced filter term, query structure, and case sensitivity */}
             <ResultsDisplay
               structuredItems={structuredResults}
               summary={searchSummary}
@@ -516,8 +526,10 @@ function App() {
               onToggleExpand={handleToggleExpand}
               onShowFullContent={handleShowFullContent}
               isFilterActive={isFilterActive}
-              filterTerm={debouncedFilterTerm} // Pass debounced term
-              filterCaseSensitive={resultsFilterCaseSensitive}
+              filterTerm={debouncedFilterTerm} // Pass debounced term for path highlighting
+              filterCaseSensitive={resultsFilterCaseSensitive} // Pass case sensitivity for path highlighting
+              searchQueryStructure={lastSearchQueryStructure} // Pass the query structure for content highlighting
+              searchQueryCaseSensitive={lastSearchQueryCaseSensitive} // Pass the query case sensitivity
             />
           </section>
         )}

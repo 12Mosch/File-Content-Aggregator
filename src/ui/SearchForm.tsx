@@ -1,10 +1,20 @@
+// D:/Code/Electron/src/ui/SearchForm.tsx
+/*
+ * D:/Code/Electron/src/ui/SearchForm.tsx
+ * Bug Fix: Ensure latest state is used when submitting query parameters.
+ * Description: Using state variables directly in handleSubmit,
+ *              ensuring callbacks correctly update the parent state.
+ */
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { format, parseISO, isValid, parse, type Locale } from "date-fns";
 import { enUS, de, es, fr, it, ja, pt, ru } from "date-fns/locale";
 import QueryBuilder from "./QueryBuilder";
 import type { QueryGroup as QueryStructure } from "./queryBuilderTypes";
-import { isQueryStructure } from "./queryBuilderUtils";
+import {
+  isQueryStructure,
+  convertStructuredQueryToString,
+} from "./queryBuilderUtils";
 import type { SearchHistoryEntry, SearchParams } from "./vite-env.d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,55 +101,6 @@ const bytesToSizeForm = (
   return { value: bytes.toString(), unit: "Bytes" };
 };
 
-// Helper function to convert structured query to string
-const convertStructuredQueryToString = (group: QueryStructure): string => {
-  if (!group || group.conditions.length === 0) return "";
-  const parts = group.conditions.map((item) => {
-    if ("operator" in item) {
-      // Recursively convert subgroup, wrap in parentheses if not empty
-      const subQuery = convertStructuredQueryToString(item);
-      return subQuery ? `(${subQuery})` : "";
-    } else {
-      // Convert condition
-      switch (item.type) {
-        case "term": {
-          // Quote if contains spaces, parentheses, or boolean/near keywords
-          return /\s|[()]|AND|OR|NOT|NEAR/i.test(item.value)
-            ? `"${item.value.replace(/"/g, '\\"')}"` // Escape existing quotes
-            : item.value;
-        }
-        case "regex": {
-          // Ensure flags are valid and format as /pattern/flags
-          const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
-          return `/${item.value}/${validFlags}`;
-        }
-        case "near": {
-          // Format NEAR function, quoting terms if necessary
-          const formatNearTerm = (term: string) => {
-            if (term.startsWith("/") && term.endsWith("/")) return term; // Already regex literal
-            return /\s|[()]|AND|OR|NOT|NEAR/i.test(term)
-              ? `"${term.replace(/"/g, '\\"')}"`
-              : term;
-          };
-          return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
-        }
-        default: {
-          console.warn(
-            "Unknown condition type during string conversion:",
-            item
-          );
-          return "";
-        }
-      }
-    }
-  });
-  // Join non-empty parts with the group operator
-  const validParts = parts.filter(Boolean);
-  if (validParts.length === 0) return "";
-  if (validParts.length === 1) return validParts[0]; // No need for operator if only one part
-  return validParts.join(` ${group.operator} `);
-};
-
 // Define date formats for display and parsing
 const DISPLAY_DATE_FORMAT = "dd.MM.yyyy";
 // Add more formats if needed, prioritize common ones
@@ -206,10 +167,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
     maxSizeUnit: "MB", // Default unit
     maxDepthValue: "",
   });
+  // State managed by SearchForm, updated via callbacks from QueryBuilder
   const [queryStructure, setQueryStructure] = useState<QueryStructure | null>(
     null
   );
   const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
+
   const [isAfterPopoverOpen, setIsAfterPopoverOpen] = useState(false);
   const [isBeforePopoverOpen, setIsBeforePopoverOpen] = useState(false);
   // State to hold the raw string input for dates
@@ -296,8 +259,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
       // --- query builder state using type guard ---
       const loadedQuery = params.structuredQuery;
+      let initialQueryStructure: QueryStructure | null = null;
       if (isQueryStructure(loadedQuery)) {
-        setQueryStructure(loadedQuery);
+        initialQueryStructure = loadedQuery;
       } else {
         // Handle invalid/missing structure (e.g., log warning, set to null)
         if (loadedQuery !== null && loadedQuery !== undefined) {
@@ -306,10 +270,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
             loadedQuery
           );
         }
-        setQueryStructure(null);
+        initialQueryStructure = null;
       }
+      // Set state to pass down as initial prop
+      setQueryStructure(initialQueryStructure);
       // ----------------------------------------------------
-      setQueryCaseSensitive(params.caseSensitive ?? false);
+      const initialCaseSensitive = params.caseSensitive ?? false;
+      // Set state to pass down as initial prop
+      setQueryCaseSensitive(initialCaseSensitive);
 
       // Notify parent component that loading is complete
       onLoadComplete();
@@ -457,15 +425,17 @@ const SearchForm: React.FC<SearchFormProps> = ({
     }
   };
 
-  // Update query structure from QueryBuilder
+  // --- Callbacks passed to QueryBuilder to update parent state ---
   const handleQueryChange = useCallback((newQuery: QueryStructure | null) => {
+    // console.log("SearchForm: handleQueryChange updating state:", newQuery); // Log state update
     setQueryStructure(newQuery);
   }, []);
 
-  // Update case sensitivity from QueryBuilder
   const handleQueryCaseSensitivityChange = useCallback((checked: boolean) => {
+    // console.log("SearchForm: handleQueryCaseSensitivityChange updating state:", checked); // Log state update
     setQueryCaseSensitive(checked);
   }, []);
+  // --- End Callbacks ---
 
   // Handle search cancellation request
   const handleCancelSearch = () => {
@@ -481,82 +451,89 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Trigger validation/formatting for date inputs before submitting
-    handleDateInputKeyDown(
-      {
-        key: "Enter",
-        preventDefault: () => {},
-      } as React.KeyboardEvent<HTMLInputElement>,
-      "modifiedAfter"
-    );
-    handleDateInputKeyDown(
-      {
-        key: "Enter",
-        preventDefault: () => {},
-      } as React.KeyboardEvent<HTMLInputElement>,
-      "modifiedBefore"
-    );
+    // --- Use state variables directly ---
+    const currentQueryStructure = queryStructure;
+    const currentQueryCaseSensitive = queryCaseSensitive;
+    // --- End Use state variables ---
 
-    // Use setTimeout to allow state updates from keydown handlers to settle
-    setTimeout(() => {
-      // Prepare parameters for the backend
-      const splitAndClean = (str: string) =>
-        str
-          .split(/[\n,]+/) // Split by newline or comma
-          .map((s) => s.trim())
-          .filter(Boolean); // Remove empty strings
+    // Prepare parameters for the backend
+    const splitAndClean = (str: string) =>
+      str
+        .split(/[\n,]+/) // Split by newline or comma
+        .map((s) => s.trim())
+        .filter(Boolean); // Remove empty strings
 
-      const contentQueryString = queryStructure
-        ? convertStructuredQueryToString(queryStructure)
-        : "";
+    // Convert the query structure to string using the state value
+    const contentQueryString =
+      convertStructuredQueryToString(currentQueryStructure);
+    const hasContentQuery =
+      contentQueryString && contentQueryString.trim().length > 0;
 
-      const submitParams: SearchParams = {
-        searchPaths: splitAndClean(formData.searchPaths),
-        extensions: splitAndClean(formData.extensions),
-        excludeFiles: splitAndClean(formData.excludeFiles),
-        excludeFolders: splitAndClean(formData.excludeFolders),
-        folderExclusionMode: formData.folderExclusionMode,
-        // Send the validated structure
-        structuredQuery: queryStructure,
-        contentSearchTerm: contentQueryString || undefined, // Send undefined if empty
-        contentSearchMode: contentQueryString ? "boolean" : undefined, // Mode is boolean if query exists
-        caseSensitive: contentQueryString ? queryCaseSensitive : undefined, // Send sensitivity only if query exists
-        // Format dates to yyyy-MM-dd for backend consistency
-        modifiedAfter: formData.modifiedAfter
-          ? format(formData.modifiedAfter, "yyyy-MM-dd")
-          : undefined,
-        modifiedBefore: formData.modifiedBefore
-          ? format(formData.modifiedBefore, "yyyy-MM-dd")
-          : undefined,
-        maxDepth: parseInt(formData.maxDepthValue, 10) || undefined, // Parse depth, undefined if invalid/empty
+    // Base parameters without content query specifics
+    const baseParams: Omit<
+      SearchParams,
+      | "contentSearchTerm"
+      | "contentSearchMode"
+      | "caseSensitive"
+      | "structuredQuery" // Exclude structuredQuery from base
+    > = {
+      searchPaths: splitAndClean(formData.searchPaths),
+      extensions: splitAndClean(formData.extensions),
+      excludeFiles: splitAndClean(formData.excludeFiles),
+      excludeFolders: splitAndClean(formData.excludeFolders),
+      folderExclusionMode: formData.folderExclusionMode,
+      modifiedAfter: formData.modifiedAfter
+        ? format(formData.modifiedAfter, "yyyy-MM-dd")
+        : undefined,
+      modifiedBefore: formData.modifiedBefore
+        ? format(formData.modifiedBefore, "yyyy-MM-dd")
+        : undefined,
+      maxDepth: parseInt(formData.maxDepthValue, 10) || undefined,
+    };
+
+    // Calculate size in bytes
+    const minSizeNum = parseFloat(formData.minSizeValue);
+    if (!isNaN(minSizeNum) && minSizeNum >= 0) {
+      baseParams.minSizeBytes = minSizeNum * SIZE_UNITS[formData.minSizeUnit];
+    }
+    const maxSizeNum = parseFloat(formData.maxSizeValue);
+    if (!isNaN(maxSizeNum) && maxSizeNum >= 0) {
+      baseParams.maxSizeBytes = maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
+    }
+
+    // Validate min/max size
+    if (
+      baseParams.minSizeBytes !== undefined &&
+      baseParams.maxSizeBytes !== undefined &&
+      baseParams.minSizeBytes > baseParams.maxSizeBytes
+    ) {
+      alert(t("errorMinMax"));
+      return;
+    }
+
+    // Conditionally add content query parameters
+    let submitParams: SearchParams;
+    if (hasContentQuery) {
+      submitParams = {
+        ...baseParams,
+        contentSearchTerm: contentQueryString, // Use the converted string
+        contentSearchMode: "boolean", // Set mode to boolean when using builder
+        caseSensitive: currentQueryCaseSensitive, // Use state value
+        // structuredQuery is NOT sent to backend
       };
+    } else {
+      submitParams = {
+        ...baseParams,
+        // Ensure these are undefined if no query
+        contentSearchTerm: undefined,
+        contentSearchMode: undefined,
+        caseSensitive: undefined,
+        // structuredQuery is NOT sent to backend
+      };
+    }
 
-      // Calculate size in bytes
-      const minSizeNum = parseFloat(formData.minSizeValue);
-      if (!isNaN(minSizeNum) && minSizeNum >= 0) {
-        submitParams.minSizeBytes =
-          minSizeNum * SIZE_UNITS[formData.minSizeUnit];
-      }
-      const maxSizeNum = parseFloat(formData.maxSizeValue);
-      if (!isNaN(maxSizeNum) && maxSizeNum >= 0) {
-        submitParams.maxSizeBytes =
-          maxSizeNum * SIZE_UNITS[formData.maxSizeUnit];
-      }
-
-      // Validate min/max size
-      if (
-        submitParams.minSizeBytes !== undefined &&
-        submitParams.maxSizeBytes !== undefined &&
-        submitParams.minSizeBytes > submitParams.maxSizeBytes
-      ) {
-        // Use alert or a more integrated validation message system
-        alert(t("errorMinMax"));
-        return; // Prevent submission
-      }
-
-      console.log("Submitting Params:", submitParams);
-      onSubmit(submitParams); // Call the onSubmit prop passed from App
-    }, 50); // Small delay to ensure state updates
+    console.log("Submitting Params:", submitParams); // Log the final params being sent
+    onSubmit(submitParams); // Call the onSubmit prop passed from App
   };
 
   // Create disabledDateMatcher based on isLoading
@@ -680,8 +657,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
       <div className="space-y-1.5">
         <Label>{t("contentQueryBuilderLabel")}</Label>
         <QueryBuilder
+          // Pass state down as initial props
           initialQuery={queryStructure}
           initialCaseSensitive={queryCaseSensitive}
+          // Pass callbacks to update parent state
           onChange={handleQueryChange}
           onCaseSensitivityChange={handleQueryCaseSensitivityChange}
           disabled={isLoading}

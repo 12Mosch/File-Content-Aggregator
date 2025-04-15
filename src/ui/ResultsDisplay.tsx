@@ -22,7 +22,12 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { StructuredItem, ExportFormat } from "./vite-env.d";
+import type {
+  StructuredItem,
+  ExportFormat,
+  QueryStructure, // Import QueryStructure
+} from "./vite-env.d";
+import { extractSearchTermsFromQuery } from "./queryBuilderUtils"; // Import the new utility
 import {
   Copy,
   AlertTriangle,
@@ -92,8 +97,10 @@ interface ResultsDisplayProps {
   onToggleExpand: (filePath: string) => void;
   onShowFullContent: (filePath: string) => void;
   isFilterActive: boolean;
-  filterTerm: string; // This is the debounced term passed from App.tsx
-  filterCaseSensitive: boolean;
+  filterTerm: string; // This is the debounced term passed from App.tsx for path highlighting
+  filterCaseSensitive: boolean; // Case sensitivity for path highlighting
+  searchQueryStructure: QueryStructure | null; // Added: The query structure used for the search
+  searchQueryCaseSensitive: boolean; // Added: Case sensitivity used for the search query
 }
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
@@ -103,8 +110,10 @@ interface TreeRowData {
   toggleExpand: (filePath: string) => void;
   showFullContentHandler: (filePath: string) => void;
   t: TFunction<("results" | "errors")[], undefined>; // Use TFunction type
-  filterTerm: string; // Keep for highlighting (this is the debounced term)
-  filterCaseSensitive: boolean; // Keep for highlighting
+  pathFilterTerm: string; // Renamed: Term for highlighting the file path (fuzzy filter)
+  pathFilterCaseSensitive: boolean; // Renamed: Case sensitivity for path highlighting
+  contentHighlightTerms: (string | RegExp)[]; // Added: Terms for highlighting content
+  contentHighlightCaseSensitive: boolean; // Added: Case sensitivity for content highlighting
   highlightCache: HighlightCache;
   requestHighlighting: (
     filePath: string,
@@ -192,8 +201,10 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     toggleExpand,
     showFullContentHandler,
     t,
-    filterTerm, // Keep for highlighting (this is the debounced term)
-    filterCaseSensitive, // Keep for highlighting
+    pathFilterTerm, // Use renamed prop
+    pathFilterCaseSensitive, // Use renamed prop
+    contentHighlightTerms, // Use new prop for content highlighting
+    contentHighlightCaseSensitive, // Use new prop for content highlighting case sensitivity
     highlightCache,
     requestHighlighting,
     onCopyContent,
@@ -346,11 +357,11 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
           {isExpanded ? "▼" : "▶"}
         </span>
         <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
-          {/* Use HighlightMatches for the file path */}
+          {/* Use HighlightMatches for the file path with pathFilterTerm */}
           <HighlightMatches
             text={item.filePath}
-            term={filterTerm} // Pass filter term for highlighting
-            caseSensitive={filterCaseSensitive} // Pass case sensitivity
+            terms={[pathFilterTerm]} // Pass fuzzy filter term for path
+            caseSensitive={pathFilterCaseSensitive} // Pass case sensitivity for path
           />
         </span>
         {/* Only show copy button if content is loadable (no initial read error) */}
@@ -379,8 +390,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
                 text={t(`errors:${item.readError}`, {
                   defaultValue: item.readError,
                 })}
-                term={filterTerm}
-                caseSensitive={filterCaseSensitive}
+                terms={[pathFilterTerm]} // Use path filter term for error message
+                caseSensitive={pathFilterCaseSensitive} // Use path filter case sensitivity
               />
             </span>
           ) : // Handle content loading states
@@ -403,23 +414,49 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
             <>
               <pre className="m-0 text-left w-full font-mono text-xs leading-normal text-foreground whitespace-pre-wrap break-all">
                 {language === "plaintext" ? (
-                  <code>{contentPreview}</code>
+                  // For plaintext, use HighlightMatches with content terms
+                  <code>
+                    <HighlightMatches
+                      text={contentPreview}
+                      terms={contentHighlightTerms} // Use content terms
+                      caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                    />
+                  </code>
                 ) : highlightInfo.status === "pending" ? (
                   <code className="hljs">{t("results:highlighting")}</code>
                 ) : highlightInfo.status === "error" ? (
+                  // Show error and fallback to plaintext highlighting
                   <>
                     <span className="block text-destructive italic mb-1">
                       {t("results:highlightError")}: {highlightInfo.error}
                     </span>
-                    <code>{contentPreview}</code>
+                    <code>
+                      <HighlightMatches
+                        text={contentPreview}
+                        terms={contentHighlightTerms} // Use content terms
+                        caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                      />
+                    </code>
                   </>
                 ) : highlightInfo.status === "done" && highlightInfo.html ? (
+                  // Syntax highlighted: Apply content term highlighting *after* syntax highlighting
+                  // This requires parsing the HTML, which is complex and potentially risky.
+                  // Simpler approach: Render syntax highlighted HTML directly.
+                  // TODO: Consider a post-processing step or library for highlighting within HTML if needed.
+                  // For now, render syntax highlighting without term highlighting on top.
                   <code
                     className={`language-${language} hljs block`}
                     dangerouslySetInnerHTML={{ __html: highlightInfo.html }}
                   />
                 ) : (
-                  <code>{contentPreview}</code> // Fallback if highlighting fails silently
+                  // Fallback: Plaintext highlighting
+                  <code>
+                    <HighlightMatches
+                      text={contentPreview}
+                      terms={contentHighlightTerms} // Use content terms
+                      caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                    />
+                  </code>
                 )}
               </pre>
               {showShowMoreButton && (
@@ -438,9 +475,10 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
           ) : (
             // Fallback for idle state or null content after load
             <span className="block font-mono text-xs text-muted-foreground italic">
-              {item.matched
-                ? t("results:noContentPreview")
-                : t("results:notMatched")}
+              {/* Display "Not Matched" only if a content query was active */}
+              {contentHighlightTerms.length > 0
+                ? t("results:notMatched")
+                : t("results:noContentPreview")}
             </span>
           )}
         </div>
@@ -451,7 +489,7 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
 
 // --- Main ResultsDisplay Component ---
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
-  structuredItems, // Changed: Now receives original items
+  structuredItems, // Original items from backend
   summary,
   viewMode, // Keep for potential future use or simplified display
   itemDisplayStates,
@@ -459,8 +497,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   onToggleExpand,
   onShowFullContent,
   isFilterActive,
-  filterTerm, // This is the debounced term passed from App.tsx
-  filterCaseSensitive,
+  filterTerm, // This is the debounced term passed from App.tsx for path highlighting
+  filterCaseSensitive, // Case sensitivity for path highlighting
+  searchQueryStructure, // Added prop
+  searchQueryCaseSensitive, // Added prop
 }) => {
   const { t } = useTranslation(["results", "errors"]);
   const [copyStatus, setCopyStatus] = useState<string>("");
@@ -480,6 +520,20 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   // ---------------------
 
+  // Extract search terms for content highlighting
+  const contentHighlightTerms = useMemo(() => {
+    return extractSearchTermsFromQuery(searchQueryStructure);
+  }, [searchQueryStructure]);
+
+  // --- Determine if a content query was active ---
+  const hasContentQuery = useMemo(() => {
+    return (
+      searchQueryStructure !== null &&
+      searchQueryStructure.conditions.length > 0
+    );
+  }, [searchQueryStructure]);
+  // ---------------------------------------------
+
   // Fetch default export format on mount
   useEffect(() => {
     if (window.electronAPI?.getDefaultExportFormat) {
@@ -492,34 +546,48 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
   }, []);
 
-  // --- Fuzzy Filtering Logic ---
-  const filteredItems = useMemo(() => {
+  // --- Filter by Content Match ---
+  // Apply content match filter *before* fuzzy filter and sorting
+  const contentMatchedItems = useMemo(() => {
     if (!structuredItems) return null;
+    // Filter if a content query was performed
+    if (hasContentQuery) {
+      const filtered = structuredItems.filter((item) => item.matched);
+      return filtered;
+    }
+    // If no content query, show all items that passed initial filters
+    return structuredItems;
+  }, [structuredItems, hasContentQuery]); // Depend on hasContentQuery flag
+  // -----------------------------
+
+  // --- Fuzzy Filtering Logic ---
+  // Now operates on contentMatchedItems
+  const filteredItems = useMemo(() => {
+    if (!contentMatchedItems) return null; // Use contentMatchedItems
     // Use the debounced filterTerm passed via props
     const currentFilterTerm = filterTerm.trim();
     if (
       !isFilterActive ||
       currentFilterTerm.length < FUSE_OPTIONS.minMatchCharLength!
     ) {
-      // If filter is not active or too short, return original items
-      return structuredItems;
+      // If filter is not active or too short, return contentMatchedItems
+      return contentMatchedItems;
     }
 
     // Create a new Fuse instance whenever data or case sensitivity changes
-    console.log(
-      `Creating Fuse instance for filtering (Term: "${currentFilterTerm}", Case Sensitive: ${filterCaseSensitive})`
-    );
-    const fuse = new Fuse(structuredItems, {
+    // console.log(`Creating Fuse instance for filtering (Term: "${currentFilterTerm}", Case Sensitive: ${filterCaseSensitive})`);
+    // Use contentMatchedItems as the source for Fuse
+    const fuse = new Fuse(contentMatchedItems, {
       ...FUSE_OPTIONS,
       isCaseSensitive: filterCaseSensitive, // Set case sensitivity
     });
 
     // Perform the fuzzy search using the debounced term
     const results = fuse.search(currentFilterTerm);
-    console.log(`Fuse search for "${currentFilterTerm}" found ${results.length} items.`);
+    // console.log(`Fuse search for "${currentFilterTerm}" found ${results.length} items.`);
     // Fuse returns results containing the original item, map back to StructuredItem[]
     return results.map((result) => result.item);
-  }, [structuredItems, isFilterActive, filterTerm, filterCaseSensitive]); // Depend on the debounced filterTerm prop
+  }, [contentMatchedItems, isFilterActive, filterTerm, filterCaseSensitive]); // Depend on contentMatchedItems now
   // ---------------------------
 
   // Check if the number of items to copy is large (based on filtered items)
@@ -570,9 +638,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       if (workerRef.current) {
         highlightCacheRef.current.set(filePath, { status: "pending" });
         setHighlightUpdateCounter((prev) => prev + 1);
-        console.log(
-          `[RequestHighlighting] Posting message for ${filePath} (Force: ${forceUpdate})`
-        );
+        // console.log(`[RequestHighlighting] Posting message for ${filePath} (Force: ${forceUpdate})`);
         workerRef.current.postMessage({ filePath, code, language });
       } else {
         console.warn(
@@ -617,7 +683,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   // --- Sorting Logic ---
   const sortedItems = useMemo(() => {
-    // Sort the *filtered* items
+    // Sort the *filtered* items (which are already content-matched if applicable)
     if (!filteredItems) return null;
     const itemsToSort = [...filteredItems];
 
@@ -676,8 +742,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       toggleExpand: onToggleExpand,
       showFullContentHandler: onShowFullContent,
       t: t,
-      filterTerm, // Pass filter term for highlighting (debounced)
-      filterCaseSensitive, // Pass case sensitivity for highlighting
+      pathFilterTerm: filterTerm, // Pass fuzzy filter term for path
+      pathFilterCaseSensitive: filterCaseSensitive, // Pass case sensitivity for path
+      contentHighlightTerms: contentHighlightTerms, // Pass extracted terms for content
+      contentHighlightCaseSensitive: searchQueryCaseSensitive, // Pass query case sensitivity for content
       highlightCache: highlightCacheRef.current,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
@@ -690,8 +758,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     onToggleExpand,
     onShowFullContent,
     t,
-    filterTerm, // Keep for highlighting (debounced)
-    filterCaseSensitive, // Keep for highlighting
+    filterTerm, // Keep for path highlighting (debounced)
+    filterCaseSensitive, // Keep for path highlighting
+    contentHighlightTerms, // Depend on extracted content terms
+    searchQueryCaseSensitive, // Depend on query case sensitivity
     requestHighlighting,
     handleCopyFileContent,
     contentUpdateCounter, // Depend on content counter
@@ -929,11 +999,15 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       });
   };
 
-  // Simplified summary logic as text view is non-functional
+  // Determine summary label based on whether a content query was active
   const getSummaryLabelKey = (): string => {
-    return isFilterActive ? "summaryTotalFilesFiltered" : "summaryTotalFiles";
+    const baseKey = hasContentQuery
+      ? "summaryMatchedFiles" // Use specific key for matched files
+      : "summaryTotalFiles"; // Use total files if no content query
+    return isFilterActive ? `${baseKey}Filtered` : baseKey; // Append Filtered if fuzzy filter is active
   };
-  const summaryCount = sortedItems?.length ?? 0; // Use sortedItems length
+  // Use the length of the final list being displayed (sortedItems)
+  const summaryCount = sortedItems?.length ?? 0;
 
   return (
     <div className="mt-6 p-4 border border-border rounded-lg bg-card flex flex-col flex-grow min-h-[300px] overflow-hidden">
@@ -948,6 +1022,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             {t("summaryReadErrors", { count: summary.errorsEncountered })}
           </span>
         )}
+        {/* Updated Summary Count Label */}
         <span>{t(getSummaryLabelKey(), { count: summaryCount })}</span>
         {copyFileStatus && (
           <span className="ml-auto text-xs text-primary">{copyFileStatus}</span>
@@ -977,7 +1052,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             <Select
               value={sortKey}
               onValueChange={(value) => setSortKey(value as SortKey)}
-              disabled={!sortedItems}
+              disabled={!sortedItems || sortedItems.length === 0} // Disable if no items
             >
               <SelectTrigger id="sortKeySelect" className="w-[180px] h-9">
                 <SelectValue placeholder={t("sortLabel")} />
@@ -986,9 +1061,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 <SelectItem value="filePath">
                   {t("sortKeyFilePath")}
                 </SelectItem>
-                <SelectItem value="size">
-                  {t("sortKeyFileSize")}
-                </SelectItem>
+                <SelectItem value="size">{t("sortKeyFileSize")}</SelectItem>
                 <SelectItem value="mtime">
                   {t("sortKeyDateModified")}
                 </SelectItem>
@@ -1007,7 +1080,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               onValueChange={(value) =>
                 setSortDirection(value as SortDirection)
               }
-              disabled={!sortedItems}
+              disabled={!sortedItems || sortedItems.length === 0} // Disable if no items
             >
               <SelectTrigger id="sortDirectionSelect" className="w-[120px] h-9">
                 <SelectValue placeholder={t("sortDirectionLabel")} />
@@ -1029,7 +1102,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <div className="flex-grow overflow-hidden">
           <AutoSizer>
             {({ height, width }) =>
-              treeItemData ? (
+              treeItemData && treeItemData.items.length > 0 ? ( // Check if items exist
                 <VariableSizeList
                   ref={treeListRef}
                   height={height}
@@ -1048,7 +1121,20 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 >
                   {TreeRow}
                 </VariableSizeList>
-              ) : null
+              ) : (
+                // Optional: Display a message when no results match filters
+                <div className="flex items-center justify-center h-full text-muted-foreground italic">
+                  {/* Check if initial search yielded results before filtering */}
+                  {structuredItems && structuredItems.length > 0
+                    ? hasContentQuery
+                      ? t("results:noContentMatches") // Content query ran, but no matches
+                      : isFilterActive
+                        ? t("results:noFilterMatches") // No content query, but fuzzy filter has no matches
+                        : t("results:noResultsFound") // Should not happen if structuredItems has items and no filters active
+                    : t("results:noResultsFound")}
+                  {/* Initial search found nothing */}
+                </div>
+              )
             }
           </AutoSizer>
         </div>
@@ -1065,31 +1151,35 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <Select
             value={exportFormat}
             onValueChange={(value) => setExportFormat(value as ExportFormat)}
-            disabled={!sortedItems || !!exportStatus || !!copyStatus}
+            disabled={
+              !sortedItems ||
+              sortedItems.length === 0 ||
+              !!exportStatus ||
+              !!copyStatus
+            }
           >
             <SelectTrigger id="exportFormatSelect" className="w-[100px] h-9">
               <SelectValue placeholder={t("exportFormatLabel")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="txt">
-                {t("exportFormatTXT")}
-              </SelectItem>
-              <SelectItem value="csv">
-                {t("exportFormatCSV")}
-              </SelectItem>
+              <SelectItem value="txt">{t("results:exportFormatTXT")}</SelectItem>
+              <SelectItem value="csv">{t("results:exportFormatCSV")}</SelectItem>
               <SelectItem value="json">
-                {t("exportFormatJSON")}
+                {t("results:exportFormatJSON")}
               </SelectItem>
-              <SelectItem value="md">
-                {t("exportFormatMD")}
-              </SelectItem>
+              <SelectItem value="md">{t("results:exportFormatMD")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         {/* Copy Button */}
         <Button
           onClick={handleCopyResults}
-          disabled={!sortedItems || !!copyStatus || !!exportStatus}
+          disabled={
+            !sortedItems ||
+            sortedItems.length === 0 ||
+            !!copyStatus ||
+            !!exportStatus
+          }
           variant="outline"
         >
           <Copy className="mr-2 h-4 w-4" />
@@ -1098,7 +1188,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         {/* Save Button */}
         <Button
           onClick={handleExport}
-          disabled={!sortedItems || !!exportStatus || !!copyStatus}
+          disabled={
+            !sortedItems ||
+            sortedItems.length === 0 ||
+            !!exportStatus ||
+            !!copyStatus
+          }
           variant="secondary"
         >
           <Save className="mr-2 h-4 w-4" />

@@ -1,4 +1,5 @@
 // D:/Code/Electron/src/ui/QueryBuilder.tsx
+// Reverted to standard component, relying on onChange props
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import QueryGroup from "./QueryGroup"; // Child component
@@ -7,9 +8,6 @@ import { generateId } from "./queryBuilderUtils";
 import { Checkbox } from "@/components/ui/checkbox"; // Import shadcn Checkbox
 import { Label } from "@/components/ui/label"; // Import shadcn Label
 import { cn } from "@/lib/utils"; // Import cn utility
-
-// Remove the CSS import
-// import './QueryBuilder.css';
 
 interface QueryBuilderProps {
   onChange: (query: QueryStructure | null) => void;
@@ -48,40 +46,43 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   useEffect(() => {
     const newQueryId = initialQuery?.id ?? null;
     if (initialQuery === null && loadedQueryIdRef.current !== null) {
+      // If parent clears the query, reset internal state
+      // console.log("QueryBuilder: Parent cleared query. Resetting.");
       setRootGroup(createDefaultRootGroup());
-      setIsCaseSensitive(initialCaseSensitive);
+      setIsCaseSensitive(initialCaseSensitive); // Reset case sensitivity too
       loadedQueryIdRef.current = null;
     } else if (initialQuery && newQueryId !== loadedQueryIdRef.current) {
-      console.log(`QueryBuilder: Loading new initialQuery (ID: ${newQueryId})`);
+      // If parent loads a new query (e.g., from history)
+      // console.log(`QueryBuilder: Loading new initialQuery (ID: ${newQueryId})`);
       setRootGroup(initialQuery);
       setIsCaseSensitive(initialCaseSensitive);
       loadedQueryIdRef.current = newQueryId;
     }
+    // Only run when initialQuery or initialCaseSensitive changes from parent
   }, [initialQuery, initialCaseSensitive]);
 
-  // Notify parent about query changes (made internally by the user)
-  useEffect(() => {
-    if (rootGroup.id !== loadedQueryIdRef.current || !initialQuery) {
-      onChange(rootGroup.conditions.length > 0 ? rootGroup : null);
-    }
-  }, [rootGroup, onChange, initialQuery]);
+  // Callback for internal changes within QueryGroup/QueryCondition
+  const handleRootGroupChange = useCallback(
+    (updatedGroup: QueryStructure) => {
+      // console.log("QueryBuilder: handleRootGroupChange", updatedGroup); // Log internal change
+      setRootGroup(updatedGroup);
+      // Notify parent immediately
+      onChange(updatedGroup.conditions.length > 0 ? updatedGroup : null);
+    },
+    [onChange] // Depend only on onChange prop
+  );
 
-  // Notify parent about case sensitivity changes (handled directly in toggle)
-  // useEffect(() => {
-  //   onCaseSensitivityChange(isCaseSensitive);
-  // }, [isCaseSensitive, onCaseSensitivityChange]);
-
-  const handleRootGroupChange = useCallback((updatedGroup: QueryStructure) => {
-    setRootGroup(updatedGroup);
-  }, []);
-
-  const handleCaseSensitiveToggle = (checked: boolean | "indeterminate") => {
-    // Checkbox onCheckedChange provides boolean or 'indeterminate'
-    const newSensitivity = Boolean(checked);
-    setIsCaseSensitive(newSensitivity);
-    // Directly notify parent on user interaction
-    onCaseSensitivityChange(newSensitivity);
-  };
+  // Callback for case sensitivity toggle
+  const handleCaseSensitiveToggle = useCallback(
+    (checked: boolean | "indeterminate") => {
+      const newSensitivity = Boolean(checked);
+      // console.log("QueryBuilder: handleCaseSensitiveToggle", newSensitivity); // Log internal change
+      setIsCaseSensitive(newSensitivity);
+      // Notify parent immediately
+      onCaseSensitivityChange(newSensitivity);
+    },
+    [onCaseSensitivityChange] // Depend only on onCaseSensitivityChange prop
+  );
 
   // Determine if the case sensitive checkbox should be shown
   const hasTermCondition = (group: QueryStructure): boolean => {
@@ -98,7 +99,6 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const showCaseSensitiveCheckbox = hasTermCondition(rootGroup);
 
   return (
-    // Apply Tailwind classes for container styling
     <div
       className={cn(
         "border border-border rounded-md p-3 bg-muted/30", // Base styles
@@ -106,30 +106,25 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         disabled && "opacity-60 pointer-events-none" // Disabled state
       )}
     >
-      {/* Render the root QueryGroup */}
       <QueryGroup
         group={rootGroup}
-        onChange={handleRootGroupChange}
+        onChange={handleRootGroupChange} // Pass the callback
         level={0}
         isRoot={true}
         disabled={disabled}
       />
-      {/* Render options like case sensitivity only if relevant */}
       {showCaseSensitiveCheckbox && (
-        // Apply Tailwind classes for options section layout/styling
         <div className="mt-2 pt-3 border-t border-border/60">
-          {/* Use flex layout for checkbox and label */}
           <div className="flex items-center space-x-2">
             <Checkbox
               id="queryBuilderCaseSensitive"
               checked={isCaseSensitive}
-              onCheckedChange={handleCaseSensitiveToggle} // Use onCheckedChange
+              onCheckedChange={handleCaseSensitiveToggle} // Pass the callback
               disabled={disabled}
-              aria-label={t("caseSensitiveLabel")} // Add aria-label
+              aria-label={t("caseSensitiveLabel")}
             />
             <Label
               htmlFor="queryBuilderCaseSensitive"
-              // Apply Tailwind classes for label appearance and cursor
               className="text-sm font-medium leading-none text-muted-foreground cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               {t("caseSensitiveLabel")}

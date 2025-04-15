@@ -1,12 +1,13 @@
-{
+ {
   "heading": "Search Results",
   "summaryFound": "Files Found (Initial): {{count}}",
   "summaryProcessed": "Files Processed: {{count}}",
   "summaryReadErrors": "File Read Errors: {{count}}",
   "summaryTotalLines": "Total Lines: {{count}}",
   "summaryTotalFiles": "Total Files: {{count}}",
-  "summaryTotalLinesFiltered": "Total Lines (filtered): {{count}}",
   "summaryTotalFilesFiltered": "Total Files (filtered): {{count}}",
+  "summaryMatchedFiles": "Content Matches: {{count}}",
+  "summaryMatchedFilesFiltered": "Content Matches (filtered): {{count}}",
   "clipboardWarning": "Note: Copying large result sets may be truncated by system limits. Use \"Save Results As...\" for guaranteed full content.",
   "copyButton": "Copy Results",
   "copyButtonCopying": "Copying...",
@@ -44,5 +45,8 @@
   "sortKeyDateModified": "Date Modified",
   "sortKeyMatchStatus": "Match Status",
   "sortAsc": "Ascending",
-  "sortDesc": "Descending"
+  "sortDesc": "Descending",
+  "noContentMatches": "No files matched the content query.",
+  "noFilterMatches": "No results match the current filter.",
+  "noResultsFound": "No results found."
 }

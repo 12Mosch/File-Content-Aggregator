@@ -29,7 +29,7 @@
   "queryBuilderNearTerm2Placeholder": "Term 2 (text or /regex/)",
   "queryBuilderNearDistanceLabel": "within",
   "queryBuilderNearWordsLabel": "words of",
-  "caseSensitiveLabel": "Case-Sensitive (for simple terms)",
+  "caseSensitiveLabel": "Case-Sensitive (for simple 'Term' conditions)",
   "modifiedAfterLabel": "Modified After (Optional):",
   "modifiedBeforeLabel": "Modified Before (Optional):",
   "minSizeLabel": "Min Size (Optional):",

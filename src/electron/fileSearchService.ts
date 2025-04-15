@@ -1,3 +1,7 @@
+// D:/Code/Electron/src/electron/fileSearchService.ts
+/*
+ * Bug Fix: Remove diagnostic logging after confirming backend works.
+ */
 import path from "path";
 import fs from "fs/promises";
 import type { Stats } from "fs";
@@ -343,7 +347,7 @@ function evaluateBooleanAst(
   caseSensitive: boolean
 ): boolean {
   if (!isJsepExpression(node)) {
-    console.warn("evaluateBooleanAst called with non-Expression node:", node);
+    // console.warn("evaluateBooleanAst called with non-Expression node:", node);
     return false;
   }
 
@@ -352,10 +356,7 @@ function evaluateBooleanAst(
       case "LogicalExpression": {
         if (!isJsepLogicalExpression(node)) return false;
         if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
-          console.warn(
-            "LogicalExpression node missing valid left or right child",
-            node
-          );
+          // console.warn("LogicalExpression node missing valid left or right child", node);
           return false;
         }
         // Evaluate left side first for potential short-circuiting
@@ -381,74 +382,69 @@ function evaluateBooleanAst(
       case "UnaryExpression": {
         if (!isJsepUnaryExpression(node)) return false;
         if (!isJsepExpression(node.argument)) {
-          console.warn("UnaryExpression node missing valid argument", node);
+          // console.warn("UnaryExpression node missing valid argument", node);
           return false;
         }
         if (node.operator === "NOT") {
           return !evaluateBooleanAst(node.argument, content, caseSensitive);
         }
-        console.warn(`Unsupported unary operator: ${String(node.operator)}`);
+        // console.warn(`Unsupported unary operator: ${String(node.operator)}`);
         return false;
       }
       case "Identifier": {
-        // Treat identifiers as potential terms or regex literals
+        // This case should ideally not be hit for simple terms if quoting works
         if (!isJsepIdentifier(node)) return false;
         const termIdentifierStr = node.name;
+        // console.log(`[AST Eval] Identifier: "${termIdentifierStr}"`); // DEBUG
         const regexFromIdentifier = parseRegexLiteral(termIdentifierStr);
         if (regexFromIdentifier) {
           return regexFromIdentifier.test(content);
         } else {
-          // Simple term search
+          // Simple term search (fallback)
           return caseSensitive
             ? content.includes(termIdentifierStr)
             : content.toLowerCase().includes(termIdentifierStr.toLowerCase());
         }
       }
       case "Literal": {
-        // Treat string literals as potential terms or regex literals
+        // This is the expected path for simple terms now
         if (!isJsepLiteral(node)) return false;
         if (typeof node.value === "string") {
           const termLiteralStr = node.value;
+          // console.log(`[AST Eval] Literal: "${termLiteralStr}"`); // DEBUG
           const regexFromLiteral = parseRegexLiteral(termLiteralStr);
           if (regexFromLiteral) {
+            // This allows using regex literals like /pattern/i within the builder
             return regexFromLiteral.test(content);
           } else {
-            // Simple term search
+            // Simple term search for the literal value
             return caseSensitive
               ? content.includes(termLiteralStr)
               : content.toLowerCase().includes(termLiteralStr.toLowerCase());
           }
         }
-        // Boolean literals can be part of the AST (though unlikely from user input)
         if (typeof node.value === "boolean") {
           return node.value;
         }
-        // Numbers are only expected within NEAR
         if (typeof node.value === "number") {
-          console.warn(
-            `Numeric literal ${node.value} encountered outside NEAR function.`
-          );
+          // console.warn(`Numeric literal ${node.value} encountered outside NEAR function.`);
           return false;
         }
-        console.warn(`Unsupported literal type: ${typeof node.value}`);
+        // console.warn(`Unsupported literal type: ${typeof node.value}`);
         return false;
       }
       case "CallExpression": {
         // Handle function calls, specifically NEAR
         if (!isJsepCallExpression(node)) {
-          console.warn("Node is not a valid CallExpression:", node);
+          // console.warn("Node is not a valid CallExpression:", node);
           return false;
         }
         if (!isJsepIdentifier(node.callee) || node.callee.name !== "NEAR") {
-          console.warn(
-            `Unsupported function call: ${isJsepIdentifier(node.callee) ? node.callee.name : "unknown"}`
-          );
+          // console.warn(`Unsupported function call: ${isJsepIdentifier(node.callee) ? node.callee.name : "unknown"}`);
           return false;
         }
         if (node.arguments.length !== 3) {
-          console.warn(
-            `NEAR function requires exactly 3 arguments (term1, term2, distance), got ${node.arguments.length}`
-          );
+          // console.warn(`NEAR function requires exactly 3 arguments (term1, term2, distance), got ${node.arguments.length}`);
           return false;
         }
 
@@ -464,7 +460,6 @@ function evaluateBooleanAst(
           term1 = parseRegexLiteral(valueStr) || valueStr;
           term1IsRegex = term1 instanceof RegExp;
         } else if (isJsepIdentifier(arg1Node)) {
-          // Allow identifiers as terms/regex too
           const nameStr = arg1Node.name;
           term1 = parseRegexLiteral(nameStr) || nameStr;
           term1IsRegex = term1 instanceof RegExp;
@@ -494,9 +489,7 @@ function evaluateBooleanAst(
         }
 
         if (term1 === null || term2 === null || distance === null) {
-          console.warn(
-            `Invalid arguments for NEAR function. term1: ${String(term1)}, term2: ${String(term2)}, distance: ${String(distance)}`
-          );
+          // console.warn(`Invalid arguments for NEAR function. term1: ${String(term1)}, term2: ${String(term2)}, distance: ${String(distance)}`);
           return false;
         }
 
@@ -533,7 +526,8 @@ function evaluateBooleanAst(
             if (wordIndex2 === -1) continue;
 
             // Check if the absolute difference in word indices is within the distance
-            if (Math.abs(wordIndex1 - wordIndex2) <= distance) {
+            const wordDist = Math.abs(wordIndex1 - wordIndex2);
+            if (wordDist <= distance) {
               return true; // Found a pair within the specified distance
             }
           }
@@ -541,7 +535,7 @@ function evaluateBooleanAst(
         return false; // No pair found within the distance
       }
       default: {
-        console.warn(`Unsupported AST node type: ${String(node.type)}`);
+        // console.warn(`Unsupported AST node type: ${String(node.type)}`);
         return false;
       }
     }
@@ -659,8 +653,8 @@ export async function searchFiles(
     excludeFolders,
     folderExclusionMode = "contains",
     contentSearchTerm,
-    contentSearchMode = "term",
-    caseSensitive = false,
+    contentSearchMode = "term", // Default to term if not provided
+    caseSensitive = false, // Default case sensitivity
     modifiedAfter,
     modifiedBefore,
     minSizeBytes,
@@ -712,7 +706,7 @@ export async function searchFiles(
   const allFoundFiles = new Set<string>();
   let initialFileCount = 0;
   const globDepth = maxDepth && maxDepth > 0 ? maxDepth : Infinity;
-  console.log(`Using glob depth: ${globDepth}`);
+  // console.log(`Using glob depth: ${globDepth}`);
 
   // --- Phase 1: Initial File Discovery using fast-glob ---
   try {
@@ -1058,10 +1052,7 @@ export async function searchFiles(
         } catch (statError: unknown) {
           const message =
             statError instanceof Error ? statError.message : String(statError);
-          console.warn(
-            `Could not get stats for file: ${filePath}`,
-            message
-          );
+          // console.warn(`Could not get stats for file: ${filePath}`, message);
           // Return null stats if error occurs, file will be processed without metadata
           return { filePath, stats: null };
         }
@@ -1116,7 +1107,10 @@ export async function searchFiles(
   const hasDateFilter = !!afterDate || !!beforeDate;
 
   let filesToProcessWithMetadata = filesWithMetadata;
-  if ((hasSizeFilter || hasDateFilter) && filesToProcessWithMetadata.length > 0) {
+  if (
+    (hasSizeFilter || hasDateFilter) &&
+    filesToProcessWithMetadata.length > 0
+  ) {
     filesToProcessWithMetadata = filesToProcessWithMetadata.filter(
       ({ stats }) => {
         if (!stats) return false;
@@ -1182,6 +1176,7 @@ export async function searchFiles(
 
   // Prepare content matcher based on mode and term
   if (contentSearchTerm) {
+    // console.log(`[SearchService] Preparing content matcher. Mode: ${contentSearchMode}, Term: "${contentSearchTerm}", CaseSensitive: ${caseSensitive}`);
     switch (contentSearchMode) {
       case "regex": {
         const flags = caseSensitive ? "" : "i";
@@ -1227,10 +1222,7 @@ export async function searchFiles(
           // Note: NEAR is handled as a CallExpression within evaluateBooleanAst
 
           const parsedAst = jsep(contentSearchTerm);
-          console.log(
-            "Parsed Boolean AST:",
-            JSON.stringify(parsedAst, null, 2)
-          );
+          // console.log("[SearchService] Parsed Boolean AST:", JSON.stringify(parsedAst, null, 2));
           // Create matcher function that evaluates the AST
           contentMatcher = (content) => {
             // Clear cache for this specific content before evaluation
@@ -1238,7 +1230,7 @@ export async function searchFiles(
             const result = evaluateBooleanAst(
               parsedAst,
               content,
-              caseSensitive
+              caseSensitive // Pass case sensitivity from params
             );
             // No need to clear cache here, evaluateBooleanAst handles cleanup on error
             return result;
@@ -1292,6 +1284,8 @@ export async function searchFiles(
       }
       case "term":
       default: {
+        // This case should not be hit if mode is "boolean"
+        // console.warn(`[SearchService] Unexpectedly entered 'term' matching case with mode: ${contentSearchMode}`);
         // Simple term matching
         if (caseSensitive) {
           contentMatcher = (content) => content.includes(contentSearchTerm);
@@ -1303,6 +1297,8 @@ export async function searchFiles(
         break;
       }
     }
+  } else {
+    // console.log("[SearchService] No content search term provided."); // DEBUG
   }
 
   // Update progress before starting file processing loop
@@ -1363,7 +1359,7 @@ export async function searchFiles(
           let fileReadErrorResult: FileReadError | null = null;
           let errorKeyForProgress: string | undefined = undefined;
           let incrementCounter = true; // Flag to control progress increment
-          let contentMatches = !contentMatcher; // Default to true if no content query
+          let actualMatchResult = false; // Explicitly track if content matched
 
           try {
             if (checkCancellation()) {
@@ -1374,13 +1370,17 @@ export async function searchFiles(
             // Only read content if there's a content matcher
             if (contentMatcher) {
               fileContent = await fs.readFile(filePath, { encoding: "utf8" });
-              contentMatches = contentMatcher(fileContent);
+              actualMatchResult = contentMatcher(fileContent); // Store the actual result
+            } else {
+              // If no content query, treat it as "matched" for filtering purposes
+              // (i.e., it passed all other filters)
+              actualMatchResult = true;
             }
 
             // Always add a structured item, indicating match status and metadata
             structuredItemResult = {
               filePath: displayFilePath,
-              matched: contentMatches, // Store match status
+              matched: actualMatchResult, // Store the actual match result
               readError: undefined,
               size: stats?.size, // Add size from stats
               mtime: stats?.mtime.getTime(), // Add mtime timestamp from stats
@@ -1389,7 +1389,7 @@ export async function searchFiles(
             // Handle file read errors
             const message =
               error instanceof Error ? error.message : String(error);
-            console.error(`Error reading file '${filePath}':`, message);
+            // console.error(`Error reading file '${filePath}':`, message);
             let reasonKey = "readError"; // Default error reason
             const code = (error as { code?: string })?.code;
             // Map common error codes to reason keys for i18n
@@ -1401,6 +1401,7 @@ export async function searchFiles(
               reasonKey = "pathIsDir";
             }
             // Add structured item indicating the read error and metadata (if available)
+            // Crucially, set matched to false on read error
             structuredItemResult = {
               filePath: displayFilePath,
               matched: false, // Cannot match if read failed
@@ -1440,6 +1441,8 @@ export async function searchFiles(
               });
             }
           }
+          // Log the final matched status for this file
+          // console.log(`[SearchService] File: ${displayFilePath}, Final Matched Flag: ${structuredItemResult?.matched}`);
           // Return results for this file (or null if cancelled)
           return checkCancellation()
             ? null

@@ -160,7 +160,7 @@ The results are displayed in a Tree View:
 
 - Lists _all_ files that were processed (passed initial path/extension/metadata filters).
 - Click the arrow (`▶`/`▼`) or the file path to expand/collapse an item and view its content preview (if available).
-- **Matched Files:** Show a preview of their content (syntax highlighted where possible). Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
+- **Matched Files:** Show a preview of their content (syntax highlighted where possible). **The specific search terms from your Content Query that caused the match will be highlighted** within the preview. Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
 - **Non-Matching Files:** Show only the file path (content preview is hidden).
 - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
 - **Copy Icon (📄):** Click the copy icon in the header of an expanded item to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
@@ -169,7 +169,7 @@ The results are displayed in a Tree View:
 
 - Use the **Fuzzy Filter Results** input box above the results display to quickly filter the _currently displayed_ results in the Tree View.
 - This filter uses **fuzzy matching**, meaning it will find approximate matches, not just exact ones. For example, filtering for "config" might also show files like "configuration" or "cnfig".
-- The filter searches within the **File Path** and any **Read Error** messages displayed in the list.
+- The filter searches within the **File Path** and any **Read Error** messages displayed in the list. The file path itself will be highlighted based on the fuzzy filter term.
 - Check the **Case-Sensitive** box next to it to make the fuzzy filter match case.
 - This filter operates _only_ on the results already found by the main search; it doesn't perform a new file system search.
 
@@ -243,6 +243,9 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - Ensure you've typed at least 2 characters in the filter box.
   - The fuzzy match might be less precise than expected. Try refining your filter term.
   - Remember it only filters the file path and error messages shown in the list, not the file content itself.
+- **Search Term Highlighting Not Working:**
+  - Highlighting only applies to the content preview of files that *matched* the Content Query.
+  - Highlighting might not work perfectly within syntax-highlighted code blocks due to technical limitations. It works best on plain text previews.
 
 ## Feedback and Support
 
