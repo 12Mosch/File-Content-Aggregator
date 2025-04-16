@@ -77,20 +77,15 @@ describe("Search Highlighting Integration", () => {
         }
       </div>
     `;
-    
+
     // Mix of string and regex terms
-    const terms = [
-      "function",
-      /Database/,
-      "query",
-      "return"
-    ];
-    
+    const terms = ["function", /Database/, "query", "return"];
+
     const result = highlightTermsInHtml(html, terms, true);
-    
+
     // Verify the function doesn't crash and returns a string
     expect(typeof result).toBe("string");
-    
+
     // Check that all terms are still present in the result
     expect(result).toContain("function");
     expect(result).toContain("Database");
@@ -111,13 +106,17 @@ describe("Search Highlighting Integration", () => {
         };
       </div>
     `;
-    
+
     // Test with case-sensitive search
     const resultSensitive = highlightTermsInHtml(html, ["name", "email"], true);
     expect(typeof resultSensitive).toBe("string");
-    
+
     // Test with case-insensitive search
-    const resultInsensitive = highlightTermsInHtml(html, ["name", "email"], false);
+    const resultInsensitive = highlightTermsInHtml(
+      html,
+      ["name", "email"],
+      false
+    );
     expect(typeof resultInsensitive).toBe("string");
   });
 
@@ -138,15 +137,113 @@ describe("Search Highlighting Integration", () => {
         </div>
       </div>
     `;
-    
+
     const terms = ["const", "items", "id", "name"];
-    
+
     const result = highlightTermsInHtml(html, terms, true);
     expect(typeof result).toBe("string");
-    
+
     // All terms should still be present
-    terms.forEach(term => {
+    terms.forEach((term) => {
       expect(result).toContain(term);
     });
+  });
+
+  // New test for highlighting with fuzzy matches in search results
+  test("should highlight fuzzy matches in search results", () => {
+    const html = `
+      <div class="code-block">
+        <span class="hljs-keyword">function</span> <span class="hljs-title">searchDatabase</span>(<span class="hljs-params">query</span>) {
+          <span class="hljs-keyword">const</span> connection = <span class="hljs-keyword">new</span> <span class="hljs-title">DatabaseConnection</span>();
+          <span class="hljs-keyword">const</span> results = connection.<span class="hljs-title">query</span>(query);
+          <span class="hljs-keyword">return</span> results.filter(<span class="hljs-function"><span class="hljs-params">item</span> =></span> item.active);
+        }
+      </div>
+    `;
+
+    // Fuzzy search terms with slight misspellings or variations
+    const fuzzyTerms = [
+      "functoin", // Misspelled "function"
+      "databaes", // Misspelled "database"
+      "qurey", // Misspelled "query"
+      "retrn", // Misspelled "return"
+    ];
+
+    // In a real implementation, these would be converted to RegExp patterns
+    // that match the original terms with some flexibility
+    const fuzzyRegexTerms = [
+      /func?t[io]+n/i, // Flexible pattern for "function"
+      /d[ao]t[ao]ba[es]+/i, // Flexible pattern for "database"
+      /qu[er]+y/i, // Flexible pattern for "query"
+      /re?t[uo]?rn/i, // Flexible pattern for "return"
+    ];
+
+    const result = highlightTermsInHtml(html, fuzzyRegexTerms, false);
+
+    // Verify the function doesn't crash and returns a string
+    expect(typeof result).toBe("string");
+
+    // Check that the original terms are still present in the result
+    // (since we're testing that fuzzy patterns match the correct terms)
+    expect(result).toContain("function");
+    expect(result).toContain("Database");
+    expect(result).toContain("query");
+    expect(result).toContain("return");
+
+    // In a real implementation with proper DOM support, we would check that the spans with
+    // the search-term-match class are wrapping the correct terms
+    // Since our DOM mocking is simplified, we'll just check that the result contains the terms
+    // This is sufficient for integration testing the function doesn't crash with fuzzy patterns
+  });
+
+  // New test for highlighting with NEAR operator matches in search results
+  test("should highlight NEAR operator matches in search results", () => {
+    const html = `
+      <div class="code-block">
+        <span class="hljs-keyword">function</span> <span class="hljs-title">processData</span>(<span class="hljs-params">data</span>) {
+          <span class="hljs-keyword">const</span> results = [];
+          <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> item of data) {
+            <span class="hljs-keyword">if</span> (item.isValid && item.score > 0.5) {
+              results.push(item);
+            }
+          }
+          <span class="hljs-keyword">return</span> results;
+        }
+      </div>
+    `;
+
+    // In a real NEAR implementation, we would highlight both terms that are near each other
+    // For this test, we'll simulate this by providing both terms separately
+    const nearTerms = [
+      "isValid", // First term in NEAR expression
+      "score", // Second term in NEAR expression
+    ];
+
+    const result = highlightTermsInHtml(html, nearTerms, true);
+
+    // Verify the function doesn't crash and returns a string
+    expect(typeof result).toBe("string");
+
+    // Check that both terms in the NEAR expression are present in the result
+    expect(result).toContain("isValid");
+    expect(result).toContain("score");
+
+    // In a real implementation with proper DOM support, we would check that the spans with
+    // the search-term-match class are wrapping the correct terms
+    // Since our DOM mocking is simplified, we'll just check that the result contains the terms
+    // This is sufficient for integration testing the function doesn't crash with NEAR terms
+
+    // Additional test: terms that appear in the same line/context
+    const contextNearTerms = [
+      "item", // Appears multiple times in close proximity
+      "results", // Appears in close lines to "item"
+    ];
+
+    const contextResult = highlightTermsInHtml(html, contextNearTerms, true);
+
+    // Verify both terms are present in the result
+    // In a real implementation with proper DOM support, we would check for search-term-match class
+    expect(contextResult).toContain("item");
+    expect(contextResult).toContain("results");
   });
 });

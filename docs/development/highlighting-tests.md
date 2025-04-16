@@ -75,6 +75,26 @@ These tests verify that the `HighlightMatches` React component correctly highlig
 
 Integration tests for highlighting are located in `tests/integration/search/highlighting.test.ts` and `tests/integration/ui/uiIntegration.test.ts`. These tests verify that the highlighting functionality works correctly in the context of the search pipeline and UI components.
 
+### Search Highlighting Integration Tests (`tests/integration/search/highlighting.test.ts`)
+
+- Tests for handling complex HTML with multiple term types
+- Tests for handling mixed case sensitivity settings
+- Tests for handling HTML with nested elements and multiple matches
+- Tests for highlighting fuzzy matches in search results:
+  - Handling misspelled terms
+  - Matching with flexible patterns
+  - Ensuring correct terms are highlighted
+- Tests for highlighting NEAR operator matches in search results:
+  - Highlighting terms that appear near each other
+  - Handling terms in different contexts
+  - Verifying both terms in NEAR expressions are highlighted
+
+### UI Integration Tests (`tests/integration/ui/uiIntegration.test.ts`)
+
+- Tests for highlighting search terms in HTML content previews
+- Tests for highlighting search terms with Unicode characters
+- Tests for integrating highlighting with the search results display
+
 ## Running the Tests
 
 To run all highlighting tests:

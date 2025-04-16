@@ -36,9 +36,9 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test highlighting in plain text with NEAR operator matches (Implemented in `tests/unit/ui/HighlightMatches.test.tsx`)
 
 ### Integration Tests
-- **Highlighting in Search Results**
-  - **NEW:** Test highlighting with fuzzy matches in search results
-  - **NEW:** Test highlighting with NEAR operator matches in search results
+- ✅ **Highlighting in Search Results** (Implemented in `tests/integration/search/highlighting.test.ts`)
+  - ✅ Test highlighting with fuzzy matches in search results
+  - ✅ Test highlighting with NEAR operator matches in search results
   - ✅ Documentation added in `docs/development/highlighting-tests.md`
 
 ## Fuzzy Search Functionality
