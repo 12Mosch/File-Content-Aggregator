@@ -26,6 +26,7 @@ import {
   SearchResult,
   CancellationChecker,
   StructuredItem,
+  updateFuzzySearchSettings,
 } from "./fileSearchService.js";
 import type {
   ExportFormat,
@@ -51,6 +52,8 @@ const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_STORE_KEY = "searchHistory";
 const THEME_PREFERENCE_KEY = "themePreference";
 const DEFAULT_EXPORT_FORMAT_KEY = "defaultExportFormat";
+const FUZZY_SEARCH_BOOLEAN_ENABLED_KEY = "fuzzySearchBooleanEnabled";
+const FUZZY_SEARCH_NEAR_ENABLED_KEY = "fuzzySearchNearEnabled";
 type ThemePreference = "light" | "dark" | "system";
 const EXPORT_CONTENT_READ_CONCURRENCY = 10;
 
@@ -99,12 +102,24 @@ const schema = {
     enum: ["txt", "csv", "json", "md"],
     default: "txt",
   },
+  // Setting for fuzzy search in Boolean queries
+  [FUZZY_SEARCH_BOOLEAN_ENABLED_KEY]: {
+    type: "boolean",
+    default: true,
+  },
+  // Setting for fuzzy search in NEAR function
+  [FUZZY_SEARCH_NEAR_ENABLED_KEY]: {
+    type: "boolean",
+    default: true,
+  },
 };
 const store = new Store<{
   userLanguage?: string;
   searchHistory: SearchHistoryEntry[];
   themePreference: ThemePreference;
   defaultExportFormat: ExportFormat;
+  fuzzySearchBooleanEnabled: boolean;
+  fuzzySearchNearEnabled: boolean;
 }>({ schema });
 
 const i18nMain = i18next.createInstance();
@@ -327,9 +342,26 @@ void app.whenReady().then(async () => {
     console.log(
       `Main: Initial nativeTheme.themeSource set to "${storedTheme}"`
     );
+
+    // Initialize fuzzy search settings
+    const fuzzySearchBooleanEnabled = store.get(
+      FUZZY_SEARCH_BOOLEAN_ENABLED_KEY,
+      true
+    );
+    const fuzzySearchNearEnabled = store.get(
+      FUZZY_SEARCH_NEAR_ENABLED_KEY,
+      true
+    );
+    updateFuzzySearchSettings(
+      fuzzySearchBooleanEnabled,
+      fuzzySearchNearEnabled
+    );
+    console.log(
+      `Main: Initial fuzzy search settings - Boolean: ${fuzzySearchBooleanEnabled}, NEAR: ${fuzzySearchNearEnabled}`
+    );
   } catch (error: unknown) {
     console.error(
-      "Main: Error setting initial theme source:",
+      "Main: Error setting initial theme source or fuzzy search settings:",
       error instanceof Error ? error.message : error
     );
   }
@@ -1236,6 +1268,106 @@ ipcMain.handle(
       } else {
         console.warn(
           `IPC: Attempted to save invalid default export format: ${format}`
+        );
+      }
+      resolve();
+    });
+  }
+);
+
+/**
+ * Gets the fuzzy search in Boolean queries enabled preference.
+ */
+ipcMain.handle(
+  "get-fuzzy-search-boolean-enabled",
+  (event): Promise<boolean> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve(true); // Default fallback
+    return new Promise((resolve) => {
+      try {
+        const enabled = store.get(FUZZY_SEARCH_BOOLEAN_ENABLED_KEY, true);
+        resolve(enabled);
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error getting fuzzy search Boolean enabled:",
+          error instanceof Error ? error.message : error
+        );
+        resolve(true); // Default fallback on error
+      }
+    });
+  }
+);
+
+/**
+ * Sets the fuzzy search in Boolean queries enabled preference.
+ */
+ipcMain.handle(
+  "set-fuzzy-search-boolean-enabled",
+  (event, enabled: boolean): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        store.set(FUZZY_SEARCH_BOOLEAN_ENABLED_KEY, enabled);
+        console.log(
+          `IPC: Fuzzy search in Boolean queries ${enabled ? "enabled" : "disabled"}`
+        );
+
+        // Update the settings in fileSearchService
+        const nearEnabled = store.get(FUZZY_SEARCH_NEAR_ENABLED_KEY, true);
+        updateFuzzySearchSettings(enabled, nearEnabled);
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error setting fuzzy search Boolean enabled:",
+          error instanceof Error ? error.message : error
+        );
+      }
+      resolve();
+    });
+  }
+);
+
+/**
+ * Gets the fuzzy search in NEAR function enabled preference.
+ */
+ipcMain.handle("get-fuzzy-search-near-enabled", (event): Promise<boolean> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve(true); // Default fallback
+  return new Promise((resolve) => {
+    try {
+      const enabled = store.get(FUZZY_SEARCH_NEAR_ENABLED_KEY, true);
+      resolve(enabled);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting fuzzy search NEAR enabled:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(true); // Default fallback on error
+    }
+  });
+});
+
+/**
+ * Sets the fuzzy search in NEAR function enabled preference.
+ */
+ipcMain.handle(
+  "set-fuzzy-search-near-enabled",
+  (event, enabled: boolean): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        store.set(FUZZY_SEARCH_NEAR_ENABLED_KEY, enabled);
+        console.log(
+          `IPC: Fuzzy search in NEAR function ${enabled ? "enabled" : "disabled"}`
+        );
+
+        // Update the settings in fileSearchService
+        const booleanEnabled = store.get(
+          FUZZY_SEARCH_BOOLEAN_ENABLED_KEY,
+          true
+        );
+        updateFuzzySearchSettings(booleanEnabled, enabled);
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error setting fuzzy search NEAR enabled:",
+          error instanceof Error ? error.message : error
         );
       }
       resolve();

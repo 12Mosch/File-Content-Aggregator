@@ -20,6 +20,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ThemePreference, ExportFormat } from "./vite-env.d";
 import { applyTheme } from "./main";
 
@@ -33,6 +34,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [currentTheme, setCurrentTheme] = useState<ThemePreference>("system");
   const [defaultExportFormat, setDefaultExportFormat] =
     useState<ExportFormat>("txt");
+  const [fuzzySearchBooleanEnabled, setFuzzySearchBooleanEnabled] =
+    useState<boolean>(true);
+  const [fuzzySearchNearEnabled, setFuzzySearchNearEnabled] =
+    useState<boolean>(true);
 
   // Fetch initial theme and export format preferences when modal opens
   useEffect(() => {
@@ -51,6 +56,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           .then((format) => setDefaultExportFormat(format))
           .catch((err) =>
             console.error("Error fetching default export format:", err)
+          );
+      }
+      if (window.electronAPI?.getFuzzySearchBooleanEnabled) {
+        void window.electronAPI
+          .getFuzzySearchBooleanEnabled()
+          .then((enabled) => setFuzzySearchBooleanEnabled(enabled))
+          .catch((err) =>
+            console.error("Error fetching fuzzy search Boolean setting:", err)
+          );
+      }
+      if (window.electronAPI?.getFuzzySearchNearEnabled) {
+        void window.electronAPI
+          .getFuzzySearchNearEnabled()
+          .then((enabled) => setFuzzySearchNearEnabled(enabled))
+          .catch((err) =>
+            console.error("Error fetching fuzzy search NEAR setting:", err)
           );
       }
     }
@@ -119,6 +140,43 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handler for changing fuzzy search in Boolean queries setting
+  const handleFuzzySearchBooleanChange = (checked: boolean) => {
+    setFuzzySearchBooleanEnabled(checked);
+    if (window.electronAPI?.setFuzzySearchBooleanEnabled) {
+      const setFuzzySearchPref = async () => {
+        try {
+          await window.electronAPI.setFuzzySearchBooleanEnabled(checked);
+        } catch (error) {
+          console.error(
+            "Error setting fuzzy search Boolean preference:",
+            error
+          );
+        }
+      };
+      void setFuzzySearchPref();
+    } else {
+      console.warn("setFuzzySearchBooleanEnabled API not available.");
+    }
+  };
+
+  // Handler for changing fuzzy search in NEAR function setting
+  const handleFuzzySearchNearChange = (checked: boolean) => {
+    setFuzzySearchNearEnabled(checked);
+    if (window.electronAPI?.setFuzzySearchNearEnabled) {
+      const setFuzzySearchPref = async () => {
+        try {
+          await window.electronAPI.setFuzzySearchNearEnabled(checked);
+        } catch (error) {
+          console.error("Error setting fuzzy search NEAR preference:", error);
+        }
+      };
+      void setFuzzySearchPref();
+    } else {
+      console.warn("setFuzzySearchNearEnabled API not available.");
+    }
+  };
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       onClose();
@@ -138,9 +196,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         <div className="space-y-6 py-4">
           {/* Language Setting */}
           <div className="space-y-2">
-            <Label htmlFor="language-select">
-              {t("common:languageLabel")}
-            </Label>
+            <Label htmlFor="language-select">{t("common:languageLabel")}</Label>
             <Select value={i18n.language} onValueChange={handleLanguageChange}>
               <SelectTrigger id="language-select" className="w-full">
                 <SelectValue placeholder={t("common:languageLabel")} />
@@ -225,6 +281,53 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Fuzzy Search Settings */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-sm font-medium">
+              {t("common:fuzzySearchSettingsTitle")}
+            </h3>
+
+            {/* Fuzzy Search in Boolean Queries Setting */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fuzzy-search-boolean-enabled"
+                  checked={fuzzySearchBooleanEnabled}
+                  onCheckedChange={handleFuzzySearchBooleanChange}
+                />
+                <Label
+                  htmlFor="fuzzy-search-boolean-enabled"
+                  className="cursor-pointer font-normal"
+                >
+                  {t("common:fuzzySearchBooleanEnabledLabel")}
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground pl-6">
+                {t("common:fuzzySearchBooleanDescription")}
+              </p>
+            </div>
+
+            {/* Fuzzy Search in NEAR Function Setting */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fuzzy-search-near-enabled"
+                  checked={fuzzySearchNearEnabled}
+                  onCheckedChange={handleFuzzySearchNearChange}
+                />
+                <Label
+                  htmlFor="fuzzy-search-near-enabled"
+                  className="cursor-pointer font-normal"
+                >
+                  {t("common:fuzzySearchNearEnabledLabel")}
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground pl-6">
+                {t("common:fuzzySearchNearDescription")}
+              </p>
+            </div>
           </div>
         </div>
 

@@ -157,6 +157,14 @@ export interface IElectronAPI {
   getDefaultExportFormat: () => Promise<ExportFormat>;
   /** Sets the default export format preference. */
   setDefaultExportFormat: (format: ExportFormat) => Promise<void>;
+  /** Gets the fuzzy search in Boolean queries enabled preference. */
+  getFuzzySearchBooleanEnabled: () => Promise<boolean>;
+  /** Sets the fuzzy search in Boolean queries enabled preference. */
+  setFuzzySearchBooleanEnabled: (enabled: boolean) => Promise<void>;
+  /** Gets the fuzzy search in NEAR function enabled preference. */
+  getFuzzySearchNearEnabled: () => Promise<boolean>;
+  /** Sets the fuzzy search in NEAR function enabled preference. */
+  setFuzzySearchNearEnabled: (enabled: boolean) => Promise<void>;
 
   // File System Operations
   /** Opens the specified file with the default system application. */

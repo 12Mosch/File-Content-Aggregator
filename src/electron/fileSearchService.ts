@@ -35,6 +35,22 @@ const jsep = require("jsep") as typeof import("jsep");
 type ContentSearchMode = "term" | "regex" | "boolean";
 // -----------------------------------------------------
 
+// Get the fuzzy search settings from the store
+let fuzzySearchBooleanEnabled = true;
+let fuzzySearchNearEnabled = true;
+
+// Function to update the fuzzy search settings
+export function updateFuzzySearchSettings(
+  booleanEnabled: boolean,
+  nearEnabled: boolean
+) {
+  fuzzySearchBooleanEnabled = booleanEnabled;
+  fuzzySearchNearEnabled = nearEnabled;
+  console.log(
+    `[SearchService] Fuzzy search settings updated: Boolean=${fuzzySearchBooleanEnabled}, NEAR=${fuzzySearchNearEnabled}`
+  );
+}
+
 // --- Interfaces ---
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 
@@ -262,6 +278,60 @@ function findTermIndices(
   return indices;
 }
 
+/**
+ * Finds approximate match positions for fuzzy search results.
+ * This is used to locate the positions of fuzzy-matched terms in the content.
+ * @param content The content to search within
+ * @param term The search term to find approximate matches for
+ * @returns An array of starting indices for approximate matches
+ */
+function findApproximateMatchIndices(content: string, term: string): number[] {
+  const indices: number[] = [];
+  if (!term || term.length < 3 || !content) return indices;
+
+  // Split content into words for better fuzzy matching
+  const words = content.split(/\s+/);
+  const termLower = term.toLowerCase();
+
+  // Track the current position in the content
+  let position = 0;
+
+  for (const word of words) {
+    // Skip very short words
+    if (word.length < 3) {
+      position += word.length + 1; // +1 for the space
+      continue;
+    }
+
+    const wordLower = word.toLowerCase();
+
+    // Check if this word is a potential fuzzy match
+    // Simple check: at least 60% of characters match
+    let matchScore = 0;
+    const minLength = Math.min(termLower.length, wordLower.length);
+    const maxLength = Math.max(termLower.length, wordLower.length);
+
+    // Count matching characters (simple approach)
+    for (let i = 0; i < minLength; i++) {
+      if (termLower[i] === wordLower[i]) {
+        matchScore++;
+      }
+    }
+
+    // Calculate similarity ratio
+    const similarity = matchScore / maxLength;
+
+    // If similarity is high enough, consider it a match
+    if (similarity >= 0.6) {
+      indices.push(position);
+    }
+
+    position += word.length + 1; // +1 for the space
+  }
+
+  return indices;
+}
+
 // --- Word Boundary Cache and Helpers ---
 interface WordBoundary {
   word: string;
@@ -474,6 +544,8 @@ function evaluateBooleanAst(
 
             // Check if the term is in the content
             let found = false;
+
+            // First try exact match
             if (caseSensitive) {
               found = content.includes(searchTerm);
               console.log(
@@ -486,8 +558,43 @@ function evaluateBooleanAst(
               );
             }
 
+            // If exact match fails, try fuzzy search if enabled
+            if (!found && searchTerm.length >= 3 && fuzzySearchBooleanEnabled) {
+              // Only do fuzzy search for terms of 3+ chars
+              try {
+                // Import Fuse.js dynamically
+                const Fuse = require("fuse.js");
+
+                // Configure Fuse.js options
+                const fuseOptions = {
+                  includeScore: true,
+                  threshold: 0.4, // Lower is more strict
+                  ignoreLocation: true,
+                  useExtendedSearch: true,
+                  ignoreFieldNorm: true,
+                  isCaseSensitive: caseSensitive,
+                };
+
+                // Create a Fuse instance with the content
+                // We wrap the content in an array since Fuse expects a collection
+                const fuse = new Fuse([content], fuseOptions);
+
+                // Search for the term
+                const result = fuse.search(searchTerm);
+
+                // Consider it found if score is below threshold
+                found = result.length > 0 && result[0].score < 0.6;
+                console.log(
+                  `[AST Eval] Fuzzy search: ${found ? "FOUND" : "NOT FOUND"} (score: ${result.length > 0 ? result[0].score : "N/A"})`
+                );
+              } catch (error) {
+                console.error("Error in fuzzy search:", error);
+                // Keep found as false if fuzzy search fails
+              }
+            }
+
             console.log(
-              `[AST Eval] Simple term search result: ${found} for term "${termLiteralStr}"`
+              `[AST Eval] Term search result: ${found} for term "${termLiteralStr}"`
             );
             return found;
           }
@@ -563,21 +670,117 @@ function evaluateBooleanAst(
         }
 
         // Find indices of both terms
-        const indices1 = findTermIndices(
+        let indices1 = findTermIndices(
           content,
           term1,
           term1IsRegex ? false : caseSensitive, // Use global caseSensitive only for simple terms
           term1IsRegex
         );
-        const indices2 = findTermIndices(
+        let indices2 = findTermIndices(
           content,
           term2,
           term2IsRegex ? false : caseSensitive,
           term2IsRegex
         );
 
+        // If exact match fails for either term, try fuzzy search for non-regex terms
+        let usedFuzzyForTerm1 = false;
+        let usedFuzzyForTerm2 = false;
+
+        if (
+          indices1.length === 0 &&
+          !term1IsRegex &&
+          typeof term1 === "string" &&
+          term1.length >= 3 &&
+          fuzzySearchNearEnabled
+        ) {
+          try {
+            // Import Fuse.js dynamically
+            const Fuse = require("fuse.js");
+
+            // Configure Fuse.js options
+            const fuseOptions = {
+              includeScore: true,
+              threshold: 0.4, // Lower is more strict
+              ignoreLocation: true,
+              useExtendedSearch: true,
+              ignoreFieldNorm: true,
+              isCaseSensitive: caseSensitive,
+            };
+
+            // Create a Fuse instance with the content
+            const fuse = new Fuse([content], fuseOptions);
+
+            // Search for the term
+            const result = fuse.search(term1);
+
+            // If fuzzy match found, use the match position
+            if (result.length > 0 && result[0].score < 0.6) {
+              // For fuzzy search, we need to find the actual position in the content
+              // This is an approximation - we search for the matched substring
+              const matchedContent = result[0].item;
+              const matchIndices = findApproximateMatchIndices(content, term1);
+              if (matchIndices.length > 0) {
+                indices1 = matchIndices;
+                usedFuzzyForTerm1 = true;
+                console.log(
+                  `[AST Eval] NEAR: Used fuzzy search for term1 "${term1}" (found ${indices1.length} positions)`
+                );
+              }
+            }
+          } catch (error) {
+            console.error("Error in fuzzy search for NEAR term1:", error);
+          }
+        }
+
+        if (
+          indices2.length === 0 &&
+          !term2IsRegex &&
+          typeof term2 === "string" &&
+          term2.length >= 3 &&
+          fuzzySearchNearEnabled
+        ) {
+          try {
+            // Import Fuse.js dynamically
+            const Fuse = require("fuse.js");
+
+            // Configure Fuse.js options
+            const fuseOptions = {
+              includeScore: true,
+              threshold: 0.4, // Lower is more strict
+              ignoreLocation: true,
+              useExtendedSearch: true,
+              ignoreFieldNorm: true,
+              isCaseSensitive: caseSensitive,
+            };
+
+            // Create a Fuse instance with the content
+            const fuse = new Fuse([content], fuseOptions);
+
+            // Search for the term
+            const result = fuse.search(term2);
+
+            // If fuzzy match found, use the match position
+            if (result.length > 0 && result[0].score < 0.6) {
+              // For fuzzy search, we need to find the actual position in the content
+              // This is an approximation - we search for the matched substring
+              const matchedContent = result[0].item;
+              const matchIndices = findApproximateMatchIndices(content, term2);
+              if (matchIndices.length > 0) {
+                indices2 = matchIndices;
+                usedFuzzyForTerm2 = true;
+                console.log(
+                  `[AST Eval] NEAR: Used fuzzy search for term2 "${term2}" (found ${indices2.length} positions)`
+                );
+              }
+            }
+          } catch (error) {
+            console.error("Error in fuzzy search for NEAR term2:", error);
+          }
+        }
+
         if (indices1.length === 0 || indices2.length === 0) {
-          return false; // One of the terms not found
+          return false; // One of the terms not found, even after fuzzy search
         }
 
         // Ensure word boundaries are cached/calculated
@@ -1247,6 +1450,7 @@ export async function searchFiles(
   if (contentSearchTerm) {
     // console.log(`[SearchService] Preparing content matcher. Mode: ${contentSearchMode}, Term: "${contentSearchTerm}", CaseSensitive: ${caseSensitive}`);
     switch (contentSearchMode) {
+      // Removing the separate fuzzy search mode as we're integrating it into the boolean mode
       case "regex": {
         const flags = caseSensitive ? "" : "i";
         const regex = createSafeRegex(contentSearchTerm, flags);

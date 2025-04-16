@@ -196,6 +196,7 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Uses `p-limit` to manage concurrency for file stats and reads.
   - Parses boolean queries using `jsep` and evaluates the AST against file content.
   - Handles proximity search (`NEAR`) logic.
+  - **Fuzzy Search:** Integrated into Boolean queries and NEAR function, with settings to enable/disable each independently.
   - Accepts and checks a `checkCancellation` function.
   - Sends progress updates via `progressCallback`.
   - **Memory Optimization:** Does not read/return full content in the main result set.
@@ -209,6 +210,12 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Updates: `ThemeHandler` component listens for IPC changes and OS changes, calls `applyTheme`.
   - Storage: Preference read/written via IPC to `electron-store`.
   - Styling: Uses Tailwind CSS dark mode variant (`dark:`) and CSS variables.
+- **Settings:**
+  - Stored in `electron-store` with schema validation.
+  - Includes language preference, theme, default export format, and fuzzy search settings.
+  - Managed through IPC handlers in `main.ts`.
+  - UI in `SettingsModal.tsx` with checkboxes, radio buttons, and dropdowns.
+  - Fuzzy search settings are passed to `fileSearchService.ts` via the `updateFuzzySearchSettings` function.
 - **Search History:**
   - IPC handlers in `main.ts` manage CRUD using `electron-store`.
   - **De-duplication:** `add-search-history-entry` updates existing entries with identical params.

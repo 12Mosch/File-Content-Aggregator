@@ -199,6 +199,18 @@ const electronAPI = {
   /** Sets the default export format preference. */
   setDefaultExportFormat: (format: ExportFormat): Promise<void> =>
     ipcRenderer.invoke("set-default-export-format", format),
+  /** Gets the fuzzy search in Boolean queries enabled preference. */
+  getFuzzySearchBooleanEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-fuzzy-search-boolean-enabled"),
+  /** Sets the fuzzy search in Boolean queries enabled preference. */
+  setFuzzySearchBooleanEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke("set-fuzzy-search-boolean-enabled", enabled),
+  /** Gets the fuzzy search in NEAR function enabled preference. */
+  getFuzzySearchNearEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-fuzzy-search-near-enabled"),
+  /** Sets the fuzzy search in NEAR function enabled preference. */
+  setFuzzySearchNearEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke("set-fuzzy-search-near-enabled", enabled),
 
   // --- File System Operations ---
   /**

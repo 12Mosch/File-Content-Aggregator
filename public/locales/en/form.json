@@ -42,5 +42,9 @@
   "searchButtonLoading": "Searching...",
   "cancelButton": "Cancel Search",
   "errorMinMax": "Error: Minimum size cannot be greater than maximum size.",
-  "comingSoon": "Coming Soon"
+  "comingSoon": "Coming Soon",
+  "contentSearchModeLabel": "Search Mode:",
+  "contentSearchModeBoolean": "Boolean Query",
+  "contentSearchModeTerm": "Simple Term",
+  "contentSearchModeRegex": "Regular Expression"
 }

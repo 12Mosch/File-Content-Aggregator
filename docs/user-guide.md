@@ -98,6 +98,11 @@ The core of the application is the Search Form. Fill in the relevant fields to d
   - Leave blank for unlimited depth. Enter `1` to search only the top-level directory, `2` for the top level and its immediate subdirectories, etc.
 - **Content Query:**
   - Use the **Query Builder** (see next section) to define criteria for searching _inside_ file content. Leave this empty if you only want to search by filename/path/metadata.
+  - **Search Mode:** Select how the content query should be interpreted:
+    - `Boolean Query`: (Default) Uses the Query Builder to create complex logical expressions with AND/OR operators.
+    - `Simple Term`: Searches for exact text matches without Boolean logic.
+    - `Regular Expression`: Interprets the query as a regular expression pattern.
+    - `Fuzzy Search`: Uses approximate matching to find content similar to the query term, tolerating typos and variations.
 - **Modified After / Before:**
   - Optionally filter files based on their last modification date.
   - Click the input field or the calendar icon (🗓️) to open the date picker.
@@ -111,6 +116,12 @@ The core of the application is the Search Form. Fill in the relevant fields to d
 ### Content Query Builder
 
 This powerful tool lets you define complex search criteria for the _content_ of the files. If you add any conditions here, only files matching _both_ the form filters (path, extension, date, etc.) _and_ the content query will be included in the results preview.
+
+The **Search Mode** dropdown next to the Query Builder lets you choose how your query is interpreted:
+
+- **Boolean Query:** (Default) Uses the Query Builder to create complex logical expressions with AND/OR operators as described below. Also supports fuzzy matching for terms that don't match exactly, including within the NEAR function.
+- **Simple Term:** Searches for exact text matches without Boolean logic. Use this for simple searches where you just want to find files containing specific text.
+- **Regular Expression:** Interprets the query as a regular expression pattern. Useful for advanced pattern matching.
 
 - **Adding Conditions/Groups:**
   - Click `+ Condition` to add a new search term/rule.
@@ -135,6 +146,7 @@ This powerful tool lets you define complex search criteria for the _content_ of 
     - `term1`, `term2`: Can be simple text (quoted if needed) or a `/regex/`.
     - `distance`: The maximum number of words allowed between the end of the first term and the start of the second term.
     - _Example:_ `NEAR("user login", /fail(ed|ure)/i, 10)` finds "user login" within 10 words of "failed" or "failure" (case-insensitive).
+    - Supports fuzzy matching for non-regex terms, so it can find approximate matches when exact matches aren't found.
 - **Removing Items:** Click the trash icon (🗑️) next to any condition or group to remove it.
 
 ### Running and Cancelling Searches
@@ -221,6 +233,9 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - `Dark`: Dark background, light text.
   - `System Default`: Automatically matches your operating system's light/dark mode setting.
 - **Default Export Format:** Choose the format (TXT, CSV, JSON, MD) that will be selected by default when copying or exporting results. TXT is the initial default.
+- **Fuzzy Search Settings:**
+  - **Enable Fuzzy Search in Boolean Queries:** When enabled (default), automatically applies fuzzy matching to terms in Boolean queries when exact matches aren't found. Disable this option if you want only exact matches in Boolean queries.
+  - **Enable Fuzzy Search in NEAR Function:** When enabled (default), allows the NEAR function to find approximate matches for terms that don't match exactly. Disable this option if you want the NEAR function to only find exact matches.
 
 ## Troubleshooting
 
@@ -245,6 +260,11 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - Ensure you've typed at least 2 characters in the filter box.
   - The fuzzy match might be less precise than expected. Try refining your filter term.
   - Remember it only filters the file path and error messages shown in the list, not the file content itself.
+- **Fuzzy Matching in Boolean Query Not Working as Expected:**
+  - Fuzzy matching is automatically applied when an exact match isn't found for terms of 3 or more characters.
+  - Fuzzy search is designed to find approximate matches, so it may return more results than expected.
+  - Fuzzy matching also works within the NEAR function, helping find terms that are approximately similar.
+  - If you need more precise matching, use exact quoted terms or regular expressions, or disable fuzzy search in the Settings.
 - **Search Term Highlighting Not Working:**
   - Highlighting only applies to the content preview of files that _matched_ the Content Query.
   - Search terms are highlighted in both plain text and syntax-highlighted code previews, making it easy to locate the relevant parts of matched files.

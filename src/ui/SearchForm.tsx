@@ -16,7 +16,11 @@ import {
   convertStructuredQueryToString,
   generateId,
 } from "./queryBuilderUtils";
-import type { SearchHistoryEntry, SearchParams } from "./vite-env.d";
+import type {
+  SearchHistoryEntry,
+  SearchParams,
+  ContentSearchMode,
+} from "./vite-env.d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,7 +51,11 @@ const SIZE_UNITS = {
 type SizeUnit = keyof typeof SIZE_UNITS;
 type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
 // Type for keys used in handleSelectChange
-type SelectFieldName = "folderExclusionMode" | "minSizeUnit" | "maxSizeUnit";
+type SelectFieldName =
+  | "folderExclusionMode"
+  | "minSizeUnit"
+  | "maxSizeUnit"
+  | "contentSearchMode";
 // Type for translation keys for size units
 type SizeUnitTranslationKey = `sizeUnit${SizeUnit}`;
 
@@ -58,6 +66,7 @@ interface SearchFormData {
   excludeFiles: string;
   excludeFolders: string;
   folderExclusionMode: FolderExclusionMode;
+  contentSearchMode: ContentSearchMode;
   modifiedAfter: Date | undefined;
   modifiedBefore: Date | undefined;
   minSizeValue: string;
@@ -160,6 +169,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     excludeFiles: "",
     excludeFolders: ".git, node_modules, bin, obj, dist", // Sensible defaults
     folderExclusionMode: "contains",
+    contentSearchMode: "boolean", // Default to boolean for query builder
     modifiedAfter: undefined,
     modifiedBefore: undefined,
     minSizeValue: "",
@@ -235,6 +245,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         excludeFiles: params.excludeFiles?.join("\n") ?? "",
         excludeFolders: params.excludeFolders?.join("\n") ?? "",
         folderExclusionMode: params.folderExclusionMode ?? "contains",
+        contentSearchMode: params.contentSearchMode ?? "boolean",
         modifiedAfter: initialModifiedAfter,
         modifiedBefore: initialModifiedBefore,
         minSizeValue: minSize.value,
@@ -698,7 +709,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
       submitParams = {
         ...baseParams,
         contentSearchTerm: contentQueryString, // Use the converted string
-        contentSearchMode: "boolean", // Set mode to boolean when using builder
+        contentSearchMode: formData.contentSearchMode, // Use the selected mode
         caseSensitive: currentQueryCaseSensitive, // Use state value
         structuredQuery: currentQueryStructure, // Include the structured query for history
       };
@@ -836,16 +847,52 @@ const SearchForm: React.FC<SearchFormProps> = ({
       </div>
       {/* Query Builder */}
       <div className="space-y-1.5">
-        <Label>{t("contentQueryBuilderLabel")}</Label>
-        <QueryBuilder
-          // Pass state down as initial props
-          initialQuery={queryStructure}
-          initialCaseSensitive={queryCaseSensitive}
-          // Pass callbacks to update parent state
-          onChange={handleQueryChange}
-          onCaseSensitivityChange={handleQueryCaseSensitivityChange}
-          disabled={isLoading}
-        />
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          <div className="flex-grow">
+            <Label>{t("contentQueryBuilderLabel")}</Label>
+            <QueryBuilder
+              // Pass state down as initial props
+              initialQuery={queryStructure}
+              initialCaseSensitive={queryCaseSensitive}
+              // Pass callbacks to update parent state
+              onChange={handleQueryChange}
+              onCaseSensitivityChange={handleQueryCaseSensitivityChange}
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
+            <Label
+              htmlFor="contentSearchMode"
+              className="text-xs text-muted-foreground"
+            >
+              {t("contentSearchModeLabel")}
+            </Label>
+            <Select
+              name="contentSearchMode"
+              value={formData.contentSearchMode}
+              onValueChange={handleSelectChange("contentSearchMode")}
+              disabled={isLoading}
+            >
+              <SelectTrigger
+                id="contentSearchMode"
+                className="w-full sm:w-[200px]"
+              >
+                <SelectValue placeholder={t("contentSearchModeLabel")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="boolean">
+                  {t("contentSearchModeBoolean")}
+                </SelectItem>
+                <SelectItem value="term">
+                  {t("contentSearchModeTerm")}
+                </SelectItem>
+                <SelectItem value="regex">
+                  {t("contentSearchModeRegex")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Date Fields Row */}
