@@ -96,11 +96,11 @@ This document outlines the testing strategy for the File Content Aggregator appl
 
 ### Unit Tests
 - **NEAR Operator Parsing**
-  - **NEW:** Test parsing of NEAR syntax
-  - **NEW:** Test parsing of nested NEAR operators
-  - **NEW:** Test parsing of NEAR with quoted terms
-  - **NEW:** Test parsing of NEAR with regex patterns
-  - **NEW:** Test parsing with invalid NEAR syntax
+  - ✅ Test parsing of NEAR syntax (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
+  - ✅ Test parsing of nested NEAR operators (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
+  - ✅ Test parsing of NEAR with quoted terms (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
+  - ✅ Test parsing of NEAR with regex patterns (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
+  - ✅ Test parsing with invalid NEAR syntax (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
 
 - **NEAR Operator Evaluation**
   - **NEW:** Test basic proximity matching

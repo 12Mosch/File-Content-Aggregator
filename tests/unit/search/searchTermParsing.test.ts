@@ -143,6 +143,19 @@ describe("Search Term Parsing", () => {
       expect(ast.arguments[2].value).toBe(5);
     });
 
+    test("should parse NEAR with quoted terms containing special characters", () => {
+      const expression =
+        'NEAR("term with spaces", "term with \\"quotes\\"", 3)';
+      const ast = jsep(expression);
+
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(3);
+      expect(ast.arguments[0].value).toBe("term with spaces");
+      expect(ast.arguments[1].value).toBe('term with "quotes"');
+      expect(ast.arguments[2].value).toBe(3);
+    });
+
     test("should parse NEAR with regex patterns", () => {
       const expression = 'NEAR("/pattern1/", "/pattern2/", 10)';
       const ast = jsep(expression);
@@ -152,6 +165,109 @@ describe("Search Term Parsing", () => {
       expect(ast.arguments.length).toBe(3);
       expect(ast.arguments[0].value).toBe("/pattern1/");
       expect(ast.arguments[1].value).toBe("/pattern2/");
+      expect(ast.arguments[2].value).toBe(10);
+    });
+
+    test("should parse NEAR with regex patterns containing flags", () => {
+      const expression = 'NEAR("/pattern1/i", "/pattern2/g", 8)';
+      const ast = jsep(expression);
+
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(3);
+      expect(ast.arguments[0].value).toBe("/pattern1/i");
+      expect(ast.arguments[1].value).toBe("/pattern2/g");
+      expect(ast.arguments[2].value).toBe(8);
+    });
+
+    test("should parse nested NEAR operators", () => {
+      const expression = 'NEAR(NEAR("term1", "term2", 3), "term3", 5)';
+      const ast = jsep(expression);
+
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(3);
+
+      // Check outer NEAR's third argument
+      expect(ast.arguments[2].value).toBe(5);
+
+      // Check inner NEAR
+      const innerNear = ast.arguments[0];
+      expect(innerNear.type).toBe("CallExpression");
+      expect(innerNear.callee.name).toBe("NEAR");
+      expect(innerNear.arguments.length).toBe(3);
+      expect(innerNear.arguments[0].value).toBe("term1");
+      expect(innerNear.arguments[1].value).toBe("term2");
+      expect(innerNear.arguments[2].value).toBe(3);
+
+      // Check outer NEAR's second argument
+      expect(ast.arguments[1].value).toBe("term3");
+    });
+
+    test("should parse NEAR with complex nested expressions", () => {
+      const expression =
+        'NEAR(("term1" AND "term2"), ("term3" OR "term4"), 10)';
+      const ast = jsep(expression);
+
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(3);
+
+      // Check first argument (AND expression)
+      const firstArg = ast.arguments[0];
+      expect(firstArg.type).toBe("BinaryExpression");
+      expect(firstArg.operator).toBe("AND");
+      expect(firstArg.left.value).toBe("term1");
+      expect(firstArg.right.value).toBe("term2");
+
+      // Check second argument (OR expression)
+      const secondArg = ast.arguments[1];
+      expect(secondArg.type).toBe("BinaryExpression");
+      expect(secondArg.operator).toBe("OR");
+      expect(secondArg.left.value).toBe("term3");
+      expect(secondArg.right.value).toBe("term4");
+
+      // Check distance
+      expect(ast.arguments[2].value).toBe(10);
+    });
+  });
+
+  describe("Invalid NEAR Syntax Handling", () => {
+    test("should handle NEAR with missing arguments", () => {
+      const invalidExpression = 'NEAR("term1")';
+
+      // This should parse but will be handled as invalid during evaluation
+      const ast = jsep(invalidExpression);
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(1);
+    });
+
+    test("should handle NEAR with incorrect argument types", () => {
+      const invalidExpression = 'NEAR("term1", "term2", "not-a-number")';
+
+      // This should parse but the third argument won't be a number
+      const ast = jsep(invalidExpression);
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(3);
+      expect(typeof ast.arguments[2].value).toBe("string");
+      expect(ast.arguments[2].value).toBe("not-a-number");
+    });
+
+    test("should handle NEAR with negative distance", () => {
+      const invalidExpression = 'NEAR("term1", "term2", -5)';
+
+      // This should parse but the negative distance will be handled during evaluation
+      const ast = jsep(invalidExpression);
+      expect(ast.type).toBe("CallExpression");
+      expect(ast.callee.name).toBe("NEAR");
+      expect(ast.arguments.length).toBe(3);
+
+      // Check that the third argument is a unary expression with a negative number
+      expect(ast.arguments[2].type).toBe("UnaryExpression");
+      expect(ast.arguments[2].operator).toBe("-");
+      expect(ast.arguments[2].argument.value).toBe(5);
     });
   });
 
