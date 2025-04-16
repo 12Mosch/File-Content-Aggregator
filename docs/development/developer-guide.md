@@ -30,6 +30,7 @@ This guide provides technical information for developers working on or contribut
 - [Building for Distribution](#building-for-distribution)
 - [Security Considerations](#security-considerations)
 - [Code Style & Linting](#code-style--linting)
+- [Testing](#testing)
 - [Contributing](#contributing)
 
 ## Introduction
@@ -302,6 +303,35 @@ Refer to the official [Electron Security Documentation](https://www.electronjs.o
 - **ESLint:** Configured for code quality. Run `npm run lint`.
 - **Prettier:** Used for automatic code formatting.
 - **TSDoc:** Used for documenting functions, classes, and interfaces.
+
+## Testing
+
+The application uses Jest for testing. Tests are organized in a dedicated `tests/` directory that mirrors the source code structure.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run only unit tests
+npm run test:unit
+
+# Run only integration tests
+npm run test:integration
+
+# Run tests with coverage reporting
+npm run test:coverage
+```
+
+### Test Types
+
+- **Unit Tests:** Test individual functions and components in isolation.
+- **Boundary Tests:** Test edge cases and boundary conditions.
+- **Performance Tests:** Test performance with large inputs or many operations.
+- **Integration Tests:** Test how multiple components work together.
+
+For detailed information about testing, see the [Testing Guide](development/testing.md).
 
 ## Contributing
 
