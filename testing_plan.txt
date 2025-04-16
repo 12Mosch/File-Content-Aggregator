@@ -27,18 +27,19 @@ This document outlines the testing strategy for the File Content Aggregator appl
 
 ### Unit Tests
 - **HTML Highlighting**
-  - **NEW:** Test highlighting of terms found via fuzzy search
-  - **NEW:** Test highlighting of terms found via NEAR operator
-  - **NEW:** Test highlighting with Unicode characters
+  - ✅ Test highlighting of terms found via fuzzy search (Implemented in `tests/unit/ui/highlightHtmlUtils.fuzzy.test.ts`)
+  - ✅ Test highlighting of terms found via NEAR operator (Implemented in `tests/unit/ui/highlightHtmlUtils.fuzzy.test.ts`)
+  - ✅ Test highlighting with Unicode characters (Implemented in `tests/unit/ui/highlightHtmlUtils.fuzzy.test.ts`)
 
 - **Plain Text Highlighting**
-  - **NEW:** Test highlighting in plain text with fuzzy matches
-  - **NEW:** Test highlighting in plain text with NEAR operator matches
+  - ✅ Test highlighting in plain text with fuzzy matches (Implemented in `tests/unit/ui/HighlightMatches.test.tsx`)
+  - ✅ Test highlighting in plain text with NEAR operator matches (Implemented in `tests/unit/ui/HighlightMatches.test.tsx`)
 
 ### Integration Tests
 - **Highlighting in Search Results**
   - **NEW:** Test highlighting with fuzzy matches in search results
   - **NEW:** Test highlighting with NEAR operator matches in search results
+  - ✅ Documentation added in `docs/development/highlighting-tests.md`
 
 ## Fuzzy Search Functionality
 
