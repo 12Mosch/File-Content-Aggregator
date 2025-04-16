@@ -20,21 +20,23 @@ A cross-platform desktop application built with Electron and React to efficientl
   - **Regular Expressions:** Use `/pattern/flags` for powerful pattern matching within file content.
   - **Boolean Logic:** Combine terms and expressions using `AND`, `OR`, `NOT`, and parentheses `()`.
   - **Proximity Search:** Find terms near each other using `NEAR(term1, term2, distance)` (e.g., `NEAR(error, database, 5)` finds "error" within 5 words of "database").
+  - **Fuzzy Search:** Automatically find approximate matches for terms, helping with typos and variations.
 - **Efficient Results Display:**
   - **Tree View:** Lists all processed files, showing content previews (fetched on demand) for matches or error messages for non-matches/read errors.
   - **Virtualization:** Uses `react-window` and `react-virtualized-auto-sizer` to handle potentially huge numbers of files and large result sets smoothly.
   - **Syntax Highlighting:** Highlights code snippets in the tree view using `highlight.js` in a web worker for performance.
+  - **Search Term Highlighting:** Highlights matched search terms within content previews for easy identification.
   - **Results Filtering:** Filter the displayed results (tree view) on the fly based on file path or error messages.
   - **Results Sorting:** Sort the displayed results by File Path, File Size, Date Modified, or Match Status (Ascending/Descending).
   - **Copy & Export:**
     - **Copy Individual File Content:** Use the copy icon (📄) in an expanded item's header to copy only that specific file's full content.
-    - **Copy All Results:** Use the "Copy Results" button to copy the metadata and content (for matched files) of *all processed files* (formatted as TXT, CSV, JSON, or Markdown) to the clipboard. (⚠️ May be truncated for very large result sets).
-    - **Export All Results:** Use the "Save Results As..." button to save the metadata and content (for matched files) of *all processed files* to a file in the selected format (TXT, CSV, JSON, or Markdown).
+    - **Copy All Results:** Use the "Copy Results" button to copy the metadata and content (for matched files) of _all processed files_ (formatted as TXT, CSV, JSON, or Markdown) to the clipboard. (⚠️ May be truncated for very large result sets).
+    - **Export All Results:** Use the "Save Results As..." button to save the metadata and content (for matched files) of _all processed files_ to a file in the selected format (TXT, CSV, JSON, or Markdown).
 - **Application Features:**
   - **Search History:** Automatically saves searches (de-duplicates identical searches); view, load, filter, name, favorite, and delete past searches.
   - **Internationalization (i18n):** Supports multiple languages (Currently: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian). Uses `i18next`.
   - **Theming:** Supports Light, Dark, and System Default themes using Tailwind CSS and `shadcn/ui`.
-  - **Settings:** Configure language, theme, and default export format.
+  - **Settings:** Configure language, theme, and default export format. Options to disable fuzzy search in Content Query, Boolean Query mode, and NEAR function.
   - **Progress & Cancellation:** Real-time progress bar during search with the ability to cancel ongoing searches.
 - **Security Focused:**
   - Built with Electron's security best practices in mind (Context Isolation, Sandbox enabled).
@@ -109,6 +111,7 @@ The distributable files will be located in the `release/` directory.
 - **Virtualization:** react-window, react-virtualized-auto-sizer
 - **File Searching:** fast-glob, picomatch
 - **Content Query Parsing:** jsep
+- **Fuzzy Search:** fuse.js
 - **Syntax Highlighting:** highlight.js
 - **Date Handling:** date-fns
 - **Concurrency Limiting:** p-limit
@@ -118,6 +121,7 @@ The distributable files will be located in the `release/` directory.
 
 - **User Guide:** Detailed instructions and feature explanations can be found in [`/docs/user-guide.md`](./docs/user-guide.md).
 - **Developer Guide:** Information on project structure, architecture, and development processes is in [`/docs/developer-guide.md`](./docs/developer-guide.md).
+- **Testing Guide:** Information on testing approach and test cases is in [`/docs/development/testing.md`](./docs/development/testing.md).
 - **Code Documentation:** Key functions and modules include TSDoc comments.
 
 ## Contributing
