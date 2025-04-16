@@ -1,0 +1,41 @@
+{
+  "regexValidation": {
+    "title": "Regex Pattern Validation Tests",
+    "description": "Tests for validating regex patterns and handling errors",
+    "validPatterns": {
+      "title": "Valid Regex Pattern Tests",
+      "description": "Tests for validating correct regex patterns",
+      "basicPattern": "Basic regex pattern validation",
+      "patternWithFlags": "Regex pattern with flags validation",
+      "complexPattern": "Complex regex pattern validation",
+      "escapedSlashes": "Regex pattern with escaped slashes"
+    },
+    "invalidPatterns": {
+      "title": "Invalid Regex Pattern Tests",
+      "description": "Tests for identifying invalid regex patterns",
+      "nonRegexLiteral": "Non-regex literal string detection",
+      "unclosedDelimiter": "Unclosed delimiter detection",
+      "unclosedCharClass": "Unclosed character class detection",
+      "unbalancedParentheses": "Unbalanced parentheses detection",
+      "invalidQuantifier": "Invalid quantifier detection"
+    },
+    "syntaxErrors": {
+      "title": "Regex Syntax Error Tests",
+      "description": "Tests for handling regex syntax errors",
+      "invalidCharClass": "Invalid character class handling",
+      "invalidLookahead": "Invalid lookahead assertion handling",
+      "invalidBackreference": "Invalid backreference handling",
+      "emptyPattern": "Empty pattern handling"
+    },
+    "flagsValidation": {
+      "title": "Regex Flags Validation Tests",
+      "description": "Tests for validating regex flags",
+      "caseInsensitive": "Case insensitive flag (i) validation",
+      "global": "Global flag (g) validation",
+      "multiline": "Multiline flag (m) validation",
+      "unicode": "Unicode flag (u) validation",
+      "multipleFlags": "Multiple flags validation",
+      "invalidFlags": "Invalid flags handling"
+    }
+  }
+}

@@ -71,11 +71,11 @@ This document outlines the testing strategy for the File Content Aggregator appl
 ## Regex Search Functionality
 
 ### Unit Tests
-- **Regex Pattern Validation**
-  - **NEW:** Test validation of valid regex patterns
-  - **NEW:** Test validation of invalid regex patterns
-  - **NEW:** Test handling of regex syntax errors
-  - **NEW:** Test regex flags (case sensitivity, global, multiline)
+- ✅ **Regex Pattern Validation** (Implemented in `tests/unit/search/regexPatternValidation.test.ts`)
+  - ✅ Test validation of valid regex patterns
+  - ✅ Test validation of invalid regex patterns
+  - ✅ Test handling of regex syntax errors
+  - ✅ Test regex flags (case sensitivity, global, multiline)
 
 - **Regex Pattern Matching**
   - **NEW:** Test basic pattern matching
