@@ -90,3 +90,4 @@ These tests complement the unit tests for individual components of the search fu
 In addition to the main search pipeline tests, there are specialized integration tests for specific search features:
 
 - [Fuzzy Search Integration Tests](./fuzzy-search-tests.md#integration-tests): Tests specifically focused on fuzzy search functionality within the search pipeline
+- [Regex Search Integration Tests](./regex-search-tests.md): Tests for regex pattern functionality in Boolean expressions and with the NEAR operator

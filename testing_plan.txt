@@ -86,11 +86,11 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test boundary assertions
 
 ### Integration Tests
-- **Regex in Search Pipeline**
+- ✅ **Regex in Search Pipeline**
   - ✅ Test regex in Content Query mode (Covered in `tests/integration/search/searchPipeline.test.ts`)
-  - **NEW:** Test regex in Boolean Query expressions
-  - **NEW:** Test regex with NEAR operator
-  - **NEW:** Test performance with complex regex patterns
+  - ✅ Test regex in Boolean Query expressions (Implemented in `tests/integration/search/regexSearch.test.ts`)
+  - ✅ Test regex with NEAR operator (Implemented in `tests/integration/search/regexSearch.test.ts`)
+  - ✅ Test performance with complex regex patterns (Implemented in `tests/integration/search/regexSearch.test.ts`)
 
 ## NEAR Operator Functionality
 

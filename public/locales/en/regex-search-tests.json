@@ -1,0 +1,28 @@
+{
+  "regexSearchIntegration": {
+    "title": "Regex Search Integration Tests",
+    "description": "Tests for regex search functionality in the search pipeline",
+    "booleanExpressions": {
+      "title": "Regex in Boolean Query Tests",
+      "description": "Tests for regex patterns with Boolean operators",
+      "regexAnd": "Regex with AND operator",
+      "regexOr": "Regex with OR operator",
+      "regexNot": "Regex with NOT operator",
+      "mixedTerms": "Mixed regex and plain text terms"
+    },
+    "nearOperator": {
+      "title": "Regex with NEAR Operator Tests",
+      "description": "Tests for regex patterns with NEAR operator",
+      "bothRegex": "NEAR with regex patterns for both terms",
+      "mixedTerms": "NEAR with mixed regex and plain text terms",
+      "complexPatterns": "NEAR with complex regex patterns"
+    },
+    "performance": {
+      "title": "Regex Performance Tests",
+      "description": "Tests for performance with complex regex patterns",
+      "complexPatterns": "Complex regex pattern performance",
+      "largeContent": "Regex search with large content",
+      "multipleMatches": "Regex search with many matches"
+    }
+  }
+}

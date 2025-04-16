@@ -247,6 +247,7 @@ Detailed documentation for specific feature tests:
 - [Fuzzy Search Integration Tests](./fuzzy-search-tests.md#integration-tests): Tests for fuzzy search in the search pipeline
 - [Regex Pattern Validation Tests](./regex-validation-tests.md): Tests for regex pattern validation, error handling, and flags processing
 - [Regex Pattern Matching Tests](./regex-matching-tests.md): Tests for regex pattern matching, character classes, quantifiers, and other regex features
+- [Regex Search Integration Tests](./regex-search-tests.md): Tests for regex pattern functionality in Boolean expressions and with the NEAR operator
 
 ## Resources
 
