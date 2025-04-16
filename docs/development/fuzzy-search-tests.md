@@ -74,10 +74,71 @@ To run all fuzzy search related tests:
 npm run test -- tests/unit/search
 ```
 
+## Fuzzy Search Matching Tests
+
+The fuzzy search matching tests verify that the application correctly identifies matches with various types of term variations and misspellings. These tests are implemented in `tests/unit/search/fuzzySearchMatching.test.ts`.
+
+### Test Categories
+
+#### Slight Misspellings
+
+These tests verify that the fuzzy search correctly matches terms with slight misspellings:
+
+- **Basic Misspellings**: Tests matching terms with common misspellings (e.g., "exmaple" for "example")
+- **Word Boundary Misspellings**: Tests matching terms with misspellings at the beginning or end of words
+
+#### Character Transpositions
+
+These tests verify that the fuzzy search correctly matches terms with transposed characters:
+
+- **Single Transposition**: Tests matching terms with a single pair of transposed characters (e.g., "funciton" for "function")
+- **Multiple Transpositions**: Tests matching terms with multiple transposed characters
+
+#### Missing Characters
+
+These tests verify that the fuzzy search correctly matches terms with missing characters:
+
+- **Single Missing Character**: Tests matching terms with a single missing character (e.g., "calcuate" for "calculate")
+- **Multiple Missing Characters**: Tests matching terms with multiple missing characters if similarity is high enough
+
+#### Extra Characters
+
+These tests verify that the fuzzy search correctly matches terms with extra characters:
+
+- **Single Extra Character**: Tests matching terms with a single extra character (e.g., "calculatee" for "calculate")
+- **Multiple Extra Characters**: Tests matching terms with multiple extra characters if similarity is high enough
+
+#### Term Length Handling
+
+These tests verify that the fuzzy search correctly handles terms of different lengths:
+
+- **Very Short Terms**: Tests that fuzzy search is not applied to terms shorter than 3 characters
+- **Minimum Length Terms**: Tests that fuzzy search is applied to terms with exactly 3 characters
+- **Very Long Terms**: Tests that fuzzy search works correctly with very long terms
+
+#### Integration with Fuse.js
+
+These tests verify that the application's fuzzy search implementation works correctly with the Fuse.js library:
+
+- **Fuse.js Integration**: Tests that both Fuse.js and the application's custom fuzzy matching function find the same matches
+
+### Implementation Details
+
+The tests use Jest's mocking capabilities to expose the internal `findApproximateMatchIndices` function, which is used to locate the positions of fuzzy-matched terms in the content.
+
+### Running the Tests
+
+To run the fuzzy search matching tests:
+
+```bash
+npm run test -- tests/unit/search/fuzzySearchMatching.test.ts
+```
+
 ## Related Tests
 
-The fuzzy search configuration tests focus on the settings and configuration aspects of fuzzy search. Other aspects of fuzzy search are covered in:
+The fuzzy search tests are divided into multiple categories that cover different aspects of fuzzy search functionality:
 
-- **Fuzzy Search Matching**: Tests for the actual matching behavior with various types of term variations
+- **Fuzzy Search Configuration**: Tests for settings and configuration aspects (implemented in `tests/unit/search/fuzzySearchConfig.test.ts`)
+- **Fuzzy Search Matching**: Tests for the actual matching behavior with various types of term variations (implemented in `tests/unit/search/fuzzySearchMatching.test.ts`)
 - **Fuzzy Search in Search Pipeline**: Integration tests for fuzzy search in the complete search process
-- **Highlighting with Fuzzy Matches**: Tests for highlighting terms found via fuzzy search
+- **Highlighting with Fuzzy Matches**: Tests for highlighting terms found via fuzzy search (implemented in `tests/unit/ui/highlightHtmlUtils.fuzzy.test.ts` and `tests/unit/ui/HighlightMatches.test.tsx`)
