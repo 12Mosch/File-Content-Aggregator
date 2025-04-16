@@ -77,13 +77,13 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test handling of regex syntax errors
   - ✅ Test regex flags (case sensitivity, global, multiline)
 
-- **Regex Pattern Matching**
-  - **NEW:** Test basic pattern matching
-  - **NEW:** Test character classes
-  - **NEW:** Test quantifiers
-  - **NEW:** Test capturing groups
-  - **NEW:** Test lookahead/lookbehind assertions
-  - **NEW:** Test boundary assertions
+- ✅ **Regex Pattern Matching** (Implemented in `tests/unit/search/regexPatternMatching.test.ts`)
+  - ✅ Test basic pattern matching
+  - ✅ Test character classes
+  - ✅ Test quantifiers
+  - ✅ Test capturing groups
+  - ✅ Test lookahead/lookbehind assertions
+  - ✅ Test boundary assertions
 
 ### Integration Tests
 - **Regex in Search Pipeline**
