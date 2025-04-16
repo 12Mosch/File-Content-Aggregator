@@ -7,7 +7,7 @@ const parseRegexLiteral = (pattern: string): RegExp | null => {
   if (regexMatch) {
     try {
       return new RegExp(regexMatch[1], regexMatch[2]);
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }

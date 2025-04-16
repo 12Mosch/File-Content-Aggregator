@@ -86,7 +86,7 @@ export interface SearchHistoryEntry {
   // Keep structuredQuery as unknown here, as it comes from storage (JSON)
   // We will use a type guard when loading it back into the UI state.
   searchParams: Omit<SearchParams, "structuredQuery"> & {
-    structuredQuery?: unknown | null;
+    structuredQuery?: Record<string, unknown> | null;
   };
 }
 

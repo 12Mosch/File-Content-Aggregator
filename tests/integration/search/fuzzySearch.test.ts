@@ -89,7 +89,7 @@ describe("Fuzzy Search Integration Tests", () => {
 
     // Setup mock implementation for searchFiles
     searchFiles.mockImplementation(
-      async (params, progressCallback, checkCancellation) => {
+      async (params, progressCallback, _checkCancellation) => {
         // Default successful result
         const result: SearchResult = {
           structuredItems: [

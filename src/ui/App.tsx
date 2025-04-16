@@ -300,7 +300,9 @@ function App() {
       if (params.structuredQuery) {
         try {
           // Extract terms from term conditions
-          const extractTermsFromConditions = (conditions: any[]) => {
+          const extractTermsFromConditions = (
+            conditions: Array<Condition | QueryStructure>
+          ) => {
             conditions.forEach((cond) => {
               if (cond && typeof cond === "object") {
                 if (

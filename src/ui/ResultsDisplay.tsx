@@ -886,8 +886,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     searchQueryCaseSensitive, // Depend on query case sensitivity
     requestHighlighting,
     handleCopyFileContent,
-    contentUpdateCounter, // Depend on content counter
-    highlightUpdateCounter, // Depend on highlight counter
     requestContent,
   ]);
 
@@ -952,7 +950,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         TREE_ITEM_PADDING_Y
       );
     },
-    [sortedItems, itemDisplayStates, contentUpdateCounter] // Depend on sortedItems and contentUpdateCounter
+    [sortedItems, itemDisplayStates] // Depend on sortedItems
   );
 
   // Effect for initializing and terminating the worker

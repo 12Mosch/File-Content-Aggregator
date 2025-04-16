@@ -419,7 +419,23 @@ const SearchForm: React.FC<SearchFormProps> = ({
       // Notify parent component that loading is complete and pass the parameters
       onLoadComplete(submitParams);
     }
-  }, [historyEntryToLoad, onLoadComplete, currentLocale]); // Depend on currentLocale
+  }, [
+    historyEntryToLoad,
+    onLoadComplete,
+    currentLocale,
+    formData.excludeFiles,
+    formData.excludeFolders,
+    formData.extensions,
+    formData.folderExclusionMode,
+    formData.maxDepthValue,
+    formData.maxSizeUnit,
+    formData.maxSizeValue,
+    formData.minSizeUnit,
+    formData.minSizeValue,
+    formData.modifiedAfter,
+    formData.modifiedBefore,
+    formData.searchPaths,
+  ]); // Include all formData dependencies
 
   // Handle standard input/textarea changes
   const handleInputChange = (
@@ -635,9 +651,11 @@ const SearchForm: React.FC<SearchFormProps> = ({
               typeof cond.value === "string"
           )
           .map((cond) => {
-            const value = (cond as any).value.trim();
+            const value = (cond as { value: string }).value.trim();
             // Quote the term if it's not already quoted
-            return value.startsWith('"') && value.endsWith('"')
+            return typeof value === "string" &&
+              value.startsWith('"') &&
+              value.endsWith('"')
               ? value
               : `"${value}"`;
           })

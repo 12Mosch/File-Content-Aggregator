@@ -151,7 +151,7 @@ describe("highlightTermsInHtml", () => {
       const result = highlightTermsInHtml(html, [/(?<=)/], true);
       // Just verify we get a result back
       expect(typeof result).toBe("string");
-    } catch (error) {
+    } catch (_error) {
       // If we get here, the test fails
       fail("highlightTermsInHtml should not throw with invalid regex");
     }

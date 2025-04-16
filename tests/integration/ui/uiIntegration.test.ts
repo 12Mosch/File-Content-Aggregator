@@ -42,10 +42,9 @@ jest.mock("react", () => {
   const originalReact = jest.requireActual("react");
   return {
     ...originalReact,
-    useState: jest.fn().mockImplementation((initialValue) => [
-      initialValue,
-      jest.fn(),
-    ]),
+    useState: jest
+      .fn()
+      .mockImplementation((initialValue) => [initialValue, jest.fn()]),
   };
 });
 
@@ -71,8 +70,10 @@ describe("UI Integration Tests", () => {
       ];
 
       // Create a mock ResultsDisplay component
-      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
-      const mockResultsDisplay = ResultsDisplay({
+      const ResultsDisplay = jest.requireActual(
+        "../../../src/ui/ResultsDisplay"
+      ).default;
+      const _mockResultsDisplay = ResultsDisplay({
         structuredItems: mockItems,
         summary: { filesFound: 2, filesProcessed: 5, errorsEncountered: 0 },
         viewMode: "tree",
@@ -103,8 +104,10 @@ describe("UI Integration Tests", () => {
       const mockToggleExpand = jest.fn();
 
       // Create a mock ResultsDisplay component
-      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
-      const mockResultsDisplay = ResultsDisplay({
+      const ResultsDisplay = jest.requireActual(
+        "../../../src/ui/ResultsDisplay"
+      ).default;
+      const _mockResultsDisplay = ResultsDisplay({
         structuredItems: [{ filePath: "file1.txt", matched: true }],
         summary: { filesFound: 1, filesProcessed: 1, errorsEncountered: 0 },
         viewMode: "tree",
@@ -136,16 +139,18 @@ describe("UI Integration Tests", () => {
       const mockShowFullContent = jest.fn();
 
       // Create a mock ResultsDisplay component
-      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
-      const mockResultsDisplay = ResultsDisplay({
+      const ResultsDisplay = jest.requireActual(
+        "../../../src/ui/ResultsDisplay"
+      ).default;
+      const _mockResultsDisplay = ResultsDisplay({
         structuredItems: [{ filePath: "file1.txt", matched: true }],
         summary: { filesFound: 1, filesProcessed: 1, errorsEncountered: 0 },
         viewMode: "tree",
-        itemDisplayStates: { 
-          "file1.txt": { 
+        itemDisplayStates: {
+          "file1.txt": {
             expanded: true,
-            showFull: false 
-          } 
+            showFull: false,
+          },
         },
         itemDisplayVersion: 1,
         onToggleExpand: jest.fn(),

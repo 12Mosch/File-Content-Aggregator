@@ -162,7 +162,7 @@ describe("Search Highlighting Integration", () => {
     `;
 
     // Fuzzy search terms with slight misspellings or variations
-    const fuzzyTerms = [
+    const _fuzzyTerms = [
       "functoin", // Misspelled "function"
       "databaes", // Misspelled "database"
       "qurey", // Misspelled "query"

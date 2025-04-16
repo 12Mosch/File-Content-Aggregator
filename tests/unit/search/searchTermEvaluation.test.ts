@@ -39,7 +39,7 @@ const findTermIndices = (
 
 // Mock evaluateBooleanAst function
 const evaluateBooleanAst = (
-  node: any,
+  node: { [key: string]: unknown },
   content: string,
   caseSensitive: boolean
 ): boolean => {
@@ -210,7 +210,7 @@ describe("Search Term Evaluation", () => {
     test("should match regex pattern in content", () => {
       // Modify the test to use a direct mock instead of relying on the evaluateBooleanAst function
       const content = "This is a test with numbers 12345.";
-      const regexPattern = "/\\d+/";
+      const _regexPattern = "/\\d+/";
 
       // Directly verify the regex would match
       const regex = new RegExp("\\d+");

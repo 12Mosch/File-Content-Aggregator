@@ -95,7 +95,7 @@ const getWordIndexFromCharIndex = (
 
 // Mock evaluateBooleanAst function
 const evaluateBooleanAst = (
-  node: any,
+  node: { [key: string]: unknown },
   content: string,
   caseSensitive: boolean
 ): boolean => {
@@ -108,7 +108,7 @@ const evaluateBooleanAst = (
         try {
           const regex = new RegExp(regexMatch[1], regexMatch[2]);
           return regex.test(content);
-        } catch (e) {
+        } catch (_e) {
           return false;
         }
       }
@@ -152,7 +152,7 @@ const evaluateBooleanAst = (
           try {
             term1 = new RegExp(regexMatch[1], regexMatch[2]);
             term1IsRegex = true;
-          } catch (e) {
+          } catch (_e) {
             return false;
           }
         } else {
@@ -180,7 +180,7 @@ const evaluateBooleanAst = (
           try {
             term2 = new RegExp(regexMatch[1], regexMatch[2]);
             term2IsRegex = true;
-          } catch (e) {
+          } catch (_e) {
             return false;
           }
         } else {

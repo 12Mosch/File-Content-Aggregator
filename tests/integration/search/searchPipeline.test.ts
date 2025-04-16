@@ -59,12 +59,14 @@ jest.mock("fs", () => ({
 }));
 
 jest.mock("fast-glob", () => jest.fn());
-jest.mock("p-limit", () => jest.fn(() => (fn: Function) => fn()));
+jest.mock("p-limit", () =>
+  jest.fn(() => (fn: (...args: unknown[]) => unknown) => fn())
+);
 
 // Import the mocked modules
-import fs from "fs";
-import fastGlob from "fast-glob";
-import path from "path";
+import _fs from "fs";
+import _fastGlob from "fast-glob";
+import _path from "path";
 
 describe("Search Pipeline Integration", () => {
   // Setup common test variables

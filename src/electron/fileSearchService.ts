@@ -684,8 +684,8 @@ export function evaluateBooleanAst(
         );
 
         // If exact match fails for either term, try fuzzy search for non-regex terms
-        let usedFuzzyForTerm1 = false;
-        let usedFuzzyForTerm2 = false;
+        let _usedFuzzyForTerm1 = false;
+        let _usedFuzzyForTerm2 = false;
 
         if (
           indices1.length === 0 &&
@@ -718,11 +718,11 @@ export function evaluateBooleanAst(
             if (result.length > 0 && result[0].score < 0.6) {
               // For fuzzy search, we need to find the actual position in the content
               // This is an approximation - we search for the matched substring
-              const matchedContent = result[0].item;
+              const _matchedContent = result[0].item;
               const matchIndices = findApproximateMatchIndices(content, term1);
               if (matchIndices.length > 0) {
                 indices1 = matchIndices;
-                usedFuzzyForTerm1 = true;
+                _usedFuzzyForTerm1 = true;
                 console.log(
                   `[AST Eval] NEAR: Used fuzzy search for term1 "${term1}" (found ${indices1.length} positions)`
                 );
@@ -764,11 +764,11 @@ export function evaluateBooleanAst(
             if (result.length > 0 && result[0].score < 0.6) {
               // For fuzzy search, we need to find the actual position in the content
               // This is an approximation - we search for the matched substring
-              const matchedContent = result[0].item;
+              const _matchedContent = result[0].item;
               const matchIndices = findApproximateMatchIndices(content, term2);
               if (matchIndices.length > 0) {
                 indices2 = matchIndices;
-                usedFuzzyForTerm2 = true;
+                _usedFuzzyForTerm2 = true;
                 console.log(
                   `[AST Eval] NEAR: Used fuzzy search for term2 "${term2}" (found ${indices2.length} positions)`
                 );
@@ -1322,7 +1322,7 @@ export async function searchFiles(
           const stats = await fs.stat(filePath);
           return { filePath, stats };
         } catch (statError: unknown) {
-          const message =
+          const _message =
             statError instanceof Error ? statError.message : String(statError);
           // console.warn(`Could not get stats for file: ${filePath}`, message);
           // Return null stats if error occurs, file will be processed without metadata

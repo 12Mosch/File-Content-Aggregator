@@ -385,7 +385,7 @@ describe("Regex Pattern Matching", () => {
     });
 
     test("should handle invalid regex literals", () => {
-      const content = "test123";
+      const _content = "test123";
       const invalidRegexLiteral = "/[unclosed/";
 
       const regex = parseRegexLiteral(invalidRegexLiteral);

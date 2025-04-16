@@ -65,7 +65,7 @@ describe("highlightTermsInHtml - Boundary Cases", () => {
   test("should handle empty search term", () => {
     const html = '<span class="hljs-keyword">const</span> x = 10;';
     const result = highlightTermsInHtml(html, [""], true);
-    
+
     // Empty search terms should be filtered out, so the result should be the same as the input
     expect(result).toBe(html);
   });
@@ -73,7 +73,7 @@ describe("highlightTermsInHtml - Boundary Cases", () => {
   test("should handle very long search terms", () => {
     const longTerm = "a".repeat(1000);
     const html = `<span class="hljs-string">"${longTerm}"</span>`;
-    
+
     // This should not crash
     const result = highlightTermsInHtml(html, [longTerm], true);
     expect(typeof result).toBe("string");
@@ -81,15 +81,15 @@ describe("highlightTermsInHtml - Boundary Cases", () => {
 
   test("should handle special characters in search terms", () => {
     const html = '<span class="hljs-string">"line1\\nline2\\tindented"</span>';
-    
+
     // Test with escape sequences
     const result1 = highlightTermsInHtml(html, ["\\n"], true);
     expect(typeof result1).toBe("string");
-    
+
     // Test with tab character
     const result2 = highlightTermsInHtml(html, ["\\t"], true);
     expect(typeof result2).toBe("string");
-    
+
     // Test with backslash
     const result3 = highlightTermsInHtml(html, ["\\\\"], true);
     expect(typeof result3).toBe("string");
@@ -97,11 +97,11 @@ describe("highlightTermsInHtml - Boundary Cases", () => {
 
   test("should handle quoted term extraction", () => {
     const html = '<span class="hljs-string">"database query"</span>';
-    
+
     // Test with Term: prefix
     const result1 = highlightTermsInHtml(html, ["Term: database"], true);
     expect(typeof result1).toBe("string");
-    
+
     // Test with quoted term
     const result2 = highlightTermsInHtml(html, ['"database"'], true);
     expect(typeof result2).toBe("string");
@@ -109,7 +109,7 @@ describe("highlightTermsInHtml - Boundary Cases", () => {
 
   test("should handle different case combinations", () => {
     const html = '<span class="hljs-keyword">const</span> x = 10;';
-    
+
     // Mixed case with case-insensitive search
     const result = highlightTermsInHtml(html, ["cOnSt"], false);
     expect(typeof result).toBe("string");
@@ -117,12 +117,12 @@ describe("highlightTermsInHtml - Boundary Cases", () => {
 
   test("should handle null or undefined terms gracefully", () => {
     const html = '<span class="hljs-keyword">const</span> x = 10;';
-    
-    // @ts-ignore - Testing with null even though TypeScript doesn't allow it
+
+    // @ts-expect-error - Testing with null even though TypeScript doesn't allow it
     const result1 = highlightTermsInHtml(html, [null], true);
     expect(typeof result1).toBe("string");
-    
-    // @ts-ignore - Testing with undefined even though TypeScript doesn't allow it
+
+    // @ts-expect-error - Testing with undefined even though TypeScript doesn't allow it
     const result2 = highlightTermsInHtml(html, [undefined], true);
     expect(typeof result2).toBe("string");
   });

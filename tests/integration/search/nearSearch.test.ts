@@ -18,7 +18,9 @@ jest.mock("fs", () => ({
 }));
 
 jest.mock("fast-glob", () => jest.fn());
-jest.mock("p-limit", () => jest.fn(() => (fn: Function) => fn()));
+jest.mock("p-limit", () =>
+  jest.fn(() => (fn: (...args: unknown[]) => unknown) => fn())
+);
 
 // Import the mocked module
 jest.mock("../../../src/electron/fileSearchService", () => ({
@@ -49,7 +51,7 @@ describe("NEAR Operator Integration Tests", () => {
 
     // Setup mock implementation for searchFiles
     searchFiles.mockImplementation(
-      async (params, progressCallback, checkCancellation) => {
+      async (params, progressCallback, _checkCancellation) => {
         // Default successful result
         const result: SearchResult = {
           structuredItems: [
@@ -92,23 +94,33 @@ describe("NEAR Operator Integration Tests", () => {
           if (params.contentSearchTerm === 'NEAR("test", "/example/", 5)') {
             result.structuredItems[0].matched = true;
             result.structuredItems[2].matched = true;
-          } 
+          }
           // NEAR with regex and fuzzy
-          else if (params.contentSearchTerm === 'NEAR("/\\w+/", "exmple", 3)' && params.fuzzySearchNearEnabled) {
+          else if (
+            params.contentSearchTerm === 'NEAR("/\\w+/", "exmple", 3)' &&
+            params.fuzzySearchNearEnabled
+          ) {
             result.structuredItems[1].matched = true;
             result.structuredItems[3].matched = true;
           }
           // NEAR with nested expressions
-          else if (params.contentSearchTerm.includes('NEAR(NEAR(')) {
+          else if (params.contentSearchTerm.includes("NEAR(NEAR(")) {
             result.structuredItems[2].matched = true;
           }
           // NEAR with complex boolean expressions
-          else if (params.contentSearchTerm.includes('NEAR(("test" AND "data"), ("example" OR "sample"), 10)')) {
+          else if (
+            params.contentSearchTerm.includes(
+              'NEAR(("test" AND "data"), ("example" OR "sample"), 10)'
+            )
+          ) {
             result.structuredItems[0].matched = true;
             result.structuredItems[3].matched = true;
           }
           // NEAR with case sensitivity
-          else if (params.contentSearchTerm === 'NEAR("Test", "Example", 5)' && params.caseSensitive) {
+          else if (
+            params.contentSearchTerm === 'NEAR("Test", "Example", 5)' &&
+            params.caseSensitive
+          ) {
             result.structuredItems[1].matched = true;
           }
         }
@@ -158,7 +170,9 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(2);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        2
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -189,7 +203,9 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(2);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        2
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -220,7 +236,9 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(1);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        1
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -251,7 +269,9 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(1);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        1
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -261,7 +281,8 @@ describe("NEAR Operator Integration Tests", () => {
       const result = await searchFiles(
         {
           ...defaultSearchParams,
-          contentSearchTerm: 'NEAR(("test" AND "data"), ("example" OR "sample"), 10)',
+          contentSearchTerm:
+            'NEAR(("test" AND "data"), ("example" OR "sample"), 10)',
           contentSearchMode: "boolean",
         },
         mockProgressCallback,
@@ -271,7 +292,8 @@ describe("NEAR Operator Integration Tests", () => {
       // Verify searchFiles was called with the correct parameters
       expect(searchFiles).toHaveBeenCalledWith(
         expect.objectContaining({
-          contentSearchTerm: 'NEAR(("test" AND "data"), ("example" OR "sample"), 10)',
+          contentSearchTerm:
+            'NEAR(("test" AND "data"), ("example" OR "sample"), 10)',
           contentSearchMode: "boolean",
         }),
         mockProgressCallback,
@@ -280,7 +302,9 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(2);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        2
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -291,7 +315,7 @@ describe("NEAR Operator Integration Tests", () => {
     test("should handle large files with complex NEAR expressions efficiently", async () => {
       // Mock a large file scenario
       searchFiles.mockImplementationOnce(
-        async (params, progressCallback, checkCancellation) => {
+        async (params, progressCallback, _checkCancellation) => {
           // Simulate processing a large file
           progressCallback({
             processed: 0,
@@ -328,11 +352,12 @@ describe("NEAR Operator Integration Tests", () => {
       );
 
       const startTime = Date.now();
-      
+
       const result = await searchFiles(
         {
           ...defaultSearchParams,
-          contentSearchTerm: 'NEAR(NEAR("function", "return", 3), NEAR("data", "process", 5), 10)',
+          contentSearchTerm:
+            'NEAR(NEAR("function", "return", 3), NEAR("data", "process", 5), 10)',
           contentSearchMode: "boolean",
         },
         mockProgressCallback,
@@ -355,14 +380,15 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Log execution time for performance analysis
       console.log(`Search execution time: ${executionTime}ms`);
-      
+
       // We don't assert on execution time as it can vary, but we log it for analysis
     });
 
     test("should handle multiple nested NEAR operators efficiently", async () => {
       // Create a complex NEAR expression with multiple nested operators
-      const complexExpression = 'NEAR(NEAR(NEAR("term1", "term2", 2), "term3", 3), NEAR("term4", NEAR("term5", "term6", 2), 4), 10)';
-      
+      const complexExpression =
+        'NEAR(NEAR(NEAR("term1", "term2", 2), "term3", 3), NEAR("term4", NEAR("term5", "term6", 2), 4), 10)';
+
       const result = await searchFiles(
         {
           ...defaultSearchParams,
@@ -375,7 +401,7 @@ describe("NEAR Operator Integration Tests", () => {
 
       // Verify the search completed
       expect(result.filesProcessed).toBe(4);
-      
+
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalledWith(
         expect.objectContaining({
