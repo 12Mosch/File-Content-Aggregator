@@ -153,7 +153,7 @@ function parseDateEndOfDay(dateString: string | undefined): Date | null {
   return date;
 }
 
-function parseRegexLiteral(pattern: string): RegExp | null {
+export function parseRegexLiteral(pattern: string): RegExp | null {
   const regexMatch = pattern.match(/^\/(.+)\/([gimyus]*)$/);
   if (regexMatch) {
     try {
@@ -244,7 +244,7 @@ function isJsepUnaryExpression(node: unknown): node is Jsep.UnaryExpression {
  * @param isRegex Whether the term is a RegExp object.
  * @returns An array of starting indices.
  */
-function findTermIndices(
+export function findTermIndices(
   content: string,
   term: string | RegExp,
   caseSensitive: boolean,
@@ -411,7 +411,7 @@ function getWordIndexFromCharIndex(charIndex: number, content: string): number {
  * @param caseSensitive Global case sensitivity setting for simple terms (not regex).
  * @returns True if the AST node evaluates to true against the content, false otherwise.
  */
-function evaluateBooleanAst(
+export function evaluateBooleanAst(
   node: Jsep.Expression | unknown,
   content: string,
   caseSensitive: boolean
@@ -837,7 +837,7 @@ function evaluateBooleanAst(
  * @param folderExclusionMode The matching mode.
  * @returns True if the directory should be excluded, false otherwise.
  */
-function isDirectoryExcluded(
+export function isDirectoryExcluded(
   dirPath: string,
   excludeFolders: string[],
   folderExclusionMode: FolderExclusionMode

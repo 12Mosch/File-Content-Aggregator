@@ -1,0 +1,36 @@
+{
+  "coreSearch": {
+    "title": "Core Search Tests",
+    "description": "Tests for the core search functionality",
+    "searchTermParsing": {
+      "title": "Search Term Parsing Tests",
+      "description": "Tests for parsing different types of search terms",
+      "simpleTerm": "Simple term parsing",
+      "quotedTerm": "Quoted term parsing",
+      "regexPattern": "Regex pattern parsing",
+      "booleanExpression": "Boolean expression parsing",
+      "nearOperator": "NEAR operator parsing",
+      "invalidSyntax": "Invalid syntax handling"
+    },
+    "searchTermEvaluation": {
+      "title": "Search Term Evaluation Tests",
+      "description": "Tests for evaluating search terms against content",
+      "exactMatching": "Exact term matching",
+      "caseSensitivity": "Case sensitivity",
+      "regexMatching": "Regex pattern matching",
+      "booleanEvaluation": "Boolean expression evaluation",
+      "nearEvaluation": "NEAR operator evaluation",
+      "fuzzyMatching": "Fuzzy matching"
+    },
+    "fileFiltering": {
+      "title": "File Filtering Tests",
+      "description": "Tests for filtering files based on various criteria",
+      "extensionFiltering": "File extension filtering",
+      "pathFiltering": "File path inclusion/exclusion",
+      "directoryExclusion": "Directory exclusion",
+      "sizeFiltering": "File size filtering",
+      "dateFiltering": "File date filtering",
+      "depthFiltering": "Maximum depth filtering"
+    }
+  }
+}

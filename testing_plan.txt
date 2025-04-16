@@ -1,0 +1,181 @@
+# File Content Aggregator - Testing Plan
+
+## Overview
+This document outlines the testing strategy for the File Content Aggregator application, focusing on both existing functionality and new features that need testing. The plan is organized by feature area and test type.
+
+## Core Search Functionality
+
+### Unit Tests
+- ✅ **Search Term Parsing** (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
+- ✅ **Search Term Evaluation** (Implemented in `tests/unit/search/searchTermEvaluation.test.ts`)
+- ✅ **File Filtering** (Implemented in `tests/unit/search/fileFiltering.test.ts`)
+
+### Integration Tests
+- **Search Pipeline**
+  - Test end-to-end search process with various query types
+  - Test search cancellation
+  - Test progress reporting
+  - Test error handling during search
+
+- **UI Integration**
+  - Test search results display
+  - Test tree view expansion/collapse
+  - Test file content preview loading
+  - Test search term highlighting in previews
+
+## Highlighting Functionality
+
+### Unit Tests
+- **HTML Highlighting**
+  - **NEW:** Test highlighting of terms found via fuzzy search
+  - **NEW:** Test highlighting of terms found via NEAR operator
+  - **NEW:** Test highlighting with Unicode characters
+
+- **Plain Text Highlighting**
+  - **NEW:** Test highlighting in plain text with fuzzy matches
+  - **NEW:** Test highlighting in plain text with NEAR operator matches
+
+### Integration Tests
+- **Highlighting in Search Results**
+  - **NEW:** Test highlighting with fuzzy matches in search results
+  - **NEW:** Test highlighting with NEAR operator matches in search results
+
+## Fuzzy Search Functionality
+
+### Unit Tests
+- **Fuzzy Search Configuration**
+  - **NEW:** Test fuzzy search threshold settings
+  - **NEW:** Test minimum character length for fuzzy search
+  - **NEW:** Test fuzzy search with case sensitivity
+  - **NEW:** Test enabling/disabling fuzzy search in Content Query
+  - **NEW:** Test enabling/disabling fuzzy search in Boolean Query mode
+  - **NEW:** Test enabling/disabling fuzzy search in NEAR function
+
+- **Fuzzy Search Matching**
+  - **NEW:** Test fuzzy matching with slight misspellings
+  - **NEW:** Test fuzzy matching with character transpositions
+  - **NEW:** Test fuzzy matching with missing characters
+  - **NEW:** Test fuzzy matching with extra characters
+  - **NEW:** Test fuzzy matching with very short terms (should be disabled)
+  - **NEW:** Test fuzzy matching with very long terms
+
+### Integration Tests
+- **Fuzzy Search in Search Pipeline**
+  - **NEW:** Test fuzzy search in Content Query mode
+  - **NEW:** Test fuzzy search in Boolean Query mode
+  - **NEW:** Test fuzzy search in NEAR operator
+  - **NEW:** Test fuzzy search with multiple terms
+  - **NEW:** Test performance with fuzzy search enabled vs disabled
+
+## Regex Search Functionality
+
+### Unit Tests
+- **Regex Pattern Validation**
+  - **NEW:** Test validation of valid regex patterns
+  - **NEW:** Test validation of invalid regex patterns
+  - **NEW:** Test handling of regex syntax errors
+  - **NEW:** Test regex flags (case sensitivity, global, multiline)
+
+- **Regex Pattern Matching**
+  - **NEW:** Test basic pattern matching
+  - **NEW:** Test character classes
+  - **NEW:** Test quantifiers
+  - **NEW:** Test capturing groups
+  - **NEW:** Test lookahead/lookbehind assertions
+  - **NEW:** Test boundary assertions
+
+### Integration Tests
+- **Regex in Search Pipeline**
+  - **NEW:** Test regex in Content Query mode
+  - **NEW:** Test regex in Boolean Query expressions
+  - **NEW:** Test regex with NEAR operator
+  - **NEW:** Test performance with complex regex patterns
+
+## NEAR Operator Functionality
+
+### Unit Tests
+- **NEAR Operator Parsing**
+  - **NEW:** Test parsing of NEAR syntax
+  - **NEW:** Test parsing of nested NEAR operators
+  - **NEW:** Test parsing of NEAR with quoted terms
+  - **NEW:** Test parsing of NEAR with regex patterns
+  - **NEW:** Test parsing with invalid NEAR syntax
+
+- **NEAR Operator Evaluation**
+  - **NEW:** Test basic proximity matching
+  - **NEW:** Test different distance values
+  - **NEW:** Test with case sensitivity
+  - **NEW:** Test with fuzzy matching enabled/disabled
+  - **NEW:** Test with terms in different order
+  - **NEW:** Test with terms spanning multiple lines
+
+### Integration Tests
+- **NEAR in Search Pipeline**
+  - **NEW:** Test NEAR in Boolean Query expressions
+  - **NEW:** Test NEAR with mixed term types (exact, regex, fuzzy)
+  - **NEW:** Test performance with complex NEAR expressions
+
+## UI and Settings Tests
+
+### Unit Tests
+- **Settings Management**
+  - **NEW:** Test saving/loading of fuzzy search settings
+  - **NEW:** Test default settings values
+  - **NEW:** Test settings validation
+
+### Integration Tests
+- **Settings UI**
+  - **NEW:** Test enabling/disabling fuzzy search options in UI
+  - **NEW:** Test settings persistence between sessions
+  - **NEW:** Test settings effect on search behavior
+
+## Performance Tests
+
+### Unit Tests
+- **Search Performance**
+  - **NEW:** Test search performance with many files
+  - **NEW:** Test search performance with complex queries
+  - **NEW:** Test memory usage during search operations
+
+### Integration Tests
+- **End-to-End Performance**
+  - **NEW:** Test application responsiveness during search
+  - **NEW:** Test UI performance with large result sets
+
+## Accessibility Tests
+
+### Integration Tests
+- **Keyboard Navigation**
+  - **NEW:** Test keyboard navigation of search results
+  - **NEW:** Test keyboard shortcuts for common actions
+
+- **Screen Reader Compatibility**
+  - **NEW:** Test screen reader announcements for search results
+  - **NEW:** Test screen reader announcements for highlighted terms
+
+## Localization Tests
+
+### Integration Tests
+- **Localized UI**
+  - **NEW:** Test UI with different language settings
+  - **NEW:** Test search with non-Latin characters
+  - **NEW:** Test highlighting with non-Latin characters
+
+## Priority Test Areas
+
+Based on recent feature additions and planned work, the following test areas should be prioritized:
+
+1. **Highlighting of search terms in content previews**
+   - Focus on testing the new highlighting functionality for terms found via fuzzy search
+   - Focus on testing the new highlighting functionality for terms found via NEAR operators
+   - Test with Unicode characters
+
+2. **Extended fuzzy search functionality**
+   - Test fuzzy search with Regex patterns
+   - Test fuzzy search with NEAR operators
+   - Test enabling/disabling fuzzy search in different contexts
+
+3. **Settings for search options**
+   - Test the new settings options for disabling fuzzy search in Content Query, Boolean Query mode, and NEAR function
+   - Test persistence of these settings
+   - Test the effect of these settings on search behavior
