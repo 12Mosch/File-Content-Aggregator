@@ -11,6 +11,7 @@ NEAR(term1, term2, distance)
 ```
 
 Where:
+
 - `term1` and `term2` are the search terms (can be simple terms, quoted strings, or regex patterns)
 - `distance` is the maximum number of words between the terms
 
@@ -70,22 +71,72 @@ These tests verify that the application correctly parses NEAR operator syntax in
 
 ## NEAR Operator Evaluation Tests
 
-These tests verify that the application correctly evaluates NEAR expressions against content. The tests are implemented in `tests/unit/search/searchTermEvaluation.test.ts`.
+These tests verify that the application correctly evaluates NEAR expressions against content. The tests are implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`.
 
-- **Test**: `should evaluate NEAR with terms in proximity`
+### Basic Proximity Matching
+
+- **Test**: `should match terms that are within the specified distance`
 - **Description**: Verifies that NEAR correctly matches terms that are within the specified distance.
 
-- **Test**: `should not match NEAR with terms too far apart`
+- **Test**: `should not match terms that are too far apart`
 - **Description**: Verifies that NEAR does not match terms that are farther apart than the specified distance.
 
-- **Test**: `should evaluate NEAR with regex patterns`
-- **Description**: Verifies that NEAR can match regex patterns within the specified distance.
+- **Test**: `should match terms at exactly the specified distance`
+- **Description**: Verifies that NEAR correctly matches terms that are exactly at the specified distance.
 
-- **Test**: `should respect term order in NEAR`
+- **Test**: `should not match terms at distance greater than specified`
+- **Description**: Verifies that NEAR does not match terms that are at a distance greater than specified.
+
+### Different Distance Values
+
+- **Test**: `should work with distance of 0 (adjacent words)`
+- **Description**: Verifies that NEAR correctly handles a distance of 0, which means the words must be adjacent.
+
+- **Test**: `should work with large distance values`
+- **Description**: Verifies that NEAR correctly handles large distance values.
+
+- **Test**: `should handle invalid distance values`
+- **Description**: Verifies that NEAR correctly handles non-numeric distance values.
+
+- **Test**: `should handle negative distance values`
+- **Description**: Verifies that NEAR correctly handles negative distance values (should be treated as invalid).
+
+### Case Sensitivity
+
+- **Test**: `should respect case sensitivity when enabled`
+- **Description**: Verifies that NEAR respects case sensitivity when it is enabled.
+
+- **Test**: `should ignore case when case sensitivity is disabled`
+- **Description**: Verifies that NEAR ignores case when case sensitivity is disabled.
+
+### Term Order
+
+- **Test**: `should match terms regardless of their order in content`
 - **Description**: Verifies that NEAR finds terms regardless of their order in the content.
 
-- **Test**: `should handle NEAR with terms spanning multiple lines`
+- **Test**: `should match terms in reverse order`
+- **Description**: Verifies that NEAR correctly matches terms when they appear in reverse order in the content.
+
+### Multiple Lines
+
+- **Test**: `should match terms spanning multiple lines`
 - **Description**: Verifies that NEAR can match terms that span across multiple lines.
+
+- **Test**: `should count newlines correctly in word distance`
+- **Description**: Verifies that NEAR correctly counts newlines when calculating word distance.
+
+### Regex Patterns
+
+- **Test**: `should match regex patterns within specified distance`
+- **Description**: Verifies that NEAR can match regex patterns within the specified distance.
+
+- **Test**: `should respect regex flags`
+- **Description**: Verifies that NEAR respects regex flags when matching patterns.
+
+### Fuzzy Matching
+
+- **Test**: `should work with fuzzy matching enabled`
+- **Description**: Verifies that NEAR works correctly with fuzzy matching enabled.
 
 ## Integration Tests
 

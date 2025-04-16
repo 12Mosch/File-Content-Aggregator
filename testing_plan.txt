@@ -103,12 +103,12 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test parsing with invalid NEAR syntax (Implemented in `tests/unit/search/searchTermParsing.test.ts`)
 
 - **NEAR Operator Evaluation**
-  - **NEW:** Test basic proximity matching
-  - **NEW:** Test different distance values
-  - **NEW:** Test with case sensitivity
-  - **NEW:** Test with fuzzy matching enabled/disabled
-  - **NEW:** Test with terms in different order
-  - **NEW:** Test with terms spanning multiple lines
+  - ✅ Test basic proximity matching (Implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`)
+  - ✅ Test different distance values (Implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`)
+  - ✅ Test with case sensitivity (Implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`)
+  - ✅ Test with fuzzy matching enabled/disabled (Implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`)
+  - ✅ Test with terms in different order (Implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`)
+  - ✅ Test with terms spanning multiple lines (Implemented in `tests/unit/search/nearOperatorEvaluation.test.ts`)
 
 ### Integration Tests
 - **NEAR in Search Pipeline**

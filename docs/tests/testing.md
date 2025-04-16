@@ -248,7 +248,7 @@ Detailed documentation for specific feature tests:
 - [Regex Pattern Validation Tests](./regex-validation-tests.md): Tests for regex pattern validation, error handling, and flags processing
 - [Regex Pattern Matching Tests](./regex-matching-tests.md): Tests for regex pattern matching, character classes, quantifiers, and other regex features
 - [Regex Search Integration Tests](./regex-search-tests.md): Tests for regex pattern functionality in Boolean expressions and with the NEAR operator
-- [NEAR Operator Parsing Tests](./near-operator-tests.md): Tests for NEAR operator syntax parsing, nested operators, and handling of invalid syntax
+- [NEAR Operator Tests](./near-operator-tests.md): Tests for NEAR operator syntax parsing, evaluation, nested operators, and handling of invalid syntax
 
 ## Resources
 
