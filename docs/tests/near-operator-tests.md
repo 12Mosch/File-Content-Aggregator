@@ -142,10 +142,57 @@ These tests verify that the application correctly evaluates NEAR expressions aga
 
 ### NEAR in Search Pipeline
 
-These tests verify that the NEAR operator works correctly within the search pipeline. The tests are implemented in `tests/integration/search/searchPipeline.test.ts` and `tests/integration/search/regexSearch.test.ts`.
+These tests verify that the NEAR operator works correctly within the search pipeline. The tests are implemented in `tests/integration/search/searchPipeline.test.ts`, `tests/integration/search/regexSearch.test.ts`, and `tests/integration/search/nearSearch.test.ts`.
+
+#### Basic NEAR Functionality
+
+- **Test**: `should search with NEAR operator`
+- **Description**: Verifies that the search pipeline correctly processes basic NEAR expressions.
+- **Location**: `tests/integration/search/searchPipeline.test.ts`
+
+#### NEAR with Regex Patterns
 
 - **Test**: `should search with NEAR operator containing regex patterns`
 - **Description**: Verifies that the search pipeline correctly processes NEAR expressions with regex patterns.
+- **Location**: `tests/integration/search/regexSearch.test.ts`
+
+- **Test**: `should search with NEAR operator mixing regex and plain text`
+- **Description**: Verifies that the search pipeline correctly processes NEAR expressions that mix regex patterns and plain text.
+- **Location**: `tests/integration/search/regexSearch.test.ts`
+
+#### NEAR with Mixed Term Types
+
+- **Test**: `should search with NEAR operator combining exact terms and regex patterns`
+- **Description**: Verifies that the search pipeline correctly processes NEAR expressions that combine exact terms and regex patterns.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
+
+- **Test**: `should search with NEAR operator combining regex patterns and fuzzy terms`
+- **Description**: Verifies that the search pipeline correctly processes NEAR expressions that combine regex patterns and fuzzy terms.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
+
+- **Test**: `should respect case sensitivity in NEAR operator`
+- **Description**: Verifies that the search pipeline respects case sensitivity settings in NEAR expressions.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
+
+#### Complex NEAR Expressions
+
+- **Test**: `should search with nested NEAR operators`
+- **Description**: Verifies that the search pipeline correctly processes nested NEAR operators.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
+
+- **Test**: `should search with NEAR operator containing complex boolean expressions`
+- **Description**: Verifies that the search pipeline correctly processes NEAR expressions that contain complex boolean expressions.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
+
+#### Performance with Complex NEAR Expressions
+
+- **Test**: `should handle large files with complex NEAR expressions efficiently`
+- **Description**: Verifies that the search pipeline can efficiently process large files with complex NEAR expressions.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
+
+- **Test**: `should handle multiple nested NEAR operators efficiently`
+- **Description**: Verifies that the search pipeline can efficiently process multiple nested NEAR operators.
+- **Location**: `tests/integration/search/nearSearch.test.ts`
 
 ### Fuzzy Search in NEAR Operator
 
@@ -153,6 +200,7 @@ These tests verify that fuzzy search works correctly with the NEAR operator. The
 
 - **Test**: `should find matches with NEAR expressions containing misspelled terms`
 - **Description**: Verifies that the NEAR operator can find matches with fuzzy search when terms are misspelled.
+- **Location**: `tests/integration/search/fuzzySearch.test.ts`
 
 ## Best Practices for Testing NEAR Operator
 

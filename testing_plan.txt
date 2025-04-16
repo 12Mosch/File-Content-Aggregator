@@ -113,8 +113,8 @@ This document outlines the testing strategy for the File Content Aggregator appl
 ### Integration Tests
 - **NEAR in Search Pipeline**
   - ✅ Test NEAR in Boolean Query expressions (Covered in `tests/integration/search/searchPipeline.test.ts`)
-  - **NEW:** Test NEAR with mixed term types (exact, regex, fuzzy)
-  - **NEW:** Test performance with complex NEAR expressions
+  - ✅ Test NEAR with mixed term types (exact, regex, fuzzy) (Implemented in `tests/integration/search/nearSearch.test.ts`)
+  - ✅ Test performance with complex NEAR expressions (Implemented in `tests/integration/search/nearSearch.test.ts`)
 
 ## UI and Settings Tests
 

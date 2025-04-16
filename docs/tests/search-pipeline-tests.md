@@ -91,3 +91,4 @@ In addition to the main search pipeline tests, there are specialized integration
 
 - [Fuzzy Search Integration Tests](./fuzzy-search-tests.md#integration-tests): Tests specifically focused on fuzzy search functionality within the search pipeline
 - [Regex Search Integration Tests](./regex-search-tests.md): Tests for regex pattern functionality in Boolean expressions and with the NEAR operator
+- [NEAR Operator Integration Tests](./near-operator-tests.md#integration-tests): Tests for NEAR operator functionality with mixed term types and complex expressions

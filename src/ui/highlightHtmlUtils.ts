@@ -71,7 +71,7 @@ export function highlightTermsInHtml(
       `Processing node: type=${node.nodeType}, content=${node.nodeType === Node.TEXT_NODE ? node.textContent : "non-text node"}`
     );
     if (node.nodeType === Node.TEXT_NODE && node.textContent) {
-      let textContent = node.textContent;
+      const textContent = node.textContent;
       let modified = false;
       const fragments: (string | Node)[] = [];
 
@@ -114,7 +114,7 @@ export function highlightTermsInHtml(
 
           // Find all matches in this text node
           let match;
-          let currentText = textContent;
+          const currentText = textContent;
           let currentLastIndex = 0;
           const currentFragments: (string | Node)[] = [];
 

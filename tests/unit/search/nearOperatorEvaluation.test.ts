@@ -216,13 +216,13 @@ const evaluateBooleanAst = (
     }
 
     // Find indices of both terms
-    let indices1 = findTermIndices(
+    const indices1 = findTermIndices(
       content,
       term1,
       term1IsRegex ? false : caseSensitive,
       term1IsRegex
     );
-    let indices2 = findTermIndices(
+    const indices2 = findTermIndices(
       content,
       term2,
       term2IsRegex ? false : caseSensitive,
