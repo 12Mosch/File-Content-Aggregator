@@ -244,6 +244,7 @@ Detailed documentation for specific feature tests:
 - [Fuzzy Search Tests](./fuzzy-search-tests.md): Tests for fuzzy search configuration, matching behavior, and integration
 - [Highlighting Tests](./highlighting-tests.md): Tests for term highlighting in search results
 - [Search Pipeline Tests](./search-pipeline-tests.md): Tests for the end-to-end search process
+- [Fuzzy Search Integration Tests](./fuzzy-search-tests.md#integration-tests): Tests for fuzzy search in the search pipeline
 
 ## Resources
 

@@ -61,12 +61,12 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test fuzzy matching with very long terms (Implemented in `tests/unit/search/fuzzySearchMatching.test.ts`)
 
 ### Integration Tests
-- **Fuzzy Search in Search Pipeline**
-  - **NEW:** Test fuzzy search in Content Query mode
-  - ✅ Test fuzzy search in Boolean Query mode (Partially covered in `tests/integration/search/searchPipeline.test.ts`)
-  - ✅ Test fuzzy search in NEAR operator (Partially covered in `tests/integration/search/searchPipeline.test.ts`)
-  - **NEW:** Test fuzzy search with multiple terms
-  - **NEW:** Test performance with fuzzy search enabled vs disabled
+- ✅ **Fuzzy Search in Search Pipeline** (Implemented in `tests/integration/search/fuzzySearch.test.ts`)
+  - ✅ Test fuzzy search in Content Query mode
+  - ✅ Test fuzzy search in Boolean Query mode
+  - ✅ Test fuzzy search in NEAR operator
+  - ✅ Test fuzzy search with multiple terms
+  - ✅ Test performance with fuzzy search enabled vs disabled
 
 ## Regex Search Functionality
 

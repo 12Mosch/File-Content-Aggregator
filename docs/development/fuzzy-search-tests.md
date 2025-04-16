@@ -134,11 +134,61 @@ To run the fuzzy search matching tests:
 npm run test -- tests/unit/search/fuzzySearchMatching.test.ts
 ```
 
+## Integration Tests
+
+The fuzzy search integration tests verify that fuzzy search works correctly within the complete search pipeline. These tests are implemented in `tests/integration/search/fuzzySearch.test.ts`.
+
+### Test Categories
+
+#### Fuzzy Search in Content Query Mode
+
+These tests verify that fuzzy search works correctly in Content Query mode:
+
+- **Slight Misspellings**: Tests that the search pipeline finds matches for terms with slight misspellings (e.g., "tst" for "test")
+- **Extra Characters**: Tests that the search pipeline finds matches for terms with extra characters (e.g., "tesst" for "test")
+- **Disabled Fuzzy Search**: Tests that fuzzy matches are not found when fuzzy search is disabled
+
+#### Fuzzy Search in Boolean Query Mode
+
+These tests verify that fuzzy search works correctly in Boolean Query mode:
+
+- **Boolean Expressions with Misspelled Terms**: Tests that the search pipeline correctly evaluates Boolean expressions containing misspelled terms
+
+#### Fuzzy Search in NEAR Operator
+
+These tests verify that fuzzy search works correctly with the NEAR operator:
+
+- **NEAR Expressions with Misspelled Terms**: Tests that the search pipeline correctly evaluates NEAR expressions containing misspelled terms
+
+#### Multiple Terms and Performance
+
+These tests verify additional aspects of fuzzy search:
+
+- **Multiple Misspelled Terms**: Tests that the search pipeline correctly handles multiple misspelled terms in a single query
+- **Performance Comparison**: Tests that measure the performance impact of enabling fuzzy search
+
+### Implementation Details
+
+The integration tests use a mock implementation of the `searchFiles` function to simulate the behavior of the search pipeline with fuzzy search. The mock implementation:
+
+1. Returns predefined search results
+2. Simulates fuzzy matching for misspelled terms
+3. Tracks whether fuzzy matching was used for each match
+4. Simulates different behavior based on the search mode and fuzzy search settings
+
+### Running the Tests
+
+To run the fuzzy search integration tests:
+
+```bash
+npm run test -- tests/integration/search/fuzzySearch.test.ts
+```
+
 ## Related Tests
 
 The fuzzy search tests are divided into multiple categories that cover different aspects of fuzzy search functionality:
 
 - **Fuzzy Search Configuration**: Tests for settings and configuration aspects (implemented in `tests/unit/search/fuzzySearchConfig.test.ts`)
 - **Fuzzy Search Matching**: Tests for the actual matching behavior with various types of term variations (implemented in `tests/unit/search/fuzzySearchMatching.test.ts`)
-- **Fuzzy Search in Search Pipeline**: Integration tests for fuzzy search in the complete search process
+- **Fuzzy Search in Search Pipeline**: Integration tests for fuzzy search in the complete search process (implemented in `tests/integration/search/fuzzySearch.test.ts`)
 - **Highlighting with Fuzzy Matches**: Tests for highlighting terms found via fuzzy search (implemented in `tests/unit/ui/highlightHtmlUtils.fuzzy.test.ts` and `tests/unit/ui/HighlightMatches.test.tsx`)

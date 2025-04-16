@@ -84,3 +84,9 @@ The search pipeline integration tests cover the following aspects of the search 
 - Cancellation
 
 These tests complement the unit tests for individual components of the search functionality, providing end-to-end verification that the components work together correctly.
+
+## Related Tests
+
+In addition to the main search pipeline tests, there are specialized integration tests for specific search features:
+
+- [Fuzzy Search Integration Tests](./fuzzy-search-tests.md#integration-tests): Tests specifically focused on fuzzy search functionality within the search pipeline

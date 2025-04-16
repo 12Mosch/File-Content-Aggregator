@@ -64,6 +64,37 @@
         "pathErrors": "Path error handling",
         "invalidRegex": "Invalid regex pattern handling"
       }
+    },
+    "fuzzySearch": {
+      "title": "Fuzzy Search Integration Tests",
+      "description": "Tests for fuzzy search functionality in the search pipeline",
+      "contentQuery": {
+        "title": "Content Query Mode Tests",
+        "description": "Tests for fuzzy search in Content Query mode",
+        "misspellings": "Finding matches with slight misspellings",
+        "extraChars": "Finding matches with extra characters",
+        "disabled": "No fuzzy matches when disabled"
+      },
+      "booleanQuery": {
+        "title": "Boolean Query Mode Tests",
+        "description": "Tests for fuzzy search in Boolean Query mode",
+        "misspelledTerms": "Boolean expressions with misspelled terms"
+      },
+      "nearOperator": {
+        "title": "NEAR Operator Tests",
+        "description": "Tests for fuzzy search with NEAR operator",
+        "misspelledTerms": "NEAR expressions with misspelled terms"
+      },
+      "multipleTerms": {
+        "title": "Multiple Terms Tests",
+        "description": "Tests for fuzzy search with multiple terms",
+        "multipleMatches": "Multiple misspelled terms in a single query"
+      },
+      "performance": {
+        "title": "Performance Tests",
+        "description": "Tests for performance impact of fuzzy search",
+        "enabledVsDisabled": "Performance comparison with fuzzy search enabled vs disabled"
+      }
     }
   }
 }
