@@ -32,5 +32,38 @@
       "dateFiltering": "File date filtering",
       "depthFiltering": "Maximum depth filtering"
     }
+  },
+  "integrationTests": {
+    "searchPipeline": {
+      "title": "Search Pipeline Integration Tests",
+      "description": "Tests for the end-to-end search process",
+      "endToEnd": {
+        "title": "End-to-end Search Process Tests",
+        "description": "Tests for the search process with different query types",
+        "simpleTerm": "Simple term query search",
+        "booleanQuery": "Boolean query search",
+        "regexQuery": "Regex query search",
+        "nearOperator": "NEAR operator search"
+      },
+      "cancellation": {
+        "title": "Search Cancellation Tests",
+        "description": "Tests for cancelling an ongoing search",
+        "beforeDiscovery": "Cancellation before file discovery",
+        "duringProcessing": "Cancellation during file processing"
+      },
+      "progress": {
+        "title": "Progress Reporting Tests",
+        "description": "Tests for progress reporting during search",
+        "updates": "Progress updates during search",
+        "fileCounts": "File count accuracy in progress reports"
+      },
+      "errorHandling": {
+        "title": "Error Handling Tests",
+        "description": "Tests for error handling during search",
+        "fileReadErrors": "File read error handling",
+        "pathErrors": "Path error handling",
+        "invalidRegex": "Invalid regex pattern handling"
+      }
+    }
   }
 }
