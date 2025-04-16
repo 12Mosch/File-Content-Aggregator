@@ -236,10 +236,19 @@ export function extractSearchTermsFromQuery(
       // Remove quotes from terms like "database"
       const quotedMatch = term.match(/^"(.+)"$/);
       if (quotedMatch && quotedMatch[1]) {
+        const extractedTerm = quotedMatch[1].trim();
         console.log(
-          `[queryBuilderUtils] Extracted term from quoted string: '${quotedMatch[1]}'`
+          `[queryBuilderUtils] Extracted term from quoted string: '${extractedTerm}'`
         );
-        return quotedMatch[1];
+        return extractedTerm;
+      }
+
+      // Also check for AND/OR operators as standalone terms
+      if (term === "AND" || term === "OR") {
+        console.log(`[queryBuilderUtils] Found operator as term: '${term}'`);
+        // We don't want to highlight operators, so return an empty string
+        // that will be filtered out later
+        return "";
       }
     }
     return term;
@@ -303,12 +312,23 @@ export const convertStructuredQueryToString = (
   group: QueryGroup | null // Accept null
 ): string => {
   // Return empty string if group is null or has no conditions
-  if (!group || !group.conditions || group.conditions.length === 0) return "";
+  if (!group || !group.conditions || group.conditions.length === 0) {
+    console.log(
+      "[QueryBuilder] Empty group or no conditions, returning empty string"
+    );
+    return "";
+  }
+
+  // Debug: Log the group being converted
+  console.log(
+    `[QueryBuilder] Converting group with operator: ${group.operator} and ${group.conditions.length} conditions`
+  );
 
   const parts = group.conditions.map((item) => {
     if ("operator" in item) {
       // Recursively convert subgroup, wrap in parentheses if not empty
       const subQuery = convertStructuredQueryToString(item);
+      console.log(`[QueryBuilder] Subgroup converted to: ${subQuery}`);
       return subQuery ? `(${subQuery})` : "";
     } else {
       // Convert condition
@@ -317,13 +337,27 @@ export const convertStructuredQueryToString = (
           // *** FIX: Always quote simple terms ***
           // First check if the value is empty or just whitespace
           const trimmedValue = item.value.trim();
+          console.log(
+            `[QueryBuilder] Processing term condition with value: "${trimmedValue}"`
+          );
+
           if (!trimmedValue) {
             console.warn("Empty term value detected, skipping");
             return ""; // Return empty string for empty terms
           }
+          // Check if the value already has quotes
+          if (trimmedValue.startsWith('"') && trimmedValue.endsWith('"')) {
+            console.log(
+              `[QueryBuilder] Term already has quotes: ${trimmedValue}`
+            );
+            return trimmedValue; // Return as is if already quoted
+          }
+
           // Escape any existing double quotes within the value
           const escapedValue = trimmedValue.replace(/"/g, '\\"');
-          return `"${escapedValue}"`;
+          const result = `"${escapedValue}"`;
+          console.log(`[QueryBuilder] Term condition converted to: ${result}`);
+          return result;
         }
         case "regex": {
           // Check if the pattern is empty or just whitespace
@@ -377,5 +411,9 @@ export const convertStructuredQueryToString = (
   const validParts = parts.filter(Boolean);
   if (validParts.length === 0) return "";
   if (validParts.length === 1) return validParts[0]; // No need for operator if only one part
-  return validParts.join(` ${group.operator} `);
+
+  // Join parts with the group operator
+  const result = validParts.join(` ${group.operator} `);
+  console.log(`[QueryBuilder] Final query string: ${result}`);
+  return result;
 };

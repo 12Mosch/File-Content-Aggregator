@@ -592,6 +592,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
     // Convert the query structure to string using the state value
     let contentQueryString = "";
     if (currentQueryStructure) {
+      console.log(
+        "Submit: Query structure before conversion:",
+        JSON.stringify(currentQueryStructure, null, 2)
+      );
       contentQueryString = convertStructuredQueryToString(
         currentQueryStructure
       );
@@ -599,6 +603,42 @@ const SearchForm: React.FC<SearchFormProps> = ({
         "Submit: Converted structured query to string:",
         contentQueryString
       );
+
+      // Check if the query string is empty but we have conditions
+      if (
+        !contentQueryString &&
+        currentQueryStructure.conditions &&
+        currentQueryStructure.conditions.length > 0
+      ) {
+        console.warn(
+          "Query string is empty but we have conditions, checking for direct term values"
+        );
+
+        // Try to extract terms directly from conditions
+        const terms = currentQueryStructure.conditions
+          .filter(
+            (cond) =>
+              cond &&
+              "type" in cond &&
+              cond.type === "term" &&
+              typeof cond.value === "string"
+          )
+          .map((cond) => {
+            const value = (cond as any).value.trim();
+            // Quote the term if it's not already quoted
+            return value.startsWith('"') && value.endsWith('"')
+              ? value
+              : `"${value}"`;
+          })
+          .filter((term) => term.length > 0);
+
+        if (terms.length > 0) {
+          contentQueryString = terms.join(
+            ` ${currentQueryStructure.operator} `
+          );
+          console.log("Created fallback query string:", contentQueryString);
+        }
+      }
     }
 
     const hasContentQuery =

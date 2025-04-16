@@ -124,6 +124,7 @@ This powerful tool lets you define complex search criteria for the _content_ of 
     - Enter the text directly (e.g., `database connection`).
     - Use quotes (`"`) if your text includes spaces or keywords like `AND`, `OR`, `NOT`, `NEAR` (e.g., `"user OR admin"`).
     - Quoted terms like `"database"` will be automatically highlighted without the quotes in the search results.
+    - When using multiple search terms, all terms will be highlighted in violet in the content previews, making it easy to locate relevant parts of matched files.
     - The **Case-Sensitive** checkbox _below_ the builder applies _only_ to these simple `Term` conditions.
   - **Regex:** Finds text matching a regular expression pattern.
     - Enter the pattern between slashes (`/pattern/flags`).
@@ -161,7 +162,7 @@ The results are displayed in a Tree View:
 
 - Lists _all_ files that were processed (passed initial path/extension/metadata filters).
 - Click the arrow (`▶`/`▼`) or the file path to expand/collapse an item and view its content preview (if available).
-- **Matched Files:** Show a preview of their content (syntax highlighted where possible). **The specific search terms from your Content Query that caused the match will be highlighted** within the preview. Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
+- **Matched Files:** Show a preview of their content (syntax highlighted where possible). **The specific search terms from your Content Query that caused the match will be highlighted in violet** within the preview, making it easy to locate relevant parts of matched files. When using multiple search terms, all terms will be highlighted. Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
 - **Non-Matching Files:** Show only the file path (content preview is hidden).
 - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
 - **Copy Icon (📄):** Click the copy icon in the header of an expanded item to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
@@ -247,7 +248,9 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
 - **Search Term Highlighting Not Working:**
   - Highlighting only applies to the content preview of files that _matched_ the Content Query.
   - Search terms are highlighted in both plain text and syntax-highlighted code previews, making it easy to locate the relevant parts of matched files.
+  - Multiple search terms in the Content Query are all highlighted in violet, making it easy to spot all matches.
   - Quoted terms like `"database"` are automatically highlighted without the quotes.
+  - Boolean operators (AND, OR) are not highlighted, only the actual search terms.
   - Hover over highlighted terms to see more information about the highlighting feature.
 
 ## Feedback and Support

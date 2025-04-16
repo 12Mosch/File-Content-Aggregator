@@ -40,6 +40,7 @@
   "highlightingTerms": "Search terms are highlighted in violet in content previews",
   "highlightingQuotedTerms": "Quoted terms like \"database\" are automatically highlighted without quotes",
   "searchTermHighlight": "Search terms from your query are highlighted in violet",
+  "multipleTermsHighlight": "Multiple search terms are all highlighted in content previews",
   "loadingContent": "Loading content...",
   "contentError": "Error loading content",
   "noContentPreview": "No content preview available.",

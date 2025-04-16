@@ -347,37 +347,75 @@ function evaluateBooleanAst(
   caseSensitive: boolean
 ): boolean {
   if (!isJsepExpression(node)) {
-    // console.warn("evaluateBooleanAst called with non-Expression node:", node);
+    console.warn("evaluateBooleanAst called with non-Expression node:", node);
     return false;
+  }
+
+  // Debug: Log the node being evaluated
+  console.log(`[AST Eval] Evaluating node type: ${node.type}`);
+  if (node.type === "LogicalExpression" && isJsepLogicalExpression(node)) {
+    console.log(`[AST Eval] LogicalExpression operator: ${node.operator}`);
   }
 
   try {
     switch (node.type) {
+      case "BinaryExpression":
       case "LogicalExpression": {
-        if (!isJsepLogicalExpression(node)) return false;
+        // Handle both BinaryExpression and LogicalExpression the same way
+        // jsep parses "OR" and "AND" as BinaryExpression when they're quoted
+        console.log(`[AST Eval] ${node.type} operator: ${node.operator}`);
+
+        // Check if this is a valid expression with left and right nodes
+        if (!node.left || !node.right) {
+          console.warn(
+            `${node.type} node missing valid left or right child`,
+            node
+          );
+          return false;
+        }
+        // For both LogicalExpression and BinaryExpression, we need to check the left and right nodes
         if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
-          // console.warn("LogicalExpression node missing valid left or right child", node);
+          console.warn(
+            `${node.type} node has invalid left or right child`,
+            node
+          );
           return false;
         }
         // Evaluate left side first for potential short-circuiting
+        console.log(`[AST Eval] Evaluating left side of ${node.operator}`);
         const leftResult = evaluateBooleanAst(
           node.left,
           content,
           caseSensitive
         );
+        console.log(`[AST Eval] Left side result: ${leftResult}`);
+
         // Short-circuit OR
-        if (node.operator === "OR" && leftResult) return true;
+        if (node.operator === "OR" && leftResult) {
+          console.log(`[AST Eval] Short-circuit OR with true left side`);
+          return true;
+        }
         // Short-circuit AND
-        if (node.operator === "AND" && !leftResult) return false;
+        if (node.operator === "AND" && !leftResult) {
+          console.log(`[AST Eval] Short-circuit AND with false left side`);
+          return false;
+        }
+
         // Evaluate right side only if necessary
+        console.log(`[AST Eval] Evaluating right side of ${node.operator}`);
         const rightResult = evaluateBooleanAst(
           node.right,
           content,
           caseSensitive
         );
-        return node.operator === "OR"
-          ? leftResult || rightResult
-          : leftResult && rightResult;
+        console.log(`[AST Eval] Right side result: ${rightResult}`);
+
+        const finalResult =
+          node.operator === "OR"
+            ? leftResult || rightResult
+            : leftResult && rightResult;
+        console.log(`[AST Eval] ${node.operator} final result: ${finalResult}`);
+        return finalResult;
       }
       case "UnaryExpression": {
         if (!isJsepUnaryExpression(node)) return false;
@@ -411,16 +449,47 @@ function evaluateBooleanAst(
         if (!isJsepLiteral(node)) return false;
         if (typeof node.value === "string") {
           const termLiteralStr = node.value;
-          // console.log(`[AST Eval] Literal: "${termLiteralStr}"`); // DEBUG
+          console.log(`[AST Eval] Literal: "${termLiteralStr}"`); // DEBUG
           const regexFromLiteral = parseRegexLiteral(termLiteralStr);
           if (regexFromLiteral) {
             // This allows using regex literals like /pattern/i within the builder
-            return regexFromLiteral.test(content);
+            const result = regexFromLiteral.test(content);
+            console.log(`[AST Eval] Regex literal test result: ${result}`);
+            return result;
           } else {
             // Simple term search for the literal value
-            return caseSensitive
-              ? content.includes(termLiteralStr)
-              : content.toLowerCase().includes(termLiteralStr.toLowerCase());
+            console.log(
+              `[AST Eval] Performing simple term search for: "${termLiteralStr}"`
+            );
+            console.log(`[AST Eval] Case sensitive: ${caseSensitive}`);
+
+            // Remove quotes if the term is quoted
+            let searchTerm = termLiteralStr;
+            if (searchTerm.startsWith('"') && searchTerm.endsWith('"')) {
+              searchTerm = searchTerm.substring(1, searchTerm.length - 1);
+              console.log(
+                `[AST Eval] Removed quotes, searching for: "${searchTerm}"`
+              );
+            }
+
+            // Check if the term is in the content
+            let found = false;
+            if (caseSensitive) {
+              found = content.includes(searchTerm);
+              console.log(
+                `[AST Eval] Case-sensitive search: ${found ? "FOUND" : "NOT FOUND"}`
+              );
+            } else {
+              found = content.toLowerCase().includes(searchTerm.toLowerCase());
+              console.log(
+                `[AST Eval] Case-insensitive search: ${found ? "FOUND" : "NOT FOUND"}`
+              );
+            }
+
+            console.log(
+              `[AST Eval] Simple term search result: ${found} for term "${termLiteralStr}"`
+            );
+            return found;
           }
         }
         if (typeof node.value === "boolean") {
@@ -1213,25 +1282,53 @@ export async function searchFiles(
       case "boolean": {
         try {
           // Configure jsep for AND/OR/NOT/NEAR
+          // Reset jsep operators to ensure clean state
           if (jsep.binary_ops["||"]) jsep.removeBinaryOp("||");
           if (jsep.binary_ops["&&"]) jsep.removeBinaryOp("&&");
           if (jsep.unary_ops["!"]) jsep.removeUnaryOp("!");
-          if (!jsep.binary_ops["AND"]) jsep.addBinaryOp("AND", 1);
-          if (!jsep.binary_ops["OR"]) jsep.addBinaryOp("OR", 0);
-          if (!jsep.unary_ops["NOT"]) jsep.addUnaryOp("NOT");
+
+          // Add our custom operators
+          jsep.addBinaryOp("AND", 1);
+          jsep.addBinaryOp("OR", 0);
+          jsep.addUnaryOp("NOT");
+
+          console.log(
+            "[SearchService] Configured jsep for boolean search with operators: AND, OR, NOT"
+          );
+
+          // Log the operators to make sure they're registered correctly
+          console.log("[SearchService] Binary operators:", jsep.binary_ops);
+          console.log("[SearchService] Unary operators:", jsep.unary_ops);
           // Note: NEAR is handled as a CallExpression within evaluateBooleanAst
 
+          console.log(
+            `[SearchService] Parsing boolean query: "${contentSearchTerm}"`
+          );
           const parsedAst = jsep(contentSearchTerm);
-          // console.log("[SearchService] Parsed Boolean AST:", JSON.stringify(parsedAst, null, 2));
+          console.log(
+            "[SearchService] Parsed Boolean AST:",
+            JSON.stringify(parsedAst, null, 2)
+          );
+          console.log(`[SearchService] AST type: ${parsedAst.type}`);
+          if (
+            parsedAst.type === "Literal" &&
+            typeof parsedAst.value === "string"
+          ) {
+            console.log(`[SearchService] Literal value: "${parsedAst.value}"`);
+          }
           // Create matcher function that evaluates the AST
           contentMatcher = (content) => {
             // Clear cache for this specific content before evaluation
             wordBoundariesCache.delete(content);
+            console.log(
+              `[SearchService] Evaluating boolean query: "${contentSearchTerm}"`
+            );
             const result = evaluateBooleanAst(
               parsedAst,
               content,
               caseSensitive // Pass case sensitivity from params
             );
+            console.log(`[SearchService] Boolean query result: ${result}`);
             // No need to clear cache here, evaluateBooleanAst handles cleanup on error
             return result;
           };
@@ -1285,14 +1382,36 @@ export async function searchFiles(
       case "term":
       default: {
         // This case should not be hit if mode is "boolean"
-        // console.warn(`[SearchService] Unexpectedly entered 'term' matching case with mode: ${contentSearchMode}`);
+        console.log(
+          `[SearchService] Term matching with: "${contentSearchTerm}"`
+        );
         // Simple term matching
+        // Remove quotes if the term is quoted
+        let searchTerm = contentSearchTerm;
+        if (searchTerm.startsWith('"') && searchTerm.endsWith('"')) {
+          searchTerm = searchTerm.substring(1, searchTerm.length - 1);
+          console.log(
+            `[SearchService] Removed quotes, searching for: "${searchTerm}"`
+          );
+        }
+
         if (caseSensitive) {
-          contentMatcher = (content) => content.includes(contentSearchTerm);
+          contentMatcher = (content) => {
+            const result = content.includes(searchTerm);
+            console.log(
+              `[SearchService] Term match result (case-sensitive): ${result}`
+            );
+            return result;
+          };
         } else {
-          const searchTermLower = contentSearchTerm.toLowerCase();
-          contentMatcher = (content) =>
-            content.toLowerCase().includes(searchTermLower);
+          const searchTermLower = searchTerm.toLowerCase();
+          contentMatcher = (content) => {
+            const result = content.toLowerCase().includes(searchTermLower);
+            console.log(
+              `[SearchService] Term match result (case-insensitive): ${result}`
+            );
+            return result;
+          };
         }
         break;
       }

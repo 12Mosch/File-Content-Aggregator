@@ -71,18 +71,30 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
         // Process the term to handle various formats
         let searchTerm = term.trim();
 
+        console.log(`[HighlightMatches] Processing term: "${searchTerm}"`);
+
         // Check for "Term:" prefix
         const termMatch = searchTerm.match(/^Term:\s*(.+)$/i);
         if (termMatch && termMatch[1]) {
           searchTerm = termMatch[1].trim();
-          // Term extracted successfully
+          console.log(
+            `[HighlightMatches] Extracted term from Term: prefix: "${searchTerm}"`
+          );
         }
 
         // Check for quoted strings like "database"
         const quotedMatch = searchTerm.match(/^"(.+)"$/);
         if (quotedMatch && quotedMatch[1]) {
           searchTerm = quotedMatch[1].trim();
-          // Quoted term extracted successfully
+          console.log(
+            `[HighlightMatches] Extracted term from quotes: "${searchTerm}"`
+          );
+        }
+
+        // Skip empty terms
+        if (searchTerm.length === 0) {
+          console.log(`[HighlightMatches] Skipping empty term`);
+          return;
         }
         regex = new RegExp(
           escapeRegExp(searchTerm),
@@ -153,9 +165,10 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
           title={tooltipText}
           style={{
             display: "inline-block",
-            backgroundColor: "#8a2be2", // Violet color
+            backgroundColor: "#8a2be2", // Violet color (user preference)
             color: "white",
             opacity: 0.9,
+            fontWeight: "bold",
           }}
         >
           {text.substring(match.start, match.end)}

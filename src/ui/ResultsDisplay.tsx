@@ -595,55 +595,56 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     const terms = extractSearchTermsFromQuery(searchQueryStructure);
     console.log("Search terms for highlighting:", terms);
 
-    // Debug: Check if terms array is empty
-    if (!terms || terms.length === 0) {
-      console.warn(
-        "No search terms extracted from query structure:",
-        searchQueryStructure
-      );
-
-      // If we have a search query structure but no terms were extracted,
-      // try to extract terms directly from the conditions
-      if (
-        searchQueryStructure.conditions &&
-        searchQueryStructure.conditions.length > 0
-      ) {
-        // Look for term conditions and extract their values
-        const fallbackTerms = searchQueryStructure.conditions
-          .filter(
-            (cond) =>
-              cond &&
-              "type" in cond &&
-              cond.type === "term" &&
-              typeof cond.value === "string" &&
-              cond.value.trim().length > 0
-          )
-          .map((cond) => ("value" in cond ? cond.value.trim() : ""))
-          .filter((term) => term.length > 0); // Filter out any empty strings
-
-        if (fallbackTerms.length > 0) {
-          console.log("Using fallback terms for highlighting:", fallbackTerms);
-          return fallbackTerms;
-        }
-      }
-
-      // If we still don't have any terms, try to use a default term
-      if (
-        searchQueryStructure.conditions &&
-        searchQueryStructure.conditions.length > 0
-      ) {
-        // Just use a default term based on the operator
-        const defaultTerm =
-          searchQueryStructure.operator === "AND" ? "AND" : "OR";
-        console.log("Using default term based on operator:", defaultTerm);
-        return [defaultTerm];
-      }
-
-      // If all else fails, return empty array
-      return [];
+    // If we have terms, return them
+    if (terms && terms.length > 0) {
+      return terms;
     }
 
-    return terms;
+    // Debug: Check if terms array is empty
+    console.warn(
+      "No search terms extracted from query structure:",
+      searchQueryStructure
+    );
+
+    // If we have a search query structure but no terms were extracted,
+    // try to extract terms directly from the conditions
+    if (
+      searchQueryStructure.conditions &&
+      searchQueryStructure.conditions.length > 0
+    ) {
+      // Look for term conditions and extract their values
+      const fallbackTerms = searchQueryStructure.conditions
+        .filter(
+          (cond) =>
+            cond &&
+            "type" in cond &&
+            cond.type === "term" &&
+            typeof cond.value === "string" &&
+            cond.value.trim().length > 0
+        )
+        .map((cond) => ("value" in cond ? cond.value.trim() : ""))
+        .filter((term) => term.length > 0); // Filter out any empty strings
+
+      if (fallbackTerms.length > 0) {
+        console.log("Using fallback terms for highlighting:", fallbackTerms);
+        return fallbackTerms;
+      }
+    }
+
+    // If we still don't have any terms, try to use a default term
+    if (
+      searchQueryStructure.conditions &&
+      searchQueryStructure.conditions.length > 0
+    ) {
+      // Just use a default term based on the operator
+      const defaultTerm =
+        searchQueryStructure.operator === "AND" ? "AND" : "OR";
+      console.log("Using default term based on operator:", defaultTerm);
+      return [defaultTerm];
+    }
+
+    // If all else fails, return empty array
+    return [];
   }, [searchQueryStructure, searchHighlightTerms]);
 
   // --- Determine if a content query was active ---
