@@ -38,6 +38,7 @@ Unit tests focus on testing individual functions and components in isolation. Th
 **Naming Convention:** `[filename].test.ts`
 
 **Example:**
+
 ```typescript
 // tests/unit/ui/highlightHtmlUtils.test.ts
 import { highlightTermsInHtml } from "../../../src/ui/highlightHtmlUtils";
@@ -59,6 +60,7 @@ Boundary tests are a subset of unit tests that focus on edge cases and boundary 
 **Naming Convention:** `[filename].boundary.test.ts`
 
 **Example:**
+
 ```typescript
 // tests/unit/ui/highlightHtmlUtils.boundary.test.ts
 import { highlightTermsInHtml } from "../../../src/ui/highlightHtmlUtils";
@@ -81,6 +83,7 @@ Performance tests verify that functions perform efficiently with large inputs or
 **Naming Convention:** `[filename].performance.test.ts`
 
 **Example:**
+
 ```typescript
 // tests/unit/ui/highlightHtmlUtils.performance.test.ts
 import { highlightTermsInHtml } from "../../../src/ui/highlightHtmlUtils";
@@ -104,6 +107,7 @@ Integration tests verify that multiple components work together correctly.
 **Naming Convention:** `[feature].test.ts`
 
 **Example:**
+
 ```typescript
 // tests/integration/search/highlighting.test.ts
 import { highlightTermsInHtml } from "../../../src/ui/highlightHtmlUtils";
@@ -122,12 +126,12 @@ describe("Search Highlighting Integration", () => {
 
 You can run tests using the following npm scripts:
 
-| Command | Description |
-|---------|-------------|
-| `npm test` | Run all tests |
-| `npm run test:unit` | Run only unit tests |
-| `npm run test:integration` | Run only integration tests |
-| `npm run test:coverage` | Run all tests with coverage reporting |
+| Command                    | Description                           |
+| -------------------------- | ------------------------------------- |
+| `npm test`                 | Run all tests                         |
+| `npm run test:unit`        | Run only unit tests                   |
+| `npm run test:integration` | Run only integration tests            |
+| `npm run test:coverage`    | Run all tests with coverage reporting |
 
 ## Test Coverage
 
@@ -175,14 +179,17 @@ beforeEach(() => {
 When writing new tests, follow these guidelines:
 
 1. **Place tests in the appropriate directory**
+
    - Unit tests go in `tests/unit/[module]/`
    - Integration tests go in `tests/integration/[feature]/`
 
 2. **Use descriptive test names**
+
    - Test names should describe what is being tested
    - Use the format "should [expected behavior] when [condition]"
 
 3. **Test edge cases**
+
    - Empty inputs
    - Null or undefined values
    - Very large inputs
@@ -190,10 +197,12 @@ When writing new tests, follow these guidelines:
    - Invalid inputs
 
 4. **Keep tests focused**
+
    - Each test should verify one specific behavior
    - Use multiple small tests rather than one large test
 
 5. **Use appropriate assertions**
+
    - Be specific about what you're testing
    - Use the most appropriate matcher for the situation
 
@@ -210,20 +219,31 @@ Tests are run automatically as part of our CI/CD pipeline. Pull requests must pa
 If you encounter issues with tests:
 
 1. **Check the test environment**
+
    - Make sure all dependencies are installed
    - Verify that the test environment is properly configured
 
 2. **Isolate the problem**
+
    - Run specific test files or test cases
    - Use `test.only()` to run only a specific test
 
 3. **Check for timing issues**
+
    - Some tests may fail due to timing issues
    - Use Jest's async testing capabilities for asynchronous code
 
 4. **Verify mocks**
    - Make sure mocks are properly set up
    - Reset mocks between tests
+
+## Feature-Specific Testing Documentation
+
+Detailed documentation for specific feature tests:
+
+- [Fuzzy Search Tests](./fuzzy-search-tests.md): Tests for fuzzy search configuration and behavior
+- [Highlighting Tests](./highlighting-tests.md): Tests for term highlighting in search results
+- [Search Pipeline Tests](./search-pipeline-tests.md): Tests for the end-to-end search process
 
 ## Resources
 
