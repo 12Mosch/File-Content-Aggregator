@@ -17,11 +17,11 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test progress reporting
   - ✅ Test error handling during search
 
-- **UI Integration**
-  - Test search results display
-  - Test tree view expansion/collapse
-  - Test file content preview loading
-  - Test search term highlighting in previews
+- ✅ **UI Integration** (Implemented in `tests/integration/ui/uiIntegration.test.ts`)
+  - ✅ Test search results display
+  - ✅ Test tree view expansion/collapse
+  - ✅ Test file content preview loading
+  - ✅ Test search term highlighting in previews
 
 ## Highlighting Functionality
 

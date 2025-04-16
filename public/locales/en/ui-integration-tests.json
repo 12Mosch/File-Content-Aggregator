@@ -1,0 +1,31 @@
+{
+  "tests": {
+    "uiIntegration": {
+      "title": "UI Integration Tests",
+      "description": "Tests for the UI components integration",
+      "searchResults": {
+        "title": "Search Results Display Tests",
+        "description": "Tests for displaying search results in the UI",
+        "displayResults": "Display search results correctly"
+      },
+      "treeView": {
+        "title": "Tree View Tests",
+        "description": "Tests for tree view expansion and collapse",
+        "expandCollapse": "Handle tree view expansion and collapse"
+      },
+      "contentPreview": {
+        "title": "Content Preview Tests",
+        "description": "Tests for file content preview loading",
+        "loadPreview": "Handle file content preview loading"
+      },
+      "highlighting": {
+        "title": "Search Term Highlighting Tests",
+        "description": "Tests for highlighting search terms in content previews",
+        "highlightHtml": "Highlight search terms in HTML content",
+        "highlightFuzzy": "Highlight fuzzy search matches in content",
+        "highlightNear": "Highlight NEAR operator matches in content",
+        "highlightUnicode": "Highlight search terms with Unicode characters"
+      }
+    }
+  }
+}
