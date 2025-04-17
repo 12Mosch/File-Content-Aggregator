@@ -119,10 +119,10 @@ This document outlines the testing strategy for the File Content Aggregator appl
 ## UI and Settings Tests
 
 ### Unit Tests
-- **Settings Management**
-  - **NEW:** Test saving/loading of fuzzy search settings
-  - **NEW:** Test default settings values
-  - **NEW:** Test settings validation
+- ✅ **Settings Management** (Implemented in `tests/unit/settings/settingsManagement.test.ts`, documented in `docs/tests/settings-management-tests.md`)
+  - ✅ Test saving/loading of fuzzy search settings
+  - ✅ Test default settings values
+  - ✅ Test settings validation
 
 ### Integration Tests
 - **Settings UI**

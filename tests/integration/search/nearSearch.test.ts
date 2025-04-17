@@ -1,10 +1,21 @@
 import "@jest/globals";
-import { SearchResult, ProgressData } from "../../../src/types/searchTypes";
+import {
+  SearchResult,
+  ProgressData,
+  SearchParams as BaseSearchParams,
+} from "../../../src/ui/vite-env.d";
+
+// Extend the SearchParams type for testing
+interface SearchParams extends BaseSearchParams {
+  fuzzySearchEnabled?: boolean;
+  fuzzySearchBooleanEnabled?: boolean;
+  fuzzySearchNearEnabled?: boolean;
+}
 
 // Mock the searchFiles function
 const searchFiles = jest.fn<
   Promise<SearchResult>,
-  [any, (data: ProgressData) => void, () => boolean]
+  [SearchParams, (data: ProgressData) => void, () => boolean]
 >();
 
 // Mock the file system operations and other dependencies
@@ -59,25 +70,25 @@ describe("NEAR Operator Integration Tests", () => {
               filePath: "file1.txt",
               matched: false,
               size: 1024,
-              mtime: new Date(),
+              mtime: Date.now(),
             },
             {
               filePath: "file2.md",
               matched: false,
               size: 2048,
-              mtime: new Date(),
+              mtime: Date.now(),
             },
             {
               filePath: "subfolder/file3.js",
               matched: false,
               size: 512,
-              mtime: new Date(),
+              mtime: Date.now(),
             },
             {
               filePath: "subfolder/file4.ts",
               matched: false,
               size: 768,
-              mtime: new Date(),
+              mtime: Date.now(),
             },
           ],
           filesProcessed: 4,
@@ -130,7 +141,7 @@ describe("NEAR Operator Integration Tests", () => {
           processed: 2,
           total: 4,
           message: "Processing files...",
-          status: "processing",
+          status: "searching",
         });
 
         // Report completion
@@ -321,7 +332,7 @@ describe("NEAR Operator Integration Tests", () => {
             processed: 0,
             total: 1,
             message: "Processing large file...",
-            status: "processing",
+            status: "searching",
           });
 
           // Simulate completion
@@ -338,7 +349,7 @@ describe("NEAR Operator Integration Tests", () => {
                 filePath: "large-file.txt",
                 matched: true,
                 size: 10 * 1024 * 1024, // 10MB
-                mtime: new Date(),
+                mtime: Date.now(),
               },
             ],
             filesProcessed: 1,
