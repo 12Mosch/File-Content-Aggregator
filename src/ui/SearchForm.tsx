@@ -38,7 +38,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, X, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarIcon, X, Loader2, TextQuote } from "lucide-react";
 import type { Matcher } from "react-day-picker";
 
 // Define unit constants for calculations
@@ -183,12 +184,63 @@ const SearchForm: React.FC<SearchFormProps> = ({
     null
   );
   const [queryCaseSensitive, setQueryCaseSensitive] = useState<boolean>(false);
+  const [wholeWordMatchingEnabled, setWholeWordMatchingEnabled] =
+    useState<boolean>(false);
 
   const [isAfterPopoverOpen, setIsAfterPopoverOpen] = useState(false);
   const [isBeforePopoverOpen, setIsBeforePopoverOpen] = useState(false);
   // State to hold the raw string input for dates
   const [rawAfterDate, setRawAfterDate] = useState<string>("");
   const [rawBeforeDate, setRawBeforeDate] = useState<string>("");
+
+  // Function to toggle whole word matching setting
+  const toggleWholeWordMatching = async () => {
+    if (window.electronAPI?.setWholeWordMatchingEnabled) {
+      try {
+        const newValue = !wholeWordMatchingEnabled;
+        await window.electronAPI.setWholeWordMatchingEnabled(newValue);
+        setWholeWordMatchingEnabled(newValue);
+        // No need to dispatch event since we're updating the state directly
+      } catch (err) {
+        console.error("Error toggling whole word matching setting:", err);
+      }
+    }
+  };
+
+  // Effect to fetch whole word matching setting and listen for changes
+  useEffect(() => {
+    // Function to fetch the whole word matching setting
+    const fetchWholeWordMatchingSetting = async () => {
+      if (window.electronAPI?.getWholeWordMatchingEnabled) {
+        try {
+          const enabled =
+            await window.electronAPI.getWholeWordMatchingEnabled();
+          setWholeWordMatchingEnabled(enabled);
+        } catch (err) {
+          console.error("Error fetching whole word matching setting:", err);
+        }
+      }
+    };
+
+    // Fetch the setting initially
+    void fetchWholeWordMatchingSetting();
+
+    // Create a custom event listener for setting changes
+    const handleSettingChange = () => {
+      void fetchWholeWordMatchingSetting();
+    };
+
+    // Listen for the custom event
+    window.addEventListener("whole-word-matching-changed", handleSettingChange);
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      window.removeEventListener(
+        "whole-word-matching-changed",
+        handleSettingChange
+      );
+    };
+  }, []);
 
   // Effect to load data from history entry
   useEffect(() => {
@@ -879,36 +931,94 @@ const SearchForm: React.FC<SearchFormProps> = ({
             />
           </div>
           <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
-            <Label
-              htmlFor="contentSearchMode"
-              className="text-xs text-muted-foreground"
-            >
-              {t("contentSearchModeLabel")}
-            </Label>
-            <Select
-              name="contentSearchMode"
-              value={formData.contentSearchMode}
-              onValueChange={handleSelectChange("contentSearchMode")}
-              disabled={isLoading}
-            >
-              <SelectTrigger
-                id="contentSearchMode"
-                className="w-full sm:w-[200px]"
+            <div className="flex flex-col space-y-1">
+              <Label
+                htmlFor="contentSearchMode"
+                className="text-xs text-muted-foreground"
               >
-                <SelectValue placeholder={t("contentSearchModeLabel")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="boolean">
-                  {t("contentSearchModeBoolean")}
-                </SelectItem>
-                <SelectItem value="term">
-                  {t("contentSearchModeTerm")}
-                </SelectItem>
-                <SelectItem value="regex">
-                  {t("contentSearchModeRegex")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                {t("contentSearchModeLabel")}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  name="contentSearchMode"
+                  value={formData.contentSearchMode}
+                  onValueChange={handleSelectChange("contentSearchMode")}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger
+                    id="contentSearchMode"
+                    className="w-full sm:w-[200px]"
+                  >
+                    <SelectValue placeholder={t("contentSearchModeLabel")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="boolean">
+                      {t("contentSearchModeBoolean")}
+                    </SelectItem>
+                    <SelectItem value="term">
+                      {t("contentSearchModeTerm")}
+                    </SelectItem>
+                    <SelectItem value="regex">
+                      {t("contentSearchModeRegex")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative w-[120px] h-5 overflow-hidden">
+                  {/* Badge when whole word matching is enabled */}
+                  <div
+                    className={`absolute inset-0 transition-all duration-300 ease-in-out transform ${wholeWordMatchingEnabled ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
+                  >
+                    <Badge
+                      variant="outline"
+                      className={`py-0 h-5 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20 flex items-center gap-1 transition-colors duration-200 shadow-sm cursor-pointer ${wholeWordMatchingEnabled ? "animate-pulse-subtle" : ""}`}
+                      title={t("common:wholeWordMatchingEnabledLabel")}
+                      onClick={() => void toggleWholeWordMatching()}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          void toggleWholeWordMatching();
+                        }
+                      }}
+                    >
+                      <TextQuote className="h-3 w-3" />
+                      <span className="text-xs">
+                        {t("common:wholeWordMatchingShort", "Whole Word")}
+                      </span>
+                    </Badge>
+                  </div>
+
+                  {/* Badge when whole word matching is disabled */}
+                  <div
+                    className={`absolute inset-0 transition-all duration-300 ease-in-out transform ${!wholeWordMatchingEnabled ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
+                  >
+                    <Badge
+                      variant="outline"
+                      className="py-0 h-5 bg-muted/30 hover:bg-muted/50 text-muted-foreground border-muted/30 flex items-center gap-1 transition-colors duration-200 cursor-pointer"
+                      title={t(
+                        "common:wholeWordMatchingDisabledLabel",
+                        "Enable Whole Word Matching"
+                      )}
+                      onClick={() => void toggleWholeWordMatching()}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          void toggleWholeWordMatching();
+                        }
+                      }}
+                    >
+                      <TextQuote className="h-3 w-3" />
+                      <span className="text-xs">
+                        {t("common:wholeWordMatchingShort", "Whole Word")}
+                      </span>
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -26,7 +26,7 @@ import {
   SearchResult,
   CancellationChecker,
   StructuredItem,
-  updateFuzzySearchSettings,
+  updateSearchSettings,
 } from "./fileSearchService.js";
 import type {
   ExportFormat,
@@ -54,6 +54,7 @@ const THEME_PREFERENCE_KEY = "themePreference";
 const DEFAULT_EXPORT_FORMAT_KEY = "defaultExportFormat";
 const FUZZY_SEARCH_BOOLEAN_ENABLED_KEY = "fuzzySearchBooleanEnabled";
 const FUZZY_SEARCH_NEAR_ENABLED_KEY = "fuzzySearchNearEnabled";
+const WHOLE_WORD_MATCHING_ENABLED_KEY = "wholeWordMatchingEnabled";
 type ThemePreference = "light" | "dark" | "system";
 const EXPORT_CONTENT_READ_CONCURRENCY = 10;
 
@@ -112,6 +113,11 @@ const schema = {
     type: "boolean",
     default: true,
   },
+  // Setting for whole word matching
+  [WHOLE_WORD_MATCHING_ENABLED_KEY]: {
+    type: "boolean",
+    default: false,
+  },
 };
 const store = new Store<{
   userLanguage?: string;
@@ -120,6 +126,7 @@ const store = new Store<{
   defaultExportFormat: ExportFormat;
   fuzzySearchBooleanEnabled: boolean;
   fuzzySearchNearEnabled: boolean;
+  wholeWordMatchingEnabled: boolean;
 }>({ schema });
 
 const i18nMain = i18next.createInstance();
@@ -343,7 +350,7 @@ void app.whenReady().then(async () => {
       `Main: Initial nativeTheme.themeSource set to "${storedTheme}"`
     );
 
-    // Initialize fuzzy search settings
+    // Initialize search settings
     const fuzzySearchBooleanEnabled = store.get(
       FUZZY_SEARCH_BOOLEAN_ENABLED_KEY,
       true
@@ -352,12 +359,18 @@ void app.whenReady().then(async () => {
       FUZZY_SEARCH_NEAR_ENABLED_KEY,
       true
     );
-    updateFuzzySearchSettings(
+    const wholeWordMatchingEnabled = store.get(
+      WHOLE_WORD_MATCHING_ENABLED_KEY,
+      false
+    );
+    // Use the new updateSearchSettings function
+    updateSearchSettings(
       fuzzySearchBooleanEnabled,
-      fuzzySearchNearEnabled
+      fuzzySearchNearEnabled,
+      wholeWordMatchingEnabled
     );
     console.log(
-      `Main: Initial fuzzy search settings - Boolean: ${fuzzySearchBooleanEnabled}, NEAR: ${fuzzySearchNearEnabled}`
+      `Main: Initial search settings - Boolean: ${fuzzySearchBooleanEnabled}, NEAR: ${fuzzySearchNearEnabled}, WholeWord: ${wholeWordMatchingEnabled}`
     );
   } catch (error: unknown) {
     console.error(
@@ -1313,7 +1326,11 @@ ipcMain.handle(
 
         // Update the settings in fileSearchService
         const nearEnabled = store.get(FUZZY_SEARCH_NEAR_ENABLED_KEY, true);
-        updateFuzzySearchSettings(enabled, nearEnabled);
+        const wholeWordEnabled = store.get(
+          WHOLE_WORD_MATCHING_ENABLED_KEY,
+          false
+        );
+        updateSearchSettings(enabled, nearEnabled, wholeWordEnabled);
       } catch (error: unknown) {
         console.error(
           "IPC: Error setting fuzzy search Boolean enabled:",
@@ -1363,10 +1380,65 @@ ipcMain.handle(
           FUZZY_SEARCH_BOOLEAN_ENABLED_KEY,
           true
         );
-        updateFuzzySearchSettings(booleanEnabled, enabled);
+        const wholeWordEnabled = store.get(
+          WHOLE_WORD_MATCHING_ENABLED_KEY,
+          false
+        );
+        updateSearchSettings(booleanEnabled, enabled, wholeWordEnabled);
       } catch (error: unknown) {
         console.error(
           "IPC: Error setting fuzzy search NEAR enabled:",
+          error instanceof Error ? error.message : error
+        );
+      }
+      resolve();
+    });
+  }
+);
+
+/**
+ * Gets the whole word matching enabled preference.
+ */
+ipcMain.handle("get-whole-word-matching-enabled", (event): Promise<boolean> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve(false); // Default fallback
+  return new Promise((resolve) => {
+    try {
+      const enabled = store.get(WHOLE_WORD_MATCHING_ENABLED_KEY, false);
+      resolve(enabled);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting whole word matching enabled:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(false); // Default fallback on error
+    }
+  });
+});
+
+/**
+ * Sets the whole word matching enabled preference.
+ */
+ipcMain.handle(
+  "set-whole-word-matching-enabled",
+  (event, enabled: boolean): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        store.set(WHOLE_WORD_MATCHING_ENABLED_KEY, enabled);
+        console.log(
+          `IPC: Whole word matching ${enabled ? "enabled" : "disabled"}`
+        );
+
+        // Update the settings in fileSearchService
+        const booleanEnabled = store.get(
+          FUZZY_SEARCH_BOOLEAN_ENABLED_KEY,
+          true
+        );
+        const nearEnabled = store.get(FUZZY_SEARCH_NEAR_ENABLED_KEY, true);
+        updateSearchSettings(booleanEnabled, nearEnabled, enabled);
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error setting whole word matching enabled:",
           error instanceof Error ? error.message : error
         );
       }

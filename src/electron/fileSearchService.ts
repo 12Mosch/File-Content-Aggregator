@@ -35,20 +35,32 @@ const jsep = require("jsep") as typeof import("jsep");
 type ContentSearchMode = "term" | "regex" | "boolean";
 // -----------------------------------------------------
 
-// Get the fuzzy search settings from the store
+// Get the search settings from the store
 let fuzzySearchBooleanEnabled = true;
 let fuzzySearchNearEnabled = true;
+let wholeWordMatchingEnabled = false;
 
-// Function to update the fuzzy search settings
+// Function to update the search settings
+export function updateSearchSettings(
+  booleanEnabled: boolean,
+  nearEnabled: boolean,
+  wholeWordEnabled: boolean
+) {
+  fuzzySearchBooleanEnabled = booleanEnabled;
+  fuzzySearchNearEnabled = nearEnabled;
+  wholeWordMatchingEnabled = wholeWordEnabled;
+  console.log(
+    `[SearchService] Search settings updated: Boolean=${fuzzySearchBooleanEnabled}, NEAR=${fuzzySearchNearEnabled}, WholeWord=${wholeWordMatchingEnabled}`
+  );
+}
+
+// Legacy function for backward compatibility
 export function updateFuzzySearchSettings(
   booleanEnabled: boolean,
   nearEnabled: boolean
 ) {
-  fuzzySearchBooleanEnabled = booleanEnabled;
-  fuzzySearchNearEnabled = nearEnabled;
-  console.log(
-    `[SearchService] Fuzzy search settings updated: Boolean=${fuzzySearchBooleanEnabled}, NEAR=${fuzzySearchNearEnabled}`
-  );
+  // Call the new function with the current value of wholeWordMatchingEnabled
+  updateSearchSettings(booleanEnabled, nearEnabled, wholeWordMatchingEnabled);
 }
 
 // --- Interfaces ---
@@ -122,6 +134,15 @@ export type CancellationChecker = () => boolean;
 const FILE_OPERATION_CONCURRENCY_LIMIT = 20; // Consider lowering if OOM persists
 
 // --- Helper Functions ---
+/**
+ * Escapes special characters in a string for use in a regular expression.
+ * @param string The string to escape.
+ * @returns The escaped string.
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+}
+
 function parseDateStartOfDay(dateString: string | undefined): Date | null {
   if (!dateString) return null;
   try {
@@ -242,13 +263,15 @@ function isJsepUnaryExpression(node: unknown): node is Jsep.UnaryExpression {
  * @param term The string or RegExp to find.
  * @param caseSensitive Whether string search should be case-sensitive.
  * @param isRegex Whether the term is a RegExp object.
+ * @param useWholeWordMatching Whether to match whole words only (applies only to string terms).
  * @returns An array of starting indices.
  */
 export function findTermIndices(
   content: string,
   term: string | RegExp,
   caseSensitive: boolean,
-  isRegex: boolean
+  isRegex: boolean,
+  useWholeWordMatching: boolean = false
 ): number[] {
   const indices: number[] = [];
   if (!term) return indices;
@@ -268,11 +291,43 @@ export function findTermIndices(
       }
     }
   } else if (typeof term === "string") {
-    const searchTerm = caseSensitive ? term : term.toLowerCase();
-    const searchContent = caseSensitive ? content : content.toLowerCase();
-    let i = -1;
-    while ((i = searchContent.indexOf(searchTerm, i + 1)) !== -1) {
-      indices.push(i);
+    if (useWholeWordMatching) {
+      // Use regex with word boundaries for whole word matching
+      const flags = caseSensitive ? "g" : "gi";
+      const wordBoundaryRegex = new RegExp(
+        `\\b${escapeRegExp(term)}\\b`,
+        flags
+      );
+      let match;
+
+      // Test if the regex matches any whole words in the content
+      while ((match = wordBoundaryRegex.exec(content)) !== null) {
+        // Check if this is a whole word match and not part of another word
+        const beforeChar =
+          match.index > 0 ? content.charAt(match.index - 1) : "";
+        const afterChar =
+          match.index + term.length < content.length
+            ? content.charAt(match.index + term.length)
+            : "";
+
+        // Verify it's truly a whole word by checking surrounding characters
+        if (!/\w/.test(beforeChar) && !/\w/.test(afterChar)) {
+          indices.push(match.index);
+        }
+
+        // Prevent infinite loops with zero-width matches
+        if (match.index === wordBoundaryRegex.lastIndex) {
+          wordBoundaryRegex.lastIndex++;
+        }
+      }
+    } else {
+      // Standard substring search
+      const searchTerm = caseSensitive ? term : term.toLowerCase();
+      const searchContent = caseSensitive ? content : content.toLowerCase();
+      let i = -1;
+      while ((i = searchContent.indexOf(searchTerm, i + 1)) !== -1) {
+        indices.push(i);
+      }
     }
   }
   return indices;
@@ -545,20 +600,68 @@ export function evaluateBooleanAst(
             // Check if the term is in the content
             let found = false;
 
-            // First try exact match
-            if (caseSensitive) {
-              found = content.includes(searchTerm);
+            // First try exact match with optional whole word matching
+            if (wholeWordMatchingEnabled) {
+              // Create a regex with word boundary markers for whole word matching
+
+              // Test if the regex matches any whole words in the content
+              let match;
+              const matches = [];
+              const testContent = caseSensitive
+                ? content
+                : content.toLowerCase();
+              const testRegex = new RegExp(
+                `\\b${escapeRegExp(searchTerm)}\\b`,
+                caseSensitive ? "g" : "gi"
+              );
+
+              while ((match = testRegex.exec(testContent)) !== null) {
+                // Check if this is a whole word match and not part of another word
+                const matchedText = testContent.substring(
+                  match.index,
+                  match.index + searchTerm.length
+                );
+                const beforeChar =
+                  match.index > 0 ? testContent.charAt(match.index - 1) : "";
+                const afterChar =
+                  match.index + searchTerm.length < testContent.length
+                    ? testContent.charAt(match.index + searchTerm.length)
+                    : "";
+
+                // Verify it's truly a whole word by checking surrounding characters
+                if (!/\w/.test(beforeChar) && !/\w/.test(afterChar)) {
+                  matches.push(matchedText);
+                }
+
+                // Prevent infinite loops with zero-width matches
+                if (match.index === testRegex.lastIndex) {
+                  testRegex.lastIndex++;
+                }
+              }
+
+              found = matches.length > 0;
               console.log(
-                `[AST Eval] Case-sensitive search: ${found ? "FOUND" : "NOT FOUND"}`
+                `[AST Eval] Whole word ${caseSensitive ? "case-sensitive" : "case-insensitive"} search: ${found ? "FOUND" : "NOT FOUND"} (matches: ${matches.length})`
               );
             } else {
-              found = content.toLowerCase().includes(searchTerm.toLowerCase());
-              console.log(
-                `[AST Eval] Case-insensitive search: ${found ? "FOUND" : "NOT FOUND"}`
-              );
+              // Standard substring search
+              if (caseSensitive) {
+                found = content.includes(searchTerm);
+                console.log(
+                  `[AST Eval] Case-sensitive search: ${found ? "FOUND" : "NOT FOUND"}`
+                );
+              } else {
+                found = content
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase());
+                console.log(
+                  `[AST Eval] Case-insensitive search: ${found ? "FOUND" : "NOT FOUND"}`
+                );
+              }
             }
 
             // If exact match fails, try fuzzy search if enabled
+            // Apply fuzzy search when no match was found and fuzzy search is enabled
             if (!found && searchTerm.length >= 3 && fuzzySearchBooleanEnabled) {
               // Only do fuzzy search for terms of 3+ chars
               try {
@@ -587,6 +690,21 @@ export function evaluateBooleanAst(
                 console.log(
                   `[AST Eval] Fuzzy search: ${found ? "FOUND" : "NOT FOUND"} (score: ${result.length > 0 ? result[0].score : "N/A"})`
                 );
+
+                // If fuzzy search found a match, verify it's a whole word if whole word matching is enabled
+                if (found && wholeWordMatchingEnabled) {
+                  // Create a regex with word boundaries to check if the match is a whole word
+                  const wordBoundaryRegex = new RegExp(
+                    `\\b${escapeRegExp(searchTerm)}\\b`,
+                    caseSensitive ? "g" : "gi"
+                  );
+
+                  // Only consider it found if it matches as a whole word
+                  found = wordBoundaryRegex.test(content);
+                  console.log(
+                    `[AST Eval] Fuzzy search whole word verification: ${found ? "FOUND" : "NOT FOUND"}`
+                  );
+                }
               } catch (error) {
                 console.error("Error in fuzzy search:", error);
                 // Keep found as false if fuzzy search fails
@@ -674,13 +792,15 @@ export function evaluateBooleanAst(
           content,
           term1,
           term1IsRegex ? false : caseSensitive, // Use global caseSensitive only for simple terms
-          term1IsRegex
+          term1IsRegex,
+          !term1IsRegex && wholeWordMatchingEnabled // Apply whole word matching only to string terms
         );
         let indices2 = findTermIndices(
           content,
           term2,
           term2IsRegex ? false : caseSensitive,
-          term2IsRegex
+          term2IsRegex,
+          !term2IsRegex && wholeWordMatchingEnabled // Apply whole word matching only to string terms
         );
 
         // If exact match fails for either term, try fuzzy search for non-regex terms

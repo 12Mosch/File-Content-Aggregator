@@ -165,6 +165,10 @@ export interface IElectronAPI {
   getFuzzySearchNearEnabled: () => Promise<boolean>;
   /** Sets the fuzzy search in NEAR function enabled preference. */
   setFuzzySearchNearEnabled: (enabled: boolean) => Promise<void>;
+  /** Gets the whole word matching enabled preference. */
+  getWholeWordMatchingEnabled: () => Promise<boolean>;
+  /** Sets the whole word matching enabled preference. */
+  setWholeWordMatchingEnabled: (enabled: boolean) => Promise<void>;
 
   // File System Operations
   /** Opens the specified file with the default system application. */

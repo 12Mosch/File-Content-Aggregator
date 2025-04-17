@@ -211,6 +211,12 @@ const electronAPI = {
   /** Sets the fuzzy search in NEAR function enabled preference. */
   setFuzzySearchNearEnabled: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke("set-fuzzy-search-near-enabled", enabled),
+  /** Gets the whole word matching enabled preference. */
+  getWholeWordMatchingEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-whole-word-matching-enabled"),
+  /** Sets the whole word matching enabled preference. */
+  setWholeWordMatchingEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke("set-whole-word-matching-enabled", enabled),
 
   // --- File System Operations ---
   /**

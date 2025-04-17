@@ -38,6 +38,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     useState<boolean>(true);
   const [fuzzySearchNearEnabled, setFuzzySearchNearEnabled] =
     useState<boolean>(true);
+  const [wholeWordMatchingEnabled, setWholeWordMatchingEnabled] =
+    useState<boolean>(false);
 
   // Fetch initial theme and export format preferences when modal opens
   useEffect(() => {
@@ -72,6 +74,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           .then((enabled) => setFuzzySearchNearEnabled(enabled))
           .catch((err) =>
             console.error("Error fetching fuzzy search NEAR setting:", err)
+          );
+      }
+      if (window.electronAPI?.getWholeWordMatchingEnabled) {
+        void window.electronAPI
+          .getWholeWordMatchingEnabled()
+          .then((enabled) => setWholeWordMatchingEnabled(enabled))
+          .catch((err) =>
+            console.error("Error fetching whole word matching setting:", err)
           );
       }
     }
@@ -174,6 +184,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       void setFuzzySearchPref();
     } else {
       console.warn("setFuzzySearchNearEnabled API not available.");
+    }
+  };
+
+  // Handler for changing whole word matching setting
+  const handleWholeWordMatchingChange = (checked: boolean) => {
+    setWholeWordMatchingEnabled(checked);
+    if (window.electronAPI?.setWholeWordMatchingEnabled) {
+      const setWholeWordMatchingPref = async () => {
+        try {
+          await window.electronAPI.setWholeWordMatchingEnabled(checked);
+          // Dispatch a custom event to notify other components of the change
+          window.dispatchEvent(new Event("whole-word-matching-changed"));
+        } catch (error) {
+          console.error("Error setting whole word matching preference:", error);
+        }
+      };
+      void setWholeWordMatchingPref();
+    } else {
+      console.warn("setWholeWordMatchingEnabled API not available.");
     }
   };
 
@@ -326,6 +355,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               </div>
               <p className="text-sm text-muted-foreground pl-6">
                 {t("common:fuzzySearchNearDescription")}
+              </p>
+            </div>
+
+            {/* Whole Word Matching Setting */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="whole-word-matching-enabled"
+                  checked={wholeWordMatchingEnabled}
+                  onCheckedChange={handleWholeWordMatchingChange}
+                />
+                <Label
+                  htmlFor="whole-word-matching-enabled"
+                  className="cursor-pointer font-normal"
+                >
+                  {t("common:wholeWordMatchingEnabledLabel")}
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground pl-6">
+                {t("common:wholeWordMatchingDescription")}
               </p>
             </div>
           </div>

@@ -250,6 +250,7 @@ Detailed documentation for specific feature tests:
 - [Regex Search Integration Tests](./regex-search-tests.md): Tests for regex pattern functionality in Boolean expressions and with the NEAR operator
 - [NEAR Operator Tests](./near-operator-tests.md): Tests for NEAR operator syntax parsing, evaluation, nested operators, and handling of invalid syntax
 - [NEAR Operator Integration Tests](./near-operator-tests.md#integration-tests): Tests for NEAR operator functionality with mixed term types and complex expressions
+- [Whole Word Matching Tests](./whole-word-matching-tests.md): Tests for whole word matching functionality, case sensitivity, special characters, and edge cases
 - [Settings Management Tests](./settings-management-tests.md): Tests for settings saving, loading, validation, and error handling
 - [Settings UI Tests](./settings-ui-tests.md): Tests for settings UI components, persistence, and effect on search behavior
 - [Performance Tests](./performance-tests.md): Tests for search and UI performance with large inputs and result sets

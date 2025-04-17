@@ -50,10 +50,13 @@ module.exports = {
         /* ... */
       },
       keyframes: {
-        /* ... */
+        "pulse-subtle": {
+          "0%, 100%": { opacity: 1 },
+          "50%": { opacity: 0.7 },
+        },
       },
       animation: {
-        /* ... */
+        "pulse-subtle": "pulse-subtle 2s ease-in-out 3",
       },
     },
   },

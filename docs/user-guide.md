@@ -121,7 +121,7 @@ This powerful tool lets you define complex search criteria for the _content_ of 
 The **Search Mode** dropdown next to the Query Builder lets you choose how your query is interpreted:
 
 - **Boolean Query:** (Default) Uses the Query Builder to create complex logical expressions with AND/OR operators as described below. Also supports fuzzy matching for terms that don't match exactly, including within the NEAR function.
-- **Simple Term:** Searches for exact text matches without Boolean logic. Use this for simple searches where you just want to find files containing specific text.
+- **Simple Term:** Searches for exact text matches without Boolean logic. Use this for simple searches where you just want to find files containing specific text. When the Whole Word Matching option is enabled in Settings, terms will only match whole words, not substrings within words.
 - **Regular Expression:** Interprets the query as a regular expression pattern. Useful for advanced pattern matching.
 
 - **Adding Conditions/Groups:**
@@ -244,9 +244,10 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - `Dark`: Dark background, light text.
   - `System Default`: Automatically matches your operating system's light/dark mode setting.
 - **Default Export Format:** Choose the format (TXT, CSV, JSON, MD) that will be selected by default when copying or exporting results. TXT is the initial default.
-- **Fuzzy Search Settings:**
+- **Search Settings:**
   - **Enable Fuzzy Search in Boolean Queries:** When enabled (default), automatically applies fuzzy matching to terms in Boolean queries when exact matches aren't found. Disable this option if you want only exact matches in Boolean queries.
   - **Enable Fuzzy Search in NEAR Function:** When enabled (default), allows the NEAR function to find approximate matches for terms that don't match exactly. Disable this option if you want the NEAR function to only find exact matches.
+  - **Enable Whole Word Matching:** When enabled, search terms will only match whole words, not substrings within words. For example, searching for "log" won't match "catalog" when this option is enabled. This applies to simple term searches and terms within Boolean expressions and the NEAR function.
 
 ## Troubleshooting
 
@@ -283,6 +284,11 @@ Click the settings icon (⚙️) in the header to open the Application Settings 
   - Quoted terms like `"database"` are automatically highlighted without the quotes.
   - Boolean operators (AND, OR) are not highlighted, only the actual search terms.
   - Hover over highlighted terms to see more information about the highlighting feature.
+- **Whole Word Matching Not Working as Expected:**
+  - Whole word matching only applies to simple term searches and terms within Boolean expressions and the NEAR function.
+  - It does not apply to regex patterns (use `\b` word boundaries in your regex pattern instead).
+  - Whole word matching works with punctuation, so "test" will match "test," and "test." as whole words.
+  - If you're not getting expected results, check if the Whole Word Matching option is enabled in Settings.
 
 ## Feedback and Support
 
