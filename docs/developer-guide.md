@@ -24,6 +24,7 @@ This guide provides technical information for developers working on or contribut
   - [Search History](#search-history)
   - [Exporting Results](#exporting-results)
   - [On-Demand Content Loading](#on-demand-content-loading)
+  - [File System Operations](#file-system-operations)
   - [Copying Results](#copying-results)
   - [Results Sorting](#results-sorting)
   - [Results Filtering (Fuzzy)](#results-filtering-fuzzy)
@@ -233,6 +234,11 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` on item expansion.
   - Main process reads and returns content or error key.
   - `ResultsDisplay.tsx` uses `contentCacheRef` (Map) to store fetched content and manage loading states.
+- **File System Operations:**
+  - `open-file` IPC channel handled in `main.ts` uses Electron's `shell.openPath()` to open files with the default system application.
+  - `open-file-location` IPC channel handled in `main.ts` uses Electron's `shell.showItemInFolder()` to open the file's containing folder in the system's file explorer.
+  - Renderer (`ResultsDisplay.tsx`) provides buttons for these operations in each file's header.
+  - Both operations include proper error handling and validation.
   - **Content Highlighting:**
     - Plain text files use `HighlightMatches` component to highlight search terms.
     - Syntax-highlighted code (via highlight.js in a Web Worker) uses `highlightTermsInHtml` utility to post-process the HTML and highlight search terms within the syntax-highlighted content.

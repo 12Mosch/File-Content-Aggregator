@@ -37,6 +37,7 @@ import {
   ArrowDown,
   ArrowUp,
   ExternalLink,
+  FolderOpen,
 } from "lucide-react";
 
 // Constants
@@ -361,6 +362,31 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     }
   };
 
+  const handleOpenFileLocationClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.electronAPI?.openFileLocation) {
+      console.log(`Requesting to show file location: ${item.filePath}`);
+      window.electronAPI
+        .openFileLocation(item.filePath)
+        .then(({ success, error }) => {
+          if (!success && error) {
+            console.error(
+              `Error showing file location for '${item.filePath}':`,
+              error
+            );
+          }
+        })
+        .catch((err) => {
+          console.error(
+            `Failed to show file location for '${item.filePath}':`,
+            err
+          );
+        });
+    } else {
+      console.warn("openFileLocation API not available.");
+    }
+  };
+
   // Determine if content is available for the copy button
   const canCopy = contentInfo.status === "loaded" && !!contentInfo.content;
 
@@ -411,6 +437,16 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
               aria-label={t("results:openFileButton")}
             >
               <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={handleOpenFileLocationClick}
+              title={t("results:openFileLocationButton")}
+              aria-label={t("results:openFileLocationButton")}
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
             </Button>
           </>
         )}

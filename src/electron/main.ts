@@ -1403,3 +1403,32 @@ ipcMain.handle(
     }
   }
 );
+
+/**
+ * Handles the 'open-file-location' IPC request.
+ * Shows the specified file in its parent folder using the system's file explorer.
+ */
+ipcMain.handle(
+  "open-file-location",
+  async (
+    event,
+    filePath: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!validateSender(event.senderFrame)) {
+      return { success: false, error: "Invalid sender." };
+    }
+    if (!filePath) {
+      return { success: false, error: "No file path provided." };
+    }
+
+    console.log(`IPC: Received request to show file location: ${filePath}`);
+    try {
+      shell.showItemInFolder(filePath);
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error showing file location for '${filePath}':`, message);
+      return { success: false, error: "openFileLocationError" };
+    }
+  }
+);

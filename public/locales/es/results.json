@@ -24,6 +24,12 @@
   "filterResultsPlaceholder": "Introduce texto para filtrar...",
   "filterCaseSensitiveLabel": "Distinguir mayúsculas/minúsculas",
   "copyFileContentButton": "Copiar Contenido del Archivo",
+  "openFileButton": "Abrir Archivo",
+  "openFileSuccess": "Archivo abierto con éxito",
+  "openFileError": "Error al abrir el archivo",
+  "openFileLocationButton": "Mostrar en Carpeta",
+  "openFileLocationSuccess": "Ubicación del archivo abierta con éxito",
+  "openFileLocationError": "Error al abrir la ubicación del archivo",
   "highlighting": "Resaltando...",
   "highlightError": "Error al Resaltar"
 }

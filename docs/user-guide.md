@@ -177,7 +177,10 @@ The results are displayed in a Tree View:
 - **Matched Files:** Show a preview of their content (syntax highlighted where possible). **The specific search terms from your Content Query that caused the match will be highlighted in violet** within the preview, making it easy to locate relevant parts of matched files. When using multiple search terms, all terms will be highlighted. Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
 - **Non-Matching Files:** Show only the file path (content preview is hidden).
 - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
-- **Copy Icon (📄):** Click the copy icon in the header of an expanded item to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
+- **File Actions:** Each file in the results has action buttons in its header:
+  - **Copy Icon (📄):** Click to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
+  - **Open File Icon (↗️):** Click to open the file with the default system application associated with its file type.
+  - **Show in Folder Icon (📂):** Click to open the file's containing folder in the system's file explorer, with the file selected.
 
 ### Filtering Results (Fuzzy Search)
 

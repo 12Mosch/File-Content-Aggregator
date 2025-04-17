@@ -169,6 +169,10 @@ export interface IElectronAPI {
   // File System Operations
   /** Opens the specified file with the default system application. */
   openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  /** Shows the specified file in its parent folder using the system's file explorer. */
+  openFileLocation: (
+    filePath: string
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 // --- Global Window Augmentation ---

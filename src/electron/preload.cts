@@ -220,6 +220,15 @@ const electronAPI = {
    */
   openFile: (filePath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("open-file", filePath),
+  /**
+   * Shows the specified file in its parent folder using the system's file explorer.
+   * @param filePath The absolute path to the file to show.
+   * @returns A promise resolving with an object indicating success or failure (with an optional error message).
+   */
+  openFileLocation: (
+    filePath: string
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("open-file-location", filePath),
 };
 
 // --- Expose API to Renderer ---
