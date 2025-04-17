@@ -4,5 +4,8 @@
   "saveDialogFilterText": "Textdateien",
   "saveDialogFilterAll": "Alle Dateien",
   "errorTitle": "Dialogfehler",
-  "showError": "Fehler beim Anzeigen des Dialogs: {{detail}}"
+  "showError": "Fehler beim Anzeigen des Dialogs: {{detail}}",
+  "directoryDialogTitle": "Verzeichnisse auswählen",
+  "directoryDialogButtonLabel": "Auswählen",
+  "directoryDialogError": "Fehler beim Anzeigen des Verzeichnisauswahldialogs: {{detail}}"
 }

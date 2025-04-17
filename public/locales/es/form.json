@@ -1,6 +1,8 @@
 {
   "searchPathLabel": "Rutas de Búsqueda (una por línea o separadas por coma):",
   "searchPathPlaceholder": "ej., C:\\Usuarios\\Yo\\Documentos, /home/usuario/proyectos",
+  "browseButton": "Explorar...",
+  "browseButtonAriaLabel": "Explorar directorios",
   "extensionsLabel": "Extensiones de Archivo (separadas por coma):",
   "extensionsPlaceholder": "ej., txt, log, cs, tsx",
   "excludeFilesLabelRegex": "Excluir Archivos (patrones Glob/Regex, uno por línea):",

@@ -1,6 +1,8 @@
 {
   "searchPathLabel": "Search Paths (one per line or comma-separated):",
   "searchPathPlaceholder": "e.g., C:\\Users\\Me\\Documents, /home/user/projects",
+  "browseButton": "Browse...",
+  "browseButtonAriaLabel": "Browse for directories",
   "extensionsLabel": "File Extensions (comma-separated):",
   "extensionsPlaceholder": "e.g., txt, log, cs, tsx",
   "excludeFilesLabelRegex": "Exclude Files (Glob/Regex patterns, one per line):",

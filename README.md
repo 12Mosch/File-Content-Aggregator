@@ -26,7 +26,7 @@ File Content Aggregator is built with Electron and React to efficiently search f
 
 ## Key Features
 
-- **Multi-Directory Search:** Specify multiple starting paths for your search.
+- **Multi-Directory Search:** Specify multiple starting paths for your search, either by typing paths or using the visual directory selection dialog via the "Browse..." button.
 - **Flexible Filtering:**
   - Filter by **file extensions** (e.g., `.txt`, `.log`, `.ts`).
   - Limit **search depth** within directories.
@@ -77,7 +77,7 @@ After installation, launch the application. You should see the main interface wi
 
 1.  Launch the application.
 2.  **Configure Search:**
-    - Enter the **Search Paths** (one per line or comma-separated).
+    - Enter the **Search Paths** (one per line or comma-separated) or use the **Browse...** button to select directories visually.
     - Specify required **File Extensions**.
     - Add any **Exclude Files/Folders** patterns.
     - Use the **Content Query** builder or leave blank to search based only on metadata/filters.

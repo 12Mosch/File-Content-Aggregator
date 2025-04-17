@@ -177,6 +177,12 @@ export interface IElectronAPI {
   openFileLocation: (
     filePath: string
   ) => Promise<{ success: boolean; error?: string }>;
+  /** Shows a directory selection dialog that allows multiple selections. */
+  showDirectoryDialog: () => Promise<{
+    filePaths: string[];
+    canceled: boolean;
+    error?: string;
+  }>;
 }
 
 // --- Global Window Augmentation ---

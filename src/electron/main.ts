@@ -1504,3 +1504,43 @@ ipcMain.handle(
     }
   }
 );
+
+/**
+ * Handles the 'show-directory-dialog' IPC request.
+ * Shows a directory selection dialog that allows multiple selections.
+ */
+ipcMain.handle(
+  "show-directory-dialog",
+  async (
+    event
+  ): Promise<{ filePaths: string[]; canceled: boolean; error?: string }> => {
+    if (!validateSender(event.senderFrame) || !mainWindow) {
+      return {
+        filePaths: [],
+        canceled: true,
+        error: "Invalid sender or main window.",
+      };
+    }
+
+    console.log("IPC: Received request to show directory selection dialog");
+    try {
+      // Ensure i18n is ready for dialogs
+      await i18nMain.loadNamespaces("dialogs");
+
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ["openDirectory", "multiSelections"],
+        title: i18nMain.t("dialogs:directoryDialogTitle", "Select Directories"),
+        buttonLabel: i18nMain.t("dialogs:directoryDialogButtonLabel", "Select"),
+      });
+
+      return {
+        filePaths: result.filePaths,
+        canceled: result.canceled,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("Error showing directory dialog:", message);
+      return { filePaths: [], canceled: true, error: "directoryDialogError" };
+    }
+  }
+);

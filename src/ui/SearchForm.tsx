@@ -39,7 +39,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, X, Loader2, TextQuote } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  X,
+  Loader2,
+  TextQuote,
+  FolderOpen,
+} from "lucide-react";
 import type { Matcher } from "react-day-picker";
 import {
   Accordion,
@@ -648,6 +654,41 @@ const SearchForm: React.FC<SearchFormProps> = ({
   }, []);
   // --- End Callbacks ---
 
+  // Handle directory browse button click
+  const handleBrowseClick = async () => {
+    if (window.electronAPI?.showDirectoryDialog) {
+      try {
+        console.log("UI: Opening directory selection dialog...");
+        const result = await window.electronAPI.showDirectoryDialog();
+
+        if (!result.canceled && result.filePaths.length > 0) {
+          // Join the selected paths with newlines
+          const selectedPaths = result.filePaths.join("\n");
+
+          // Append to existing paths or set as new paths
+          setFormData((prev) => {
+            const currentPaths = prev.searchPaths.trim();
+            const newPaths = currentPaths
+              ? currentPaths +
+                (currentPaths.endsWith("\n") ? "" : "\n") +
+                selectedPaths
+              : selectedPaths;
+
+            return { ...prev, searchPaths: newPaths };
+          });
+
+          console.log(
+            `UI: Added ${result.filePaths.length} paths to search paths`
+          );
+        }
+      } catch (error) {
+        console.error("Error showing directory dialog:", error);
+      }
+    } else {
+      console.warn("UI: showDirectoryDialog API not available.");
+    }
+  };
+
   // Handle search cancellation request
   const handleCancelSearch = () => {
     if (window.electronAPI?.cancelSearch) {
@@ -813,7 +854,21 @@ const SearchForm: React.FC<SearchFormProps> = ({
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {/* Search Paths */}
       <div className="space-y-1.5">
-        <Label htmlFor="searchPaths">{t("searchPathLabel")}</Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="searchPaths">{t("searchPathLabel")}</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleBrowseClick}
+            disabled={isLoading}
+            className="h-8 px-3 text-xs flex items-center gap-1"
+            aria-label={t("browseButtonAriaLabel")}
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            {t("browseButton")}
+          </Button>
+        </div>
         <Textarea
           id="searchPaths"
           name="searchPaths"

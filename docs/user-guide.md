@@ -62,6 +62,8 @@ The search form is organized with essential fields always visible, while optiona
 - **Search Paths:**
   - Enter the full paths to the directories you want to search in.
   - You can enter multiple paths, separated by a **new line** or a **comma**.
+  - Click the **Browse...** button to open a directory selection dialog that allows you to select one or more directories visually instead of typing paths manually.
+  - Selected directories will be added to any existing paths in the text area.
   - _Example:_
     ```
     C:\Users\Me\Documents

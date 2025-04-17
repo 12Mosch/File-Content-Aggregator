@@ -235,6 +235,15 @@ const electronAPI = {
     filePath: string
   ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("open-file-location", filePath),
+  /**
+   * Shows a directory selection dialog that allows multiple selections.
+   * @returns A promise resolving with an object containing the selected directory paths, a canceled flag, and an optional error message.
+   */
+  showDirectoryDialog: (): Promise<{
+    filePaths: string[];
+    canceled: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke("show-directory-dialog"),
 };
 
 // --- Expose API to Renderer ---

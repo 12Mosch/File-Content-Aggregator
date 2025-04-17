@@ -5,5 +5,8 @@
   "exportGenerationError": "Failed to generate {{format}} content: {{detail}}",
   "exportDialogTitle": "Export Search Results",
   "exportDialogButtonLabel": "Export",
-  "exportDialogFilterAll": "All Files"
+  "exportDialogFilterAll": "All Files",
+  "directoryDialogTitle": "Select Directories",
+  "directoryDialogButtonLabel": "Select",
+  "directoryDialogError": "Error showing directory selection dialog: {{detail}}"
 }

@@ -1,6 +1,8 @@
 {
   "searchPathLabel": "Chemins de Recherche (un par ligne ou séparés par virgule) :",
   "searchPathPlaceholder": "ex: C:\\Utilisateurs\\Moi\\Documents, /home/utilisateur/projets",
+  "browseButton": "Parcourir...",
+  "browseButtonAriaLabel": "Parcourir les répertoires",
   "extensionsLabel": "Extensions de Fichier (séparées par virgule) :",
   "extensionsPlaceholder": "ex: txt, log, cs, tsx",
   "excludeFilesLabelRegex": "Exclure Fichiers (modèles Glob/Regex, un par ligne) :",

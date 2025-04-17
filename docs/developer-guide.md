@@ -242,8 +242,10 @@ Communication between the Main and Renderer processes happens via IPC messages:
 - **File System Operations:**
   - `open-file` IPC channel handled in `main.ts` uses Electron's `shell.openPath()` to open files with the default system application.
   - `open-file-location` IPC channel handled in `main.ts` uses Electron's `shell.showItemInFolder()` to open the file's containing folder in the system's file explorer.
-  - Renderer (`ResultsDisplay.tsx`) provides buttons for these operations in each file's header.
-  - Both operations include proper error handling and validation.
+  - `show-directory-dialog` IPC channel handled in `main.ts` uses Electron's `dialog.showOpenDialog()` to allow users to select directories visually.
+  - Renderer (`SearchForm.tsx`) provides a "Browse..." button next to the Search Paths input that uses the directory selection dialog.
+  - Renderer (`ResultsDisplay.tsx`) provides buttons for file operations in each file's header.
+  - All operations include proper error handling and validation.
   - **Content Highlighting:**
     - Plain text files use `HighlightMatches` component to highlight search terms.
     - Syntax-highlighted code (via highlight.js in a Web Worker) uses `highlightTermsInHtml` utility to post-process the HTML and highlight search terms within the syntax-highlighted content.
