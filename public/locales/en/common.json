@@ -44,5 +44,16 @@
   "fuzzySearchBooleanEnabledLabel": "Enable Fuzzy Search in Boolean Queries",
   "fuzzySearchBooleanDescription": "When enabled, automatically applies fuzzy matching to terms in Boolean queries when exact matches aren't found.",
   "fuzzySearchNearEnabledLabel": "Enable Fuzzy Search in NEAR Function",
-  "fuzzySearchNearDescription": "When enabled, allows the NEAR function to find approximate matches for terms that don't match exactly."
+  "fuzzySearchNearDescription": "When enabled, allows the NEAR function to find approximate matches for terms that don't match exactly.",
+  "accessibilitySearchResults": "Search Results",
+  "accessibilityHighlightedTerm": "highlighted term: {{term}}",
+  "accessibilityResultItem": "Result item {{number}}",
+  "accessibilityExpandResult": "Expand result",
+  "accessibilityCollapseResult": "Collapse result",
+  "accessibilitySearchShortcut": "Press Ctrl+Enter to search",
+  "accessibilityCancelShortcut": "Press Escape to cancel",
+  "accessibilityCopyShortcut": "Press Ctrl+C to copy results",
+  "accessibilityExportShortcut": "Press Ctrl+E to export results",
+  "accessibilitySettingsShortcut": "Press Ctrl+Comma to open settings",
+  "accessibilityHistoryShortcut": "Press Ctrl+H to open history"
 }

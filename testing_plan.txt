@@ -146,13 +146,13 @@ This document outlines the testing strategy for the File Content Aggregator appl
 ## Accessibility Tests
 
 ### Integration Tests
-- **Keyboard Navigation**
-  - **NEW:** Test keyboard navigation of search results
-  - **NEW:** Test keyboard shortcuts for common actions
+- ✅ **Keyboard Navigation** (Implemented in `tests/integration/ui/accessibility.test.ts`, documented in `docs/tests/accessibility-tests.md`)
+  - ✅ Test keyboard navigation of search results
+  - ✅ Test keyboard shortcuts for common actions
 
-- **Screen Reader Compatibility**
-  - **NEW:** Test screen reader announcements for search results
-  - **NEW:** Test screen reader announcements for highlighted terms
+- ✅ **Screen Reader Compatibility** (Implemented in `tests/integration/ui/accessibility.test.ts`, documented in `docs/tests/accessibility-tests.md`)
+  - ✅ Test screen reader announcements for search results
+  - ✅ Test screen reader announcements for highlighted terms
 
 ## Localization Tests
 

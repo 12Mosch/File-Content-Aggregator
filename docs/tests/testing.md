@@ -253,6 +253,7 @@ Detailed documentation for specific feature tests:
 - [Settings Management Tests](./settings-management-tests.md): Tests for settings saving, loading, validation, and error handling
 - [Settings UI Tests](./settings-ui-tests.md): Tests for settings UI components, persistence, and effect on search behavior
 - [Performance Tests](./performance-tests.md): Tests for search and UI performance with large inputs and result sets
+- [Accessibility Tests](./accessibility-tests.md): Tests for keyboard navigation and screen reader compatibility
 
 ## Resources
 
