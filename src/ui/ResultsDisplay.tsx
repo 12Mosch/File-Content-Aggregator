@@ -4,6 +4,7 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useReducer,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type {
   StructuredItem,
@@ -38,6 +40,8 @@ import {
   ArrowUp,
   ExternalLink,
   FolderOpen,
+  Check,
+  X,
 } from "lucide-react";
 
 // Constants
@@ -72,6 +76,46 @@ interface HighlightCacheEntry {
   error?: string;
 }
 type HighlightCache = Map<string, HighlightCacheEntry>;
+
+// Selection state types
+type SelectionState = Set<string>; // Set of selected file paths
+type SelectionAction =
+  | { type: "select"; filePath: string }
+  | { type: "deselect"; filePath: string }
+  | { type: "toggle"; filePath: string }
+  | { type: "selectAll"; filePaths: string[] }
+  | { type: "deselectAll" };
+
+// Selection reducer function
+function selectionReducer(
+  state: SelectionState,
+  action: SelectionAction
+): SelectionState {
+  switch (action.type) {
+    case "select":
+      return new Set([...state, action.filePath]);
+    case "deselect": {
+      const newState = new Set(state);
+      newState.delete(action.filePath);
+      return newState;
+    }
+    case "toggle": {
+      const newState = new Set(state);
+      if (newState.has(action.filePath)) {
+        newState.delete(action.filePath);
+      } else {
+        newState.add(action.filePath);
+      }
+      return newState;
+    }
+    case "selectAll":
+      return new Set(action.filePaths);
+    case "deselectAll":
+      return new Set();
+    default:
+      return state;
+  }
+}
 
 // Added state for on-demand content
 interface ContentCacheEntry {
@@ -128,6 +172,8 @@ interface TreeRowData {
   onCopyContent: (content: string) => void;
   contentCache: ContentCache; // Added content cache
   requestContent: (filePath: string) => void; // Added function to request content
+  selectedFiles: SelectionState; // Added: Set of selected file paths
+  toggleSelection: (filePath: string) => void; // Added: Function to toggle selection
 }
 const getLanguageFromPath = (filePath: string): string => {
   const extension = filePath.split(".").pop()?.toLowerCase() || "plaintext";
@@ -214,6 +260,8 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     onCopyContent,
     contentCache, // Destructure new props
     requestContent, // Destructure new props
+    selectedFiles, // Destructure selection state
+    toggleSelection, // Destructure toggle selection function
   } = data;
 
   // --- Hooks moved to top level ---
@@ -387,8 +435,17 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
     }
   };
 
+  // Handle checkbox click for selection
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row toggle
+    toggleSelection(item.filePath);
+  };
+
   // Determine if content is available for the copy button
   const canCopy = contentInfo.status === "loaded" && !!contentInfo.content;
+
+  // Determine if file is selected
+  const isSelected = selectedFiles.has(item.filePath);
 
   return (
     <div
@@ -401,6 +458,16 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
         onClick={handleToggle}
         title={item.filePath}
       >
+        {/* Checkbox for selection */}
+        <div className="mr-1" onClick={handleCheckboxClick}>
+          <Checkbox
+            checked={isSelected}
+            className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            aria-label={
+              isSelected ? t("results:deselectFile") : t("results:selectFile")
+            }
+          />
+        </div>
         <span className="inline-block w-6 text-xs mr-1 text-center text-muted-foreground shrink-0">
           {isExpanded ? "▼" : "▶"}
         </span>
@@ -607,6 +674,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
   const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
   const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
+  // Selection state using reducer
+  const [selectedFiles, dispatchSelection] = useReducer(
+    selectionReducer,
+    new Set<string>()
+  );
   // Removed fuseInstanceRef, instance is created within useMemo
 
   // --- Sorting State ---
@@ -909,6 +981,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       onCopyContent: handleCopyFileContent,
       contentCache: contentCacheRef.current,
       requestContent: requestContent,
+      selectedFiles: selectedFiles, // Pass selection state
+      toggleSelection: (filePath: string) =>
+        dispatchSelection({ type: "toggle", filePath }), // Pass toggle function
     };
   }, [
     sortedItems, // Depend on sortedItems
@@ -923,6 +998,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     requestHighlighting,
     handleCopyFileContent,
     requestContent,
+    selectedFiles, // Depend on selection state
   ]);
 
   const getTreeItemSize = useCallback(
@@ -1295,6 +1371,43 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       </div>
       {/* ---------------------------------------------------- */}
 
+      {/* --- Selection Controls --- */}
+      <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0 border-b border-border pb-4">
+        {/* Selection Count */}
+        <div className="text-sm text-muted-foreground">
+          {selectedFiles.size > 0
+            ? t("selectedFilesCount", { count: selectedFiles.size })
+            : ""}
+        </div>
+        {/* Select All Button */}
+        <Button
+          onClick={() => {
+            if (sortedItems && sortedItems.length > 0) {
+              dispatchSelection({
+                type: "selectAll",
+                filePaths: sortedItems.map((item) => item.filePath),
+              });
+            }
+          }}
+          disabled={!sortedItems || sortedItems.length === 0}
+          variant="outline"
+          size="sm"
+        >
+          <Check className="mr-2 h-4 w-4" />
+          {t("selectAllLabel")}
+        </Button>
+        {/* Deselect All Button */}
+        <Button
+          onClick={() => dispatchSelection({ type: "deselectAll" })}
+          disabled={selectedFiles.size === 0}
+          variant="outline"
+          size="sm"
+        >
+          <X className="mr-2 h-4 w-4" />
+          {t("deselectAllLabel")}
+        </Button>
+      </div>
+
       {/* --- Export/Copy Area --- */}
       <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0">
         {/* Format Select */}
@@ -1356,6 +1469,57 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         >
           <Save className="mr-2 h-4 w-4" />
           {exportStatus || t("saveButtonLabel")}
+        </Button>
+        {/* Export Selected Button */}
+        <Button
+          onClick={() => {
+            if (selectedFiles.size === 0) {
+              setExportStatus(t("exportSelectedNoSelection"));
+              setTimeout(() => setExportStatus(""), 3000);
+              return;
+            }
+            if (!sortedItems || !window.electronAPI?.exportResults) {
+              setExportStatus(t("exportButtonError"));
+              setTimeout(() => setExportStatus(""), 3000);
+              return;
+            }
+
+            // Filter sortedItems to only include selected files
+            const selectedItems = sortedItems.filter((item) =>
+              selectedFiles.has(item.filePath)
+            );
+
+            setExportStatus(t("exportButtonExporting"));
+            window.electronAPI
+              .exportResults(selectedItems, exportFormat)
+              .then(({ success, error }) => {
+                if (success) {
+                  setExportStatus(t("exportButtonSuccess"));
+                } else {
+                  setExportStatus(
+                    error === "Export cancelled."
+                      ? t("exportButtonCancelled")
+                      : t("exportButtonError")
+                  );
+                  console.error("Export failed:", error);
+                }
+              })
+              .catch((err) => {
+                setExportStatus(t("exportButtonError"));
+                console.error(
+                  "Export failed:",
+                  err instanceof Error ? err.message : err
+                );
+              })
+              .finally(() => {
+                setTimeout(() => setExportStatus(""), 5000);
+              });
+          }}
+          disabled={selectedFiles.size === 0 || !!exportStatus || !!copyStatus}
+          variant="secondary"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          {exportStatus || t("exportSelectedLabel")}
         </Button>
       </div>
       {/* ----------------------------- */}

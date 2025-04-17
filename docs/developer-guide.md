@@ -229,6 +229,11 @@ Communication between the Main and Renderer processes happens via IPC messages:
   - Uses helper functions (`generateTxt`, `generateCsv`, etc.) to format data including fetched content.
   - Prompts user for save location using `dialog.showSaveDialog`.
   - Writes the generated content to file.
+  - **Export Selected Files:** Allows users to select specific files from the tree view and export only those files.
+    - Uses a checkbox in each tree item to select/deselect files.
+    - Selection state is managed using a reducer pattern with a Set of file paths.
+    - "Select All" and "Deselect All" buttons for bulk operations.
+    - "Export Selected" button filters the items to only include selected files before calling the export function.
 - **On-Demand Content Loading:**
   - `get-file-content` IPC channel handled in `main.ts`.
   - Renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` on item expansion.

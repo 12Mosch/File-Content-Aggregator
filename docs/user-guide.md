@@ -16,6 +16,7 @@ Welcome to the File Content Aggregator! This guide will help you install, config
   - [Filtering Results (Fuzzy Search)](#filtering-results-fuzzy-search)
   - [Sorting Results](#sorting-results)
   - [Copying and Exporting Results](#copying-and-exporting-results)
+    - [Selecting Files for Export](#selecting-files-for-export)
 - [Search History](#search-history)
 - [Settings](#settings)
 - [Troubleshooting](#troubleshooting)
@@ -168,7 +169,7 @@ Above the results display, you'll see a summary:
 - **File Read Errors:** The number of files that couldn't be read due to permissions or other issues (details shown in the error section below the form if any occurred).
 - **Total Files:** The count of items currently displayed in the results view (changes based on filtering and sorting).
 
-### Results View (Tree View)
+### Results View
 
 The results are displayed in a Tree View:
 
@@ -177,7 +178,8 @@ The results are displayed in a Tree View:
 - **Matched Files:** Show a preview of their content (syntax highlighted where possible). **The specific search terms from your Content Query that caused the match will be highlighted in violet** within the preview, making it easy to locate relevant parts of matched files. When using multiple search terms, all terms will be highlighted. Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
 - **Non-Matching Files:** Show only the file path (content preview is hidden).
 - **Files with Read Errors:** Show the file path and the specific error (e.g., "Permission Denied").
-- **File Actions:** Each file in the results has action buttons in its header:
+- **File Actions and Selection:** Each file in the results has a checkbox for selection and action buttons in its header:
+  - **Checkbox:** Click to select or deselect the file for export. Selected files can be exported using the "Export Selected" button at the bottom of the results area.
   - **Copy Icon (📄):** Click to copy _only that file's_ full content to the clipboard (only enabled once content is loaded).
   - **Open File Icon (↗️):** Click to open the file with the default system application associated with its file type.
   - **Show in Folder Icon (📂):** Click to open the file's containing folder in the system's file explorer, with the file selected.
@@ -212,6 +214,12 @@ Below the results display area, you'll find options to copy or save the results:
 - **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard. The copied data respects the current **sort order** and **filter**.
   - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option instead for large result sets.
 - **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. The saved data respects the current **sort order** and **filter**. This is the recommended way to export large or structured results.
+- **Selecting Files for Export:**
+  - Each file in the results list has a checkbox at the beginning of its row that allows you to select or deselect it.
+  - Use the **Select All** button to select all files currently displayed in the results list.
+  - Use the **Deselect All** button to clear all selections.
+  - The number of currently selected files is displayed next to these buttons.
+- **Export Selected:** Allows you to export only the files you've selected (via checkboxes) to a file in the selected **Format**. This is useful when you only want to export a subset of the search results.
 
 ## Search History
 

@@ -61,5 +61,12 @@
   "sortDesc": "Descending",
   "noContentMatches": "No files matched the content query.",
   "noFilterMatches": "No results match the current filter.",
-  "noResultsFound": "No results found."
+  "noResultsFound": "No results found.",
+  "selectAllLabel": "Select All",
+  "deselectAllLabel": "Deselect All",
+  "exportSelectedLabel": "Export Selected",
+  "exportSelectedNoSelection": "No files selected",
+  "selectedFilesCount": "{{count}} files selected",
+  "selectFile": "Select file",
+  "deselectFile": "Deselect file"
 }
