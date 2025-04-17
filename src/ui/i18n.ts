@@ -11,13 +11,16 @@ export const fallbackLng = "en";
 // This prevents multiple initializations
 i18n.use(HttpApi).use(initReactI18next);
 
+// Import the InitOptions type from i18next for proper typing
+import type { InitOptions } from "i18next";
+
 // Export the i18n configuration options for use in main.tsx
-export const i18nOptions = {
+export const i18nOptions: InitOptions = {
   fallbackLng: fallbackLng,
   supportedLngs: supportedLngs,
   ns: ["common", "form", "results", "errors", "dialogs"],
   defaultNS: "common",
-  load: "languageOnly",
+  load: "languageOnly", // This is now properly typed as "languageOnly" | "all" | "currentOnly" | undefined
   backend: {
     loadPath: "/locales/{{lng}}/{{ns}}.json",
   },

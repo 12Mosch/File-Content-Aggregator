@@ -2,7 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import i18n, { i18nOptions } from "./i18n";
-import { ThemeHandler, applyTheme } from "./ThemeManager";
+import { ThemeHandler } from "./ThemeManager";
+import { applyTheme } from "./themeUtils";
 import "./index.css";
 import "highlight.js/styles/github-dark.css";
 import type { ThemePreference } from "./vite-env.d";
@@ -39,14 +40,18 @@ const initializeApp = async () => {
   try {
     // Initialize i18n only once with the options from i18n.ts
     if (!i18n.isInitialized) {
-      await i18n.init(i18nOptions);
+      await i18n.init(i18nOptions as any);
       console.log("UI: i18next initialized with options");
     }
 
     // Set the language based on user preference or system default
     if (!window.electronAPI?.getInitialLanguage) {
       console.error("Electron API not ready for language initialization.");
-      await i18n.changeLanguage(i18nOptions.fallbackLng);
+      await i18n.changeLanguage(
+        typeof i18nOptions.fallbackLng === "string"
+          ? i18nOptions.fallbackLng
+          : "en"
+      );
     } else {
       const initialLng = await window.electronAPI.getInitialLanguage();
       console.log(`UI: Received initial language: ${initialLng}`);
@@ -58,10 +63,14 @@ const initializeApp = async () => {
     try {
       // If there was an error and i18n is still not initialized, try one more time
       if (!i18n.isInitialized) {
-        await i18n.init(i18nOptions);
+        await i18n.init(i18nOptions as any);
       }
       if (!i18n.language) {
-        await i18n.changeLanguage(i18nOptions.fallbackLng);
+        await i18n.changeLanguage(
+          typeof i18nOptions.fallbackLng === "string"
+            ? i18nOptions.fallbackLng
+            : "en"
+        );
       }
     } catch (fallbackError) {
       console.error("Error setting fallback language:", fallbackError);
