@@ -157,7 +157,7 @@ This document outlines the testing strategy for the File Content Aggregator appl
 ## Localization Tests
 
 ### Integration Tests
-- **Localized UI**
-  - **NEW:** Test UI with different language settings
-  - **NEW:** Test search with non-Latin characters
-  - **NEW:** Test highlighting with non-Latin characters
+- ✅ **Localized UI** (Implemented in `tests/integration/ui/localization.test.ts`, documented in `docs/tests/localization-tests.md`)
+  - ✅ Test UI with different language settings
+  - ✅ Test search with non-Latin characters
+  - ✅ Test highlighting with non-Latin characters
