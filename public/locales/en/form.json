@@ -44,6 +44,10 @@
   "errorMinMax": "Error: Minimum size cannot be greater than maximum size.",
   "comingSoon": "Coming Soon",
   "contentSearchModeLabel": "Search Mode:",
+  "advancedOptionsLabel": "Advanced Options",
+  "excludeOptionsLabel": "Exclude Options",
+  "dateOptionsLabel": "Date Options",
+  "sizeOptionsLabel": "Size Options",
   "contentSearchModeBoolean": "Boolean Query",
   "contentSearchModeTerm": "Simple Term",
   "contentSearchModeRegex": "Regular Expression"

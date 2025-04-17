@@ -55,6 +55,10 @@ The core of the application is the Search Form. Fill in the relevant fields to d
 
 ### Search Form Fields
 
+The search form is organized with essential fields always visible, while optional/advanced criteria are grouped into collapsible accordion sections for a cleaner interface.
+
+#### Essential Fields (Always Visible)
+
 - **Search Paths:**
   - Enter the full paths to the directories you want to search in.
   - You can enter multiple paths, separated by a **new line** or a **comma**.
@@ -68,6 +72,23 @@ The core of the application is the Search Form. Fill in the relevant fields to d
   - Specify the file types to include in the search.
   - Enter extensions **without the leading dot**, separated by commas.
   - _Example:_ `txt, log, ts, cs, json, md`
+- **Max Search Depth:**
+  - Optionally limit how many levels deep the search should go within subdirectories.
+  - Leave blank for unlimited depth. Enter `1` to search only the top-level directory, `2` for the top level and its immediate subdirectories, etc.
+- **Content Query:**
+  - Use the **Query Builder** (see next section) to define criteria for searching _inside_ file content. Leave this empty if you only want to search by filename/path/metadata.
+  - **Search Mode:** Select how the content query should be interpreted:
+    - `Boolean Query`: (Default) Uses the Query Builder to create complex logical expressions with AND/OR operators.
+    - `Simple Term`: Searches for exact text matches without Boolean logic.
+    - `Regular Expression`: Interprets the query as a regular expression pattern.
+    - `Fuzzy Search`: Uses approximate matching to find content similar to the query term, tolerating typos and variations.
+
+#### Advanced Options (Collapsible Sections)
+
+##### Exclude Options
+
+Click to expand this section to configure file and folder exclusions:
+
 - **Exclude Files (Glob/Regex):**
   - Specify patterns for filenames to _exclude_ from the search. Enter one pattern per line.
   - Supports **glob patterns** (like `*.tmp`, `temp*`, `?cache`) and **regular expressions** (enclosed in slashes, e.g., `/\.(bak|old)$/i`).
@@ -94,22 +115,22 @@ The core of the application is the Search Form. Fill in the relevant fields to d
     dist
     *cache*
     ```
-- **Max Search Depth:**
-  - Optionally limit how many levels deep the search should go within subdirectories.
-  - Leave blank for unlimited depth. Enter `1` to search only the top-level directory, `2` for the top level and its immediate subdirectories, etc.
-- **Content Query:**
-  - Use the **Query Builder** (see next section) to define criteria for searching _inside_ file content. Leave this empty if you only want to search by filename/path/metadata.
-  - **Search Mode:** Select how the content query should be interpreted:
-    - `Boolean Query`: (Default) Uses the Query Builder to create complex logical expressions with AND/OR operators.
-    - `Simple Term`: Searches for exact text matches without Boolean logic.
-    - `Regular Expression`: Interprets the query as a regular expression pattern.
-    - `Fuzzy Search`: Uses approximate matching to find content similar to the query term, tolerating typos and variations.
+
+##### Date Options
+
+Click to expand this section to filter files by modification date:
+
 - **Modified After / Before:**
   - Optionally filter files based on their last modification date.
   - Click the input field or the calendar icon (🗓️) to open the date picker.
   - You can navigate months/years using the arrows (`<`, `>`) or double arrows (`<<`, `>>`). Click the Month or Year in the header to select from a list.
   - You can also type the date directly into the input field using `DD.MM.YYYY` format (e.g., `31.12.2023`). Press Enter to confirm the typed date.
   - Click the `X` button to clear a selected date.
+
+##### Size Options
+
+Click to expand this section to filter files by size:
+
 - **Min Size / Max Size:**
   - Optionally filter files based on their size.
   - Enter a numeric value and select the unit (Bytes, KB, MB, GB).

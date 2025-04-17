@@ -29,11 +29,11 @@ File Content Aggregator is built with Electron and React to efficiently search f
 - **Multi-Directory Search:** Specify multiple starting paths for your search.
 - **Flexible Filtering:**
   - Filter by **file extensions** (e.g., `.txt`, `.log`, `.ts`).
-  - Exclude specific **files** using glob patterns or regular expressions (e.g., `*.tmp`, `/temp\d+\.log/i`).
-  - Exclude specific **folders** using wildcard patterns with different matching modes (Contains, Exact, Starts With, Ends With - e.g., `node_modules`, `.git*`, `*cache*`).
-  - Filter by **modification date** range (Modified After / Before).
-  - Filter by **file size** range (Min / Max Size).
   - Limit **search depth** within directories.
+  - **Collapsible Advanced Options:** Optional criteria are organized into accordion sections for a cleaner interface:
+    - **Exclude Options:** Exclude specific **files** using glob patterns or regular expressions (e.g., `*.tmp`, `/temp\d+\.log/i`) and exclude specific **folders** using wildcard patterns with different matching modes (Contains, Exact, Starts With, Ends With - e.g., `node_modules`, `.git*`, `*cache*`).
+    - **Date Options:** Filter by **modification date** range (Modified After / Before).
+    - **Size Options:** Filter by **file size** range (Min / Max Size).
 - **Advanced Content Querying:**
   - **Structured Query Builder:** Easily build complex content searches visually.
   - **Simple Term:** Find exact text matches (case-sensitive option available).

@@ -41,6 +41,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, X, Loader2, TextQuote } from "lucide-react";
 import type { Matcher } from "react-day-picker";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Define unit constants for calculations
 const SIZE_UNITS = {
@@ -834,71 +840,89 @@ const SearchForm: React.FC<SearchFormProps> = ({
           disabled={isLoading}
         />
       </div>
-      {/* Exclude Files */}
-      <div className="space-y-1.5">
-        <Label htmlFor="excludeFiles">{t("excludeFilesLabelRegex")}</Label>
-        <Textarea
-          id="excludeFiles"
-          name="excludeFiles"
-          value={formData.excludeFiles}
-          onChange={handleInputChange}
-          rows={2}
-          placeholder={t("excludeFilesPlaceholderRegex")}
-          disabled={isLoading}
-          className="resize-y min-h-[40px]"
-        />
-      </div>
-      {/* Exclude Folders */}
-      <div className="space-y-1.5">
-        <Label htmlFor="excludeFolders">{t("excludeFoldersLabelRegex")}</Label>
-        <div className="flex flex-col sm:flex-row gap-4 items-start">
-          <Textarea
-            id="excludeFolders"
-            name="excludeFolders"
-            value={formData.excludeFolders}
-            onChange={handleInputChange}
-            rows={2}
-            placeholder={t("excludeFoldersPlaceholderRegex")}
-            disabled={isLoading}
-            className="resize-y min-h-[40px] flex-grow"
-          />
-          <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
-            <Label
-              htmlFor="folderExclusionMode"
-              className="text-xs text-muted-foreground"
-            >
-              {t("folderExclusionModeLabel")}
-            </Label>
-            <Select
-              name="folderExclusionMode"
-              value={formData.folderExclusionMode}
-              onValueChange={handleSelectChange("folderExclusionMode")}
-              disabled={isLoading}
-            >
-              <SelectTrigger
-                id="folderExclusionMode"
-                className="w-full sm:w-[200px]"
-              >
-                <SelectValue placeholder={t("folderExclusionModeLabel")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="contains">
-                  {t("folderExclusionModeContains")}
-                </SelectItem>
-                <SelectItem value="exact">
-                  {t("folderExclusionModeExact")}
-                </SelectItem>
-                <SelectItem value="startsWith">
-                  {t("folderExclusionModeStartsWith")}
-                </SelectItem>
-                <SelectItem value="endsWith">
-                  {t("folderExclusionModeEndsWith")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+      {/* Exclude Files/Folders Accordion */}
+      <Accordion type="single" collapsible className="w-full border rounded-md">
+        <AccordionItem value="exclude-options" className="border-0">
+          <AccordionTrigger className="px-4">
+            {t("excludeOptionsLabel")}
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pt-2">
+            <div className="space-y-4">
+              {/* Exclude Files */}
+              <div className="space-y-1.5">
+                <Label htmlFor="excludeFiles">
+                  {t("excludeFilesLabelRegex")}
+                </Label>
+                <Textarea
+                  id="excludeFiles"
+                  name="excludeFiles"
+                  value={formData.excludeFiles}
+                  onChange={handleInputChange}
+                  rows={2}
+                  placeholder={t("excludeFilesPlaceholderRegex")}
+                  disabled={isLoading}
+                  className="resize-y min-h-[40px]"
+                />
+              </div>
+              {/* Exclude Folders */}
+              <div className="space-y-1.5">
+                <Label htmlFor="excludeFolders">
+                  {t("excludeFoldersLabelRegex")}
+                </Label>
+                <div className="flex flex-col sm:flex-row gap-4 items-start">
+                  <Textarea
+                    id="excludeFolders"
+                    name="excludeFolders"
+                    value={formData.excludeFolders}
+                    onChange={handleInputChange}
+                    rows={2}
+                    placeholder={t("excludeFoldersPlaceholderRegex")}
+                    disabled={isLoading}
+                    className="resize-y min-h-[40px] flex-grow"
+                  />
+                  <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
+                    <Label
+                      htmlFor="folderExclusionMode"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t("folderExclusionModeLabel")}
+                    </Label>
+                    <Select
+                      name="folderExclusionMode"
+                      value={formData.folderExclusionMode}
+                      onValueChange={handleSelectChange("folderExclusionMode")}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger
+                        id="folderExclusionMode"
+                        className="w-full sm:w-[200px]"
+                      >
+                        <SelectValue
+                          placeholder={t("folderExclusionModeLabel")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contains">
+                          {t("folderExclusionModeContains")}
+                        </SelectItem>
+                        <SelectItem value="exact">
+                          {t("folderExclusionModeExact")}
+                        </SelectItem>
+                        <SelectItem value="startsWith">
+                          {t("folderExclusionModeStartsWith")}
+                        </SelectItem>
+                        <SelectItem value="endsWith">
+                          {t("folderExclusionModeEndsWith")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
       {/* Max Depth */}
       <div className="space-y-1.5 max-w-[250px]">
         <Label htmlFor="maxDepthValue">{t("maxDepthLabel")}</Label>
@@ -1023,199 +1047,223 @@ const SearchForm: React.FC<SearchFormProps> = ({
         </div>
       </div>
 
-      {/* Date Fields Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Modified After */}
-        <div className="space-y-1.5">
-          <Label htmlFor="modifiedAfterInput">{t("modifiedAfterLabel")}</Label>
-          <div className="flex items-center gap-1">
-            <Popover
-              open={isAfterPopoverOpen}
-              onOpenChange={setIsAfterPopoverOpen}
-            >
-              <PopoverTrigger asChild>
-                <div className="relative flex-grow">
-                  <Input
-                    id="modifiedAfterInput"
-                    type="text"
-                    value={rawAfterDate}
-                    onChange={(e) => handleRawDateChange(e, "modifiedAfter")}
-                    onKeyDown={(e) =>
-                      handleDateInputKeyDown(e, "modifiedAfter")
-                    }
-                    placeholder={DISPLAY_DATE_FORMAT}
-                    disabled={isLoading}
-                    className="pl-8 h-9 pr-8" // Padding for icons
-                  />
-                  <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  {/* Clear button */}
-                  {formData.modifiedAfter && !isLoading && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearDate("modifiedAfter");
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      aria-label="Clear modified after date"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
+      {/* Date Options Accordion */}
+      <Accordion type="single" collapsible className="w-full border rounded-md">
+        <AccordionItem value="date-options" className="border-0">
+          <AccordionTrigger className="px-4">
+            {t("dateOptionsLabel")}
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Modified After */}
+              <div className="space-y-1.5">
+                <Label htmlFor="modifiedAfterInput">
+                  {t("modifiedAfterLabel")}
+                </Label>
+                <div className="flex items-center gap-1">
+                  <Popover
+                    open={isAfterPopoverOpen}
+                    onOpenChange={setIsAfterPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <div className="relative flex-grow">
+                        <Input
+                          id="modifiedAfterInput"
+                          type="text"
+                          value={rawAfterDate}
+                          onChange={(e) =>
+                            handleRawDateChange(e, "modifiedAfter")
+                          }
+                          onKeyDown={(e) =>
+                            handleDateInputKeyDown(e, "modifiedAfter")
+                          }
+                          placeholder={DISPLAY_DATE_FORMAT}
+                          disabled={isLoading}
+                          className="pl-8 h-9 pr-8" // Padding for icons
+                        />
+                        <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        {/* Clear button */}
+                        {formData.modifiedAfter && !isLoading && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearDate("modifiedAfter");
+                            }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label="Clear modified after date"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        selected={formData.modifiedAfter}
+                        onSelect={handleDateSelect("modifiedAfter")}
+                        locale={currentLocale} // Pass locale
+                        disabled={disabledDateMatcher} // Pass the matcher
+                        // Pass initialMonth to suggest starting view
+                        initialMonth={formData.modifiedAfter}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  selected={formData.modifiedAfter}
-                  onSelect={handleDateSelect("modifiedAfter")}
-                  locale={currentLocale} // Pass locale
-                  disabled={disabledDateMatcher} // Pass the matcher
-                  // Pass initialMonth to suggest starting view
-                  initialMonth={formData.modifiedAfter}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-        {/* Modified Before */}
-        <div className="space-y-1.5">
-          <Label htmlFor="modifiedBeforeInput">
-            {t("modifiedBeforeLabel")}
-          </Label>
-          <div className="flex items-center gap-1">
-            <Popover
-              open={isBeforePopoverOpen}
-              onOpenChange={setIsBeforePopoverOpen}
-            >
-              <PopoverTrigger asChild>
-                <div className="relative flex-grow">
-                  <Input
-                    id="modifiedBeforeInput"
-                    type="text"
-                    value={rawBeforeDate}
-                    onChange={(e) => handleRawDateChange(e, "modifiedBefore")}
-                    onKeyDown={(e) =>
-                      handleDateInputKeyDown(e, "modifiedBefore")
-                    }
-                    placeholder={DISPLAY_DATE_FORMAT}
-                    disabled={isLoading}
-                    className="pl-8 h-9 pr-8" // Padding for icons
-                  />
-                  <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  {/* Clear button */}
-                  {formData.modifiedBefore && !isLoading && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearDate("modifiedBefore");
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      aria-label="Clear modified before date"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
+              </div>
+              {/* Modified Before */}
+              <div className="space-y-1.5">
+                <Label htmlFor="modifiedBeforeInput">
+                  {t("modifiedBeforeLabel")}
+                </Label>
+                <div className="flex items-center gap-1">
+                  <Popover
+                    open={isBeforePopoverOpen}
+                    onOpenChange={setIsBeforePopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <div className="relative flex-grow">
+                        <Input
+                          id="modifiedBeforeInput"
+                          type="text"
+                          value={rawBeforeDate}
+                          onChange={(e) =>
+                            handleRawDateChange(e, "modifiedBefore")
+                          }
+                          onKeyDown={(e) =>
+                            handleDateInputKeyDown(e, "modifiedBefore")
+                          }
+                          placeholder={DISPLAY_DATE_FORMAT}
+                          disabled={isLoading}
+                          className="pl-8 h-9 pr-8" // Padding for icons
+                        />
+                        <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        {/* Clear button */}
+                        {formData.modifiedBefore && !isLoading && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearDate("modifiedBefore");
+                            }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label="Clear modified before date"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        selected={formData.modifiedBefore}
+                        onSelect={handleDateSelect("modifiedBefore")}
+                        locale={currentLocale} // Pass locale
+                        disabled={disabledDateMatcher} // Pass the matcher
+                        // Pass initialMonth to suggest starting view
+                        initialMonth={formData.modifiedBefore}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  selected={formData.modifiedBefore}
-                  onSelect={handleDateSelect("modifiedBefore")}
-                  locale={currentLocale} // Pass locale
-                  disabled={disabledDateMatcher} // Pass the matcher
-                  // Pass initialMonth to suggest starting view
-                  initialMonth={formData.modifiedBefore}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-      </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
-      {/* Size Fields Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Min Size */}
-        <div className="space-y-1.5">
-          <Label htmlFor="minSizeValue">{t("minSizeLabel")}</Label>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              id="minSizeValue"
-              name="minSizeValue"
-              value={formData.minSizeValue}
-              onChange={handleInputChange}
-              disabled={isLoading}
-              placeholder="e.g., 100"
-              min="0"
-              step="any"
-              className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <Select
-              name="minSizeUnit"
-              value={formData.minSizeUnit}
-              onValueChange={handleSelectChange("minSizeUnit")}
-              disabled={isLoading}
-            >
-              <SelectTrigger className="w-[80px] shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(SIZE_UNITS).map((unit) => (
-                  <SelectItem key={unit} value={unit}>
-                    {t(
-                      `sizeUnit${unit}` as SizeUnitTranslationKey,
-                      unit as SizeUnit
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        {/* Max Size */}
-        <div className="space-y-1.5">
-          <Label htmlFor="maxSizeValue">{t("maxSizeLabel")}</Label>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              id="maxSizeValue"
-              name="maxSizeValue"
-              value={formData.maxSizeValue}
-              onChange={handleInputChange}
-              disabled={isLoading}
-              placeholder="e.g., 50"
-              min="0"
-              step="any"
-              className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <Select
-              name="maxSizeUnit"
-              value={formData.maxSizeUnit}
-              onValueChange={handleSelectChange("maxSizeUnit")}
-              disabled={isLoading}
-            >
-              <SelectTrigger className="w-[80px] shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(SIZE_UNITS).map((unit) => (
-                  <SelectItem key={unit} value={unit}>
-                    {t(
-                      `sizeUnit${unit}` as SizeUnitTranslationKey,
-                      unit as SizeUnit
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+      {/* Size Options Accordion */}
+      <Accordion type="single" collapsible className="w-full border rounded-md">
+        <AccordionItem value="size-options" className="border-0">
+          <AccordionTrigger className="px-4">
+            {t("sizeOptionsLabel")}
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Min Size */}
+              <div className="space-y-1.5">
+                <Label htmlFor="minSizeValue">{t("minSizeLabel")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    id="minSizeValue"
+                    name="minSizeValue"
+                    value={formData.minSizeValue}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                    placeholder="e.g., 100"
+                    min="0"
+                    step="any"
+                    className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <Select
+                    name="minSizeUnit"
+                    value={formData.minSizeUnit}
+                    onValueChange={handleSelectChange("minSizeUnit")}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="w-[80px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(SIZE_UNITS).map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {t(
+                            `sizeUnit${unit}` as SizeUnitTranslationKey,
+                            unit as SizeUnit
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {/* Max Size */}
+              <div className="space-y-1.5">
+                <Label htmlFor="maxSizeValue">{t("maxSizeLabel")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    id="maxSizeValue"
+                    name="maxSizeValue"
+                    value={formData.maxSizeValue}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                    placeholder="e.g., 50"
+                    min="0"
+                    step="any"
+                    className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <Select
+                    name="maxSizeUnit"
+                    value={formData.maxSizeUnit}
+                    onValueChange={handleSelectChange("maxSizeUnit")}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="w-[80px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(SIZE_UNITS).map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {t(
+                            `sizeUnit${unit}` as SizeUnitTranslationKey,
+                            unit as SizeUnit
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Submit/Cancel Button Area */}
       <div className="pt-2 flex gap-4 items-center">
