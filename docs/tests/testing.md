@@ -252,6 +252,7 @@ Detailed documentation for specific feature tests:
 - [NEAR Operator Integration Tests](./near-operator-tests.md#integration-tests): Tests for NEAR operator functionality with mixed term types and complex expressions
 - [Settings Management Tests](./settings-management-tests.md): Tests for settings saving, loading, validation, and error handling
 - [Settings UI Tests](./settings-ui-tests.md): Tests for settings UI components, persistence, and effect on search behavior
+- [Performance Tests](./performance-tests.md): Tests for search and UI performance with large inputs and result sets
 
 ## Resources
 

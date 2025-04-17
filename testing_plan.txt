@@ -133,15 +133,15 @@ This document outlines the testing strategy for the File Content Aggregator appl
 ## Performance Tests
 
 ### Unit Tests
-- **Search Performance**
-  - **NEW:** Test search performance with many files
-  - **NEW:** Test search performance with complex queries
-  - **NEW:** Test memory usage during search operations
+- **Search Performance** (Implemented in `tests/unit/search/searchPerformance.test.ts`, documented in `docs/tests/performance-tests.md`)
+  - ✅ Test search performance with many files
+  - ✅ Test search performance with complex queries
+  - ✅ Test memory usage during search operations
 
 ### Integration Tests
-- **End-to-End Performance**
-  - **NEW:** Test application responsiveness during search
-  - **NEW:** Test UI performance with large result sets
+- **End-to-End Performance** (Implemented in `tests/integration/search/endToEndPerformance.test.ts`, documented in `docs/tests/performance-tests.md`)
+  - ✅ Test application responsiveness during search
+  - ✅ Test UI performance with large result sets
 
 ## Accessibility Tests
 
