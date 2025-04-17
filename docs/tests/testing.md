@@ -251,6 +251,7 @@ Detailed documentation for specific feature tests:
 - [NEAR Operator Tests](./near-operator-tests.md): Tests for NEAR operator syntax parsing, evaluation, nested operators, and handling of invalid syntax
 - [NEAR Operator Integration Tests](./near-operator-tests.md#integration-tests): Tests for NEAR operator functionality with mixed term types and complex expressions
 - [Settings Management Tests](./settings-management-tests.md): Tests for settings saving, loading, validation, and error handling
+- [Settings UI Tests](./settings-ui-tests.md): Tests for settings UI components, persistence, and effect on search behavior
 
 ## Resources
 

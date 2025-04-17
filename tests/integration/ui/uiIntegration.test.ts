@@ -71,7 +71,9 @@ describe("UI Integration Tests", () => {
       ];
 
       // Get the mocked ResultsDisplay component
-      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
+      const { default: ResultsDisplay } = jest.requireMock(
+        "../../../src/ui/ResultsDisplay"
+      );
       const _mockResultsDisplay = ResultsDisplay({
         structuredItems: mockItems,
         summary: { filesFound: 2, filesProcessed: 5, errorsEncountered: 0 },
@@ -103,7 +105,9 @@ describe("UI Integration Tests", () => {
       const mockToggleExpand = jest.fn();
 
       // Get the mocked ResultsDisplay component
-      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
+      const { default: ResultsDisplay } = jest.requireMock(
+        "../../../src/ui/ResultsDisplay"
+      );
       const _mockResultsDisplay = ResultsDisplay({
         structuredItems: [{ filePath: "file1.txt", matched: true }],
         summary: { filesFound: 1, filesProcessed: 1, errorsEncountered: 0 },
@@ -136,7 +140,9 @@ describe("UI Integration Tests", () => {
       const mockShowFullContent = jest.fn();
 
       // Get the mocked ResultsDisplay component
-      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
+      const { default: ResultsDisplay } = jest.requireMock(
+        "../../../src/ui/ResultsDisplay"
+      );
       const _mockResultsDisplay = ResultsDisplay({
         structuredItems: [{ filePath: "file1.txt", matched: true }],
         summary: { filesFound: 1, filesProcessed: 1, errorsEncountered: 0 },

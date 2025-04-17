@@ -125,10 +125,10 @@ This document outlines the testing strategy for the File Content Aggregator appl
   - ✅ Test settings validation
 
 ### Integration Tests
-- **Settings UI**
-  - **NEW:** Test enabling/disabling fuzzy search options in UI
-  - **NEW:** Test settings persistence between sessions
-  - **NEW:** Test settings effect on search behavior
+- ✅ **Settings UI** (Implemented in `tests/integration/ui/settingsUI.test.ts`, documented in `docs/tests/settings-ui-tests.md`)
+  - ✅ Test enabling/disabling fuzzy search options in UI
+  - ✅ Test settings persistence between sessions
+  - ✅ Test settings effect on search behavior
 
 ## Performance Tests
 

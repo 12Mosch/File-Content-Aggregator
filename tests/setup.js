@@ -1,7 +1,7 @@
 // Import jest-dom for DOM element assertions
 import "@testing-library/jest-dom";
 
-/* global window, jest, beforeEach, console */
+/* global window, jest, beforeEach, console, global */
 
 // Mock window.matchMedia which is not implemented in JSDOM
 Object.defineProperty(window, "matchMedia", {
@@ -36,7 +36,7 @@ global.require = jest.fn((module) => {
     return { getType: jest.fn(() => "text/plain") };
   }
   if (module === "p-limit") {
-    return jest.fn((limit) => {
+    return jest.fn(() => {
       const fn = (f) => f();
       fn.activeCount = 0;
       fn.pendingCount = 0;

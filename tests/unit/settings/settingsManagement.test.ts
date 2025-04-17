@@ -13,10 +13,10 @@ jest.mock("../../../src/electron/fileSearchService", () => {
 });
 
 // Import after mocking
-import { updateFuzzySearchSettings } from "../../../src/electron/fileSearchService";
+// We don't need to import updateFuzzySearchSettings as it's mocked
 import {
   mockStore,
-  mockIpcMain,
+  // mockIpcMain is not used directly
   mockNativeTheme,
   initializeSettings,
   mockIpcHandlers,
@@ -146,7 +146,7 @@ describe("Settings Management", () => {
       const handler = mockIpcHandlers["get-fuzzy-search-boolean-enabled"];
 
       // Call the handler
-      let result;
+      let result: boolean | undefined;
       if (handler) {
         result = await handler(mockEvent);
       }
@@ -175,7 +175,7 @@ describe("Settings Management", () => {
       const handler = mockIpcHandlers["get-fuzzy-search-near-enabled"];
 
       // Call the handler
-      let result;
+      let result: boolean | undefined;
       if (handler) {
         result = await handler(mockEvent);
       }
@@ -222,7 +222,7 @@ describe("Settings Management", () => {
       const handler = mockIpcHandlers["get-theme-preference"];
 
       // Call the handler
-      let result;
+      let result: string | undefined;
       if (handler) {
         result = await handler(mockEvent);
       }
@@ -245,7 +245,7 @@ describe("Settings Management", () => {
       mockStore.get.mockReset();
 
       // Call the handler with invalid sender
-      let result;
+      let result: string | undefined;
       if (handler) {
         result = await handler(mockEvent);
       }
