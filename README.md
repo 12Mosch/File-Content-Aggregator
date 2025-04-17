@@ -1,8 +1,28 @@
 # File Content Aggregator
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Latest Release](https://img.shields.io/github/v/release/12Mosch/File-Content-Aggregator)](https://github.com/12Mosch/File-Content-Aggregator/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+
 ![App Screenshot](./docs/assets/AppScreenshot.png)
 
-A cross-platform desktop application built with Electron and React to efficiently search for files based on name, path, metadata, and content across multiple directories, featuring a powerful boolean and proximity query engine.
+> A powerful cross-platform desktop application that helps you find exactly what you're looking for across your files and directories.
+
+File Content Aggregator is built with Electron and React to efficiently search for files based on name, path, metadata, and content across multiple directories. It features a powerful boolean and proximity query engine, making it perfect for developers, data analysts, and anyone who needs to search through large collections of files quickly and precisely.
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Development](#development)
+- [Building](#building)
+- [Technology Stack](#technology-stack)
+- [Documentation](#documentation)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Acknowledgments](#acknowledgments)
+- [License](#license)
 
 ## Key Features
 
@@ -51,6 +71,8 @@ Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub R
 - **macOS:** Download the `.dmg` file. Open it and drag the application to your Applications folder.
 - **Linux:** Download the `.AppImage` file. Make it executable (`chmod +x file-content-aggregator*.AppImage`) and run it.
 
+After installation, launch the application. You should see the main interface with search options. If you encounter any issues, see the [Troubleshooting](#troubleshooting) section.
+
 ## Usage
 
 1.  Launch the application.
@@ -71,22 +93,62 @@ Pre-built binaries for Windows, macOS, and Linux can be found on the [**GitHub R
 
 ## Development
 
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v16 or later)
+- [npm](https://www.npmjs.com/) (v7 or later)
+- Git
+
+### Project Structure
+
+```
+├── electron/          # Electron main process code
+├── public/            # Static assets and localization files
+├── src/               # React application source code
+│   ├── components/    # UI components
+│   ├── contexts/      # React contexts
+│   ├── hooks/         # Custom React hooks
+│   ├── lib/           # Utility functions and libraries
+│   ├── services/      # Service modules
+│   └── workers/       # Web workers
+├── tests/             # Test files
+└── docs/              # Documentation
+```
+
+### Development Workflow
+
 To run the application locally for development:
 
 1.  **Clone the repository:**
+
     ```bash
-    git clone <https://github.com/12Mosch/File-Content-Aggregator>
-    cd file-content-aggregator
+    git clone https://github.com/12Mosch/File-Content-Aggregator.git
+    cd File-Content-Aggregator
     ```
+
 2.  **Install dependencies:**
+
     ```bash
     npm install
     ```
+
 3.  **Run the development server:**
+
     ```bash
     npm run dev
     ```
+
     This will start the Vite development server for the React UI and launch the Electron application connected to it, usually with developer tools open.
+
+4.  **Linting and Testing:**
+
+    ```bash
+    # Run ESLint
+    npm run lint
+
+    # Run tests
+    npm run test
+    ```
 
 ## Building
 
