@@ -866,24 +866,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
               </div>
               {/* Exclude Folders */}
               <div className="space-y-1.5">
-                <Label htmlFor="excludeFolders">
-                  {t("excludeFoldersLabelRegex")}
-                </Label>
-                <div className="flex flex-col sm:flex-row gap-4 items-start">
-                  <Textarea
-                    id="excludeFolders"
-                    name="excludeFolders"
-                    value={formData.excludeFolders}
-                    onChange={handleInputChange}
-                    rows={2}
-                    placeholder={t("excludeFoldersPlaceholderRegex")}
-                    disabled={isLoading}
-                    className="resize-y min-h-[40px] flex-grow"
-                  />
-                  <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="excludeFolders">
+                    {t("excludeFoldersLabelRegex")}
+                  </Label>
+                  <div className="flex items-center gap-2">
                     <Label
                       htmlFor="folderExclusionMode"
-                      className="text-xs text-muted-foreground"
+                      className="text-xs text-muted-foreground whitespace-nowrap"
                     >
                       {t("folderExclusionModeLabel")}
                     </Label>
@@ -895,7 +885,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     >
                       <SelectTrigger
                         id="folderExclusionMode"
-                        className="w-full sm:w-[200px]"
+                        className="w-[200px]"
                       >
                         <SelectValue
                           placeholder={t("folderExclusionModeLabel")}
@@ -918,6 +908,16 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     </Select>
                   </div>
                 </div>
+                <Textarea
+                  id="excludeFolders"
+                  name="excludeFolders"
+                  value={formData.excludeFolders}
+                  onChange={handleInputChange}
+                  rows={2}
+                  placeholder={t("excludeFoldersPlaceholderRegex")}
+                  disabled={isLoading}
+                  className="resize-y min-h-[40px] w-full"
+                />
               </div>
             </div>
           </AccordionContent>
