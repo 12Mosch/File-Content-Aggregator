@@ -14,8 +14,11 @@ import type {
   StructuredItem,
   SearchHistoryEntry,
   SearchParams,
-  QueryStructure, // Import QueryStructure type
 } from "./vite-env.d";
+import type {
+  QueryGroup as QueryStructure,
+  Condition,
+} from "./queryBuilderTypes";
 import {
   generateId,
   isQueryStructure,
@@ -341,10 +344,15 @@ function App() {
         window.electronAPI?.addSearchHistoryEntry &&
         params.searchPaths.length > 0
       ) {
+        // Create a history entry with the correct type for structuredQuery
+        const { structuredQuery, ...restParams } = params;
         const historyEntry: SearchHistoryEntry = {
           id: generateId(),
           timestamp: new Date().toISOString(),
-          searchParams: { ...params },
+          searchParams: {
+            ...restParams,
+            structuredQuery: structuredQuery ? { ...structuredQuery } : null,
+          },
         };
         try {
           await window.electronAPI.addSearchHistoryEntry(historyEntry);

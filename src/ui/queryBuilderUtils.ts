@@ -4,10 +4,10 @@ import type {
   QueryGroup, // Import QueryGroup directly
   Condition,
   QueryItem,
-  // Prefix unused types with underscore
-  _TermCondition,
-  _RegexCondition,
-  _NearCondition,
+  // Import the actual types (without underscore prefix)
+  TermCondition,
+  RegexCondition,
+  NearCondition,
 } from "./queryBuilderTypes.js"; // Use .js extension for NodeNext compatibility
 
 /**
