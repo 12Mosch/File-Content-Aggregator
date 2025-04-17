@@ -23,6 +23,30 @@ if (typeof window !== "undefined") {
   window.HTMLElement.prototype.scrollIntoView = jest.fn();
 }
 
+// Mock import.meta.url for tests
+global.URL = class URL {
+  constructor(url) {
+    this.url = url;
+  }
+};
+
+// Mock require for ES modules
+global.require = jest.fn((module) => {
+  if (module === "mime") {
+    return { getType: jest.fn(() => "text/plain") };
+  }
+  if (module === "p-limit") {
+    return jest.fn((limit) => {
+      const fn = (f) => f();
+      fn.activeCount = 0;
+      fn.pendingCount = 0;
+      fn.clearQueue = jest.fn();
+      return fn;
+    });
+  }
+  return {};
+});
+
 // Suppress console logs during tests
 beforeEach(() => {
   jest.spyOn(console, "log").mockImplementation(() => {});

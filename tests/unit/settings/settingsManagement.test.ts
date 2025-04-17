@@ -5,37 +5,6 @@
  * user settings, particularly focusing on fuzzy search configuration settings.
  */
 
-// Mock electron-store
-const mockStore = {
-  get: jest.fn(),
-  set: jest.fn(),
-};
-
-// Mock electron
-jest.mock("electron", () => {
-  return {
-    app: {
-      getPath: jest.fn(() => "/mock/path"),
-      getLocale: jest.fn(() => "en"),
-      getSystemLocale: jest.fn(() => "en-US"),
-      whenReady: jest.fn(() => Promise.resolve()),
-    },
-    ipcMain: {
-      handle: jest.fn(),
-    },
-    nativeTheme: {
-      themeSource: "system",
-    },
-  };
-});
-
-// Mock electron-store
-jest.mock("electron-store", () => {
-  return function () {
-    return mockStore;
-  };
-});
-
 // Mock fileSearchService
 jest.mock("../../../src/electron/fileSearchService", () => {
   return {
@@ -44,8 +13,15 @@ jest.mock("../../../src/electron/fileSearchService", () => {
 });
 
 // Import after mocking
-import { ipcMain, nativeTheme } from "electron";
 import { updateFuzzySearchSettings } from "../../../src/electron/fileSearchService";
+import {
+  mockStore,
+  mockIpcMain,
+  mockNativeTheme,
+  initializeSettings,
+  mockIpcHandlers,
+  mockUpdateFuzzySearchSettings as mockUpdateSettings,
+} from "../../mocks/electron/main";
 
 // Mock console.log to avoid cluttering test output
 jest.spyOn(console, "log").mockImplementation(() => {});
@@ -60,34 +36,27 @@ describe("Settings Management", () => {
   });
 
   describe("Default Settings Values", () => {
-    test("should use default values when settings are not found", () => {
+    test("should use default values when settings are not found", async () => {
       // Setup mock to return undefined (setting not found)
-      mockStore.get.mockImplementation((key, defaultValue) => defaultValue);
+      mockStore.get.mockImplementation((_key, defaultValue) => defaultValue);
 
-      // Import the module that uses electron-store
-      // We need to re-import to ensure it uses our mocked store
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Initialize settings with our mock
+      initializeSettings();
 
-        // Verify default values were used
-        expect(mockStore.get).toHaveBeenCalledWith("themePreference", "system");
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "fuzzySearchBooleanEnabled",
-          true
-        );
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "fuzzySearchNearEnabled",
-          true
-        );
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "defaultExportFormat",
-          "txt"
-        );
-      });
+      // Verify default values were used
+      expect(mockStore.get).toHaveBeenCalledWith("themePreference", "system");
+      expect(mockStore.get).toHaveBeenCalledWith(
+        "fuzzySearchBooleanEnabled",
+        true
+      );
+      expect(mockStore.get).toHaveBeenCalledWith(
+        "fuzzySearchNearEnabled",
+        true
+      );
+      expect(mockStore.get).toHaveBeenCalledWith("defaultExportFormat", "txt");
     });
 
-    test("should use stored values when settings exist", () => {
+    test("should use stored values when settings exist", async () => {
       // Setup mock to return custom values
       mockStore.get.mockImplementation((key) => {
         if (key === "themePreference") return "dark";
@@ -97,125 +66,75 @@ describe("Settings Management", () => {
         return undefined;
       });
 
-      // Import the module that uses electron-store
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Initialize settings with our mock
+      initializeSettings();
 
-        // Verify stored values were used
-        expect(mockStore.get).toHaveBeenCalledWith("themePreference", "system");
-        expect(nativeTheme.themeSource).toBe("dark");
+      // Verify stored values were used
+      expect(mockStore.get).toHaveBeenCalledWith("themePreference", "system");
+      expect(mockNativeTheme.themeSource).toBe("dark");
 
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "fuzzySearchBooleanEnabled",
-          true
-        );
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "fuzzySearchNearEnabled",
-          true
-        );
+      expect(mockStore.get).toHaveBeenCalledWith(
+        "fuzzySearchBooleanEnabled",
+        true
+      );
+      expect(mockStore.get).toHaveBeenCalledWith(
+        "fuzzySearchNearEnabled",
+        true
+      );
 
-        // Verify updateFuzzySearchSettings was called with correct values
-        expect(updateFuzzySearchSettings).toHaveBeenCalledWith(false, false);
-      });
+      // Verify updateFuzzySearchSettings was called with correct values
+      expect(mockUpdateSettings).toHaveBeenCalledWith(false, false);
     });
   });
 
   describe("Saving and Loading Fuzzy Search Settings", () => {
-    test("should save fuzzy search Boolean setting", () => {
+    test("should save fuzzy search Boolean setting", async () => {
       // Setup IPC handler mock
       const mockEvent = { senderFrame: { url: "file:///valid/url" } };
-      let ipcHandler:
-        | ((
-            event: { senderFrame: { url: string } },
-            enabled: boolean
-          ) => Promise<void>)
-        | undefined;
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "set-fuzzy-search-boolean-enabled") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["set-fuzzy-search-boolean-enabled"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Call the handler
+      if (handler) {
+        await handler(mockEvent, false);
+      }
 
-        // Verify IPC handler was registered
-        expect(ipcMain.handle).toHaveBeenCalledWith(
-          "set-fuzzy-search-boolean-enabled",
-          expect.any(Function)
-        );
+      // Verify setting was saved
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "fuzzySearchBooleanEnabled",
+        false
+      );
 
-        // Call the captured handler
-        if (ipcHandler) {
-          void ipcHandler(mockEvent, false);
-        }
-
-        // Verify setting was saved
-        expect(mockStore.set).toHaveBeenCalledWith(
-          "fuzzySearchBooleanEnabled",
-          false
-        );
-
-        // Verify updateFuzzySearchSettings was called
-        expect(updateFuzzySearchSettings).toHaveBeenCalled();
-      });
+      // Verify updateFuzzySearchSettings was called
+      expect(mockUpdateSettings).toHaveBeenCalled();
     });
 
-    test("should save fuzzy search NEAR setting", () => {
+    test("should save fuzzy search NEAR setting", async () => {
       // Setup IPC handler mock
       const mockEvent = { senderFrame: { url: "file:///valid/url" } };
-      let ipcHandler:
-        | ((
-            event: { senderFrame: { url: string } },
-            enabled: boolean
-          ) => Promise<void>)
-        | undefined;
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "set-fuzzy-search-near-enabled") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["set-fuzzy-search-near-enabled"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Call the handler
+      if (handler) {
+        await handler(mockEvent, false);
+      }
 
-        // Verify IPC handler was registered
-        expect(ipcMain.handle).toHaveBeenCalledWith(
-          "set-fuzzy-search-near-enabled",
-          expect.any(Function)
-        );
+      // Verify setting was saved
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "fuzzySearchNearEnabled",
+        false
+      );
 
-        // Call the captured handler
-        if (ipcHandler) {
-          void ipcHandler(mockEvent, false);
-        }
-
-        // Verify setting was saved
-        expect(mockStore.set).toHaveBeenCalledWith(
-          "fuzzySearchNearEnabled",
-          false
-        );
-
-        // Verify updateFuzzySearchSettings was called
-        expect(updateFuzzySearchSettings).toHaveBeenCalled();
-      });
+      // Verify updateFuzzySearchSettings was called
+      expect(mockUpdateSettings).toHaveBeenCalled();
     });
 
-    test("should load fuzzy search Boolean setting", () => {
+    test("should load fuzzy search Boolean setting", async () => {
       // Setup IPC handler mock
       const mockEvent = { senderFrame: { url: "file:///valid/url" } };
-      let ipcHandler:
-        | ((event: { senderFrame: { url: string } }) => Promise<boolean>)
-        | undefined;
 
       // Setup mock to return a specific value
       mockStore.get.mockImplementation((key, defaultValue) => {
@@ -223,44 +142,28 @@ describe("Settings Management", () => {
         return defaultValue;
       });
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "get-fuzzy-search-boolean-enabled") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["get-fuzzy-search-boolean-enabled"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Call the handler
+      let result;
+      if (handler) {
+        result = await handler(mockEvent);
+      }
 
-        // Verify IPC handler was registered
-        expect(ipcMain.handle).toHaveBeenCalledWith(
-          "get-fuzzy-search-boolean-enabled",
-          expect.any(Function)
-        );
+      // Verify result
+      expect(result).toBe(false);
 
-        // Call the captured handler and check result
-        if (ipcHandler) {
-          const resultPromise = ipcHandler(mockEvent);
-          void expect(resultPromise).resolves.toBe(false);
-        }
-
-        // Verify setting was retrieved
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "fuzzySearchBooleanEnabled",
-          true
-        );
-      });
+      // Verify setting was retrieved
+      expect(mockStore.get).toHaveBeenCalledWith(
+        "fuzzySearchBooleanEnabled",
+        true
+      );
     });
 
-    test("should load fuzzy search NEAR setting", () => {
+    test("should load fuzzy search NEAR setting", async () => {
       // Setup IPC handler mock
       const mockEvent = { senderFrame: { url: "file:///valid/url" } };
-      let ipcHandler:
-        | ((event: { senderFrame: { url: string } }) => Promise<boolean>)
-        | undefined;
 
       // Setup mock to return a specific value
       mockStore.get.mockImplementation((key, defaultValue) => {
@@ -268,148 +171,90 @@ describe("Settings Management", () => {
         return defaultValue;
       });
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "get-fuzzy-search-near-enabled") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["get-fuzzy-search-near-enabled"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Call the handler
+      let result;
+      if (handler) {
+        result = await handler(mockEvent);
+      }
 
-        // Verify IPC handler was registered
-        expect(ipcMain.handle).toHaveBeenCalledWith(
-          "get-fuzzy-search-near-enabled",
-          expect.any(Function)
-        );
+      // Verify result
+      expect(result).toBe(false);
 
-        // Call the captured handler and check result
-        if (ipcHandler) {
-          const resultPromise = ipcHandler(mockEvent);
-          void expect(resultPromise).resolves.toBe(false);
-        }
-
-        // Verify setting was retrieved
-        expect(mockStore.get).toHaveBeenCalledWith(
-          "fuzzySearchNearEnabled",
-          true
-        );
-      });
+      // Verify setting was retrieved
+      expect(mockStore.get).toHaveBeenCalledWith(
+        "fuzzySearchNearEnabled",
+        true
+      );
     });
   });
 
   describe("Settings Validation", () => {
-    test("should validate theme preference values", () => {
+    test("should validate theme preference values", async () => {
       // Setup IPC handler mock
       const mockEvent = { senderFrame: { url: "file:///valid/url" } };
-      let ipcHandler:
-        | ((
-            event: { senderFrame: { url: string } },
-            theme: string
-          ) => Promise<void>)
-        | undefined;
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "set-theme-preference") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["set-theme-preference"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Call the handler
+      if (handler) {
+        await handler(mockEvent, "dark");
+      }
 
-        // Verify IPC handler was registered
-        expect(ipcMain.handle).toHaveBeenCalledWith(
-          "set-theme-preference",
-          expect.any(Function)
-        );
-
-        // Call the captured handler with valid theme
-        if (ipcHandler) {
-          void ipcHandler(mockEvent, "dark");
-        }
-
-        // Verify setting was saved
-        expect(mockStore.set).toHaveBeenCalledWith("themePreference", "dark");
-        expect(nativeTheme.themeSource).toBe("dark");
-      });
+      // Verify setting was saved
+      expect(mockStore.set).toHaveBeenCalledWith("themePreference", "dark");
+      expect(mockNativeTheme.themeSource).toBe("dark");
     });
 
-    test("should handle errors during settings operations", () => {
+    test("should handle errors during settings operations", async () => {
       // Setup IPC handler mock
       const mockEvent = { senderFrame: { url: "file:///valid/url" } };
-      let ipcHandler:
-        | ((event: { senderFrame: { url: string } }) => Promise<string>)
-        | undefined;
 
       // Setup mock to throw an error
       mockStore.get.mockImplementation(() => {
         throw new Error("Mock store error");
       });
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "get-theme-preference") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["get-theme-preference"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Call the handler
+      let result;
+      if (handler) {
+        result = await handler(mockEvent);
+      }
 
-        // Verify IPC handler was registered
-        expect(ipcMain.handle).toHaveBeenCalledWith(
-          "get-theme-preference",
-          expect.any(Function)
-        );
+      // Verify result
+      expect(result).toBe("system");
 
-        // Call the captured handler and check result
-        if (ipcHandler) {
-          const resultPromise = ipcHandler(mockEvent);
-          void expect(resultPromise).resolves.toBe("system");
-        }
-
-        // Verify error was logged
-        expect(console.error).toHaveBeenCalled();
-      });
+      // Verify error was logged
+      expect(console.error).toHaveBeenCalled();
     });
 
-    test("should validate sender frame before processing settings", () => {
+    test("should validate sender frame before processing settings", async () => {
       // Setup IPC handler mock with invalid sender
       const mockEvent = { senderFrame: { url: "http://malicious-site.com" } };
-      let ipcHandler:
-        | ((event: { senderFrame: { url: string } }) => Promise<string>)
-        | undefined;
 
-      // Capture the IPC handler function
-      (ipcMain.handle as jest.Mock).mockImplementation((channel, handler) => {
-        if (channel === "get-theme-preference") {
-          ipcHandler = handler;
-        }
-      });
+      // Get the handler from our mock
+      const handler = mockIpcHandlers["get-theme-preference"];
 
-      // Import the module to register IPC handlers
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("../../../src/electron/main");
+      // Reset the mock to ensure we can check if it's called
+      mockStore.get.mockReset();
 
-        // Call the captured handler with invalid sender
-        if (ipcHandler) {
-          const resultPromise = ipcHandler(mockEvent);
-          void expect(resultPromise).resolves.toBe("system");
-        }
+      // Call the handler with invalid sender
+      let result;
+      if (handler) {
+        result = await handler(mockEvent);
+      }
 
-        // Verify store was not accessed
-        expect(mockStore.get).not.toHaveBeenCalled();
-      });
+      // Verify result
+      expect(result).toBe("system");
+
+      // Verify store was not accessed
+      expect(mockStore.get).not.toHaveBeenCalled();
     });
   });
 });

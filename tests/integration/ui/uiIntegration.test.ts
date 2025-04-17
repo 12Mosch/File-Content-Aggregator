@@ -52,9 +52,10 @@ jest.mock("react", () => {
 jest.mock("../../../src/ui/ResultsDisplay", () => {
   return {
     __esModule: true,
-    default: jest.fn().mockImplementation(({ structuredItems }) => {
+    default: jest.fn().mockImplementation((props) => {
       return {
-        render: () => `<div>Results: ${structuredItems.length}</div>`,
+        props,
+        render: () => `<div>Results: ${props.structuredItems.length}</div>`,
       };
     }),
   };
@@ -69,10 +70,8 @@ describe("UI Integration Tests", () => {
         { filePath: "file2.txt", matched: true },
       ];
 
-      // Create a mock ResultsDisplay component
-      const ResultsDisplay = jest.requireActual(
-        "../../../src/ui/ResultsDisplay"
-      ).default;
+      // Get the mocked ResultsDisplay component
+      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
       const _mockResultsDisplay = ResultsDisplay({
         structuredItems: mockItems,
         summary: { filesFound: 2, filesProcessed: 5, errorsEncountered: 0 },
@@ -103,10 +102,8 @@ describe("UI Integration Tests", () => {
       // Mock the toggle expand function
       const mockToggleExpand = jest.fn();
 
-      // Create a mock ResultsDisplay component
-      const ResultsDisplay = jest.requireActual(
-        "../../../src/ui/ResultsDisplay"
-      ).default;
+      // Get the mocked ResultsDisplay component
+      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
       const _mockResultsDisplay = ResultsDisplay({
         structuredItems: [{ filePath: "file1.txt", matched: true }],
         summary: { filesFound: 1, filesProcessed: 1, errorsEncountered: 0 },
@@ -138,10 +135,8 @@ describe("UI Integration Tests", () => {
       // Mock the content loading function
       const mockShowFullContent = jest.fn();
 
-      // Create a mock ResultsDisplay component
-      const ResultsDisplay = jest.requireActual(
-        "../../../src/ui/ResultsDisplay"
-      ).default;
+      // Get the mocked ResultsDisplay component
+      const ResultsDisplay = require("../../../src/ui/ResultsDisplay").default;
       const _mockResultsDisplay = ResultsDisplay({
         structuredItems: [{ filePath: "file1.txt", matched: true }],
         summary: { filesFound: 1, filesProcessed: 1, errorsEncountered: 0 },

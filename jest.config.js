@@ -1,12 +1,13 @@
 /** @type {import('jest').Config} */
 const config = {
-  preset: "ts-jest",
+  preset: "ts-jest/presets/js-with-ts-esm",
   testEnvironment: "jsdom",
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
         tsconfig: "tsconfig.json",
+        useESM: true,
       },
     ],
   },
@@ -22,7 +23,23 @@ const config = {
   // Configure test timeouts
   testTimeout: 10000,
   // Configure setup files
-  setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ["./tests/setup.js"],
+  // Handle ES modules
+  extensionsToTreatAsEsm: [".ts", ".tsx"],
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    // Mock import.meta.url for tests
+    "\\.\\.(css|less|scss|sass)$": "identity-obj-proxy",
+  },
+  transformIgnorePatterns: [
+    "/node_modules/(?!(.+\\\\.mjs$)|p-limit|electron-store)",
+  ],
+  // Mock environment variables
+  globals: {
+    "import.meta": {
+      url: "file:///mock/url",
+    },
+  },
 };
 
 export default config;
