@@ -346,6 +346,22 @@ function createWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  // Check for profiling flag and load performance test script if enabled
+  const enableProfiling = process.argv.includes("--profile");
+  if (enableProfiling && isDev() && mainWindow) {
+    mainWindow.webContents.on("did-finish-load", () => {
+      // Load the performance test script
+      if (mainWindow) {
+        void mainWindow.webContents.executeJavaScript(
+          `const script = document.createElement('script');
+          script.src = 'http://localhost:5123/scripts/performanceTest.js';
+          document.head.appendChild(script);`
+        );
+        console.log("Performance test script loaded");
+      }
+    });
+  }
 }
 
 protocol.registerSchemesAsPrivileged([

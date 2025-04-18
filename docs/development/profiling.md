@@ -15,6 +15,7 @@ The profiling system consists of several components:
 There are two ways to enable profiling:
 
 1. **Command Line**: Launch the application with the `--profile` flag to enable profiling from startup.
+
    ```
    npm run dev -- --profile
    ```
@@ -47,6 +48,7 @@ You can save performance data to a file for later analysis:
 2. Choose a location to save the report file.
 
 Performance reports are saved in JSON format and include:
+
 - Timestamp
 - Summary metrics
 - Detailed operation statistics
@@ -61,6 +63,7 @@ node scripts/analyzePerformance.js analyze <file>
 ```
 
 This script can:
+
 - Analyze a single performance report
 - Compare multiple performance reports
 - Generate recommendations for optimization
@@ -68,15 +71,19 @@ This script can:
 ### Commands
 
 - **List available reports**:
+
   ```
   node scripts/analyzePerformance.js list
   ```
 
 - **Analyze a single report**:
+
   ```
   node scripts/analyzePerformance.js analyze <file> [options]
   ```
+
   Options:
+
   - `-o, --output <file>`: Output file for the analysis report
   - `-f, --format <format>`: Output format (text, json, html)
 
@@ -98,10 +105,10 @@ import { getProfiler } from "../lib/utils/Profiler.js";
 
 // Start timing an operation
 const profiler = getProfiler();
-const profileId = profiler.start("OperationName", { 
+const profileId = profiler.start("OperationName", {
   // Optional metadata
   param1: "value1",
-  param2: "value2"
+  param2: "value2",
 });
 
 // ... code to profile ...
@@ -109,7 +116,7 @@ const profileId = profiler.start("OperationName", {
 // End timing and record metrics
 profiler.end(profileId, {
   // Optional additional metadata
-  result: "success"
+  result: "success",
 });
 ```
 
@@ -130,6 +137,8 @@ The profiling system helps identify bottlenecks in several ways:
 2. **Call Counts**: Operations with high call counts might benefit from batching or caching.
 3. **Memory Usage**: Operations with high memory usage might need memory optimization.
 4. **Timeline Analysis**: The timeline view can help identify patterns and spikes in performance.
+5. **Phase Metrics**: Detailed metrics for different phases of an algorithm help pinpoint specific bottlenecks.
+6. **Cache Efficiency**: Cache hit/miss ratios indicate the effectiveness of caching mechanisms.
 
 ## Best Practices
 
