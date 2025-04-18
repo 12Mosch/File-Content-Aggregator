@@ -755,6 +755,51 @@ export class NearOperatorService {
         termIndicesCache: this.termIndicesCache.getStats(),
         proximityCache: this.proximityCache.getStats(),
       });
+
+      // Save profiling data to a file for analysis
+      this.saveProfilingData();
+    }
+  }
+
+  /**
+   * Save profiling data to a file for analysis
+   */
+  private saveProfilingData(): void {
+    try {
+      const profiler = getProfiler();
+      if (profiler.isEnabled()) {
+        const timestamp = new Date().toISOString().replace(/:/g, "-");
+        const path = require("path");
+        const fs = require("fs");
+        const reportPath = path.resolve(
+          process.cwd(),
+          "performance-results",
+          `near-operator-profile-${timestamp}.json`
+        );
+
+        // Ensure directory exists
+        const dirPath = path.dirname(reportPath);
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        // Save the report
+        profiler
+          .saveReport(reportPath)
+          .then(() => {
+            this.logger.debug(
+              `NearOperatorService profile saved to ${reportPath}`
+            );
+          })
+          .catch((err) => {
+            this.logger.error(
+              "Failed to save NearOperatorService profile",
+              err
+            );
+          });
+      }
+    } catch (error) {
+      this.logger.error("Error saving profiling data", error);
     }
   }
 
