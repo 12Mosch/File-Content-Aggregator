@@ -196,8 +196,10 @@ export class LRUCache<K, V> {
 
     for (let i = 0; i < itemsToRemove; i++) {
       const key = keys.next().value;
-      this.cache.delete(key);
-      this.stats.evictions++;
+      if (key !== undefined) {
+        this.cache.delete(key);
+        this.stats.evictions++;
+      }
     }
   }
 
