@@ -182,11 +182,10 @@ The distributable files will be located in the `release/` directory.
 ## Documentation
 
 - **User Guide:** Detailed instructions and feature explanations can be found in [`/docs/user-guide.md`](./docs/user-guide.md).
-- **Developer Guide:** Information on project structure, architecture, and development processes is in [`/docs/developer-guide.md`](./docs/developer-guide.md).
+- **Developer Guide:** Information on project structure, architecture, code organization, and development processes is in [`/docs/developer-guide.md`](./docs/developer-guide.md).
 - **Testing Guide:** Information on testing approach and test cases is in [`/docs/tests/testing.md`](./docs/tests/testing.md).
 - **UI Performance:** Information on UI performance optimizations is in [`/docs/development/ui-performance.md`](./docs/development/ui-performance.md).
 - **Success Metrics:** Tracking of success metrics is in [`/docs/development/success-metrics.md`](./docs/development/success-metrics.md).
-- **Code Organization:** Information on code organization and design patterns is in [`/docs/development/code-organization.md`](./docs/development/code-organization.md).
 - **Code Documentation:** Key functions and modules include TSDoc comments.
 
 ## Contributing
