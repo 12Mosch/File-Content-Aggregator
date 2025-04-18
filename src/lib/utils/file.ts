@@ -1,12 +1,12 @@
 /**
  * File Utility Functions
- * 
+ *
  * Utility functions for file operations and path handling.
  */
 
-import path from 'path';
-import fs from 'fs/promises';
-import { AppError } from '../errors';
+import path from "path";
+import * as fs from "fs/promises";
+import { AppError } from "../errors";
 
 /**
  * Check if a file exists
@@ -42,12 +42,15 @@ export async function directoryExists(dirPath: string): Promise<boolean> {
  * @param recursive Whether to create parent directories
  * @returns True if the directory was created
  */
-export async function ensureDirectory(dirPath: string, recursive = true): Promise<boolean> {
+export async function ensureDirectory(
+  dirPath: string,
+  recursive = true
+): Promise<boolean> {
   try {
     if (await directoryExists(dirPath)) {
       return false; // Directory already exists
     }
-    
+
     await fs.mkdir(dirPath, { recursive });
     return true;
   } catch (error) {
@@ -61,11 +64,14 @@ export async function ensureDirectory(dirPath: string, recursive = true): Promis
  * @param encoding File encoding
  * @returns File contents
  */
-export async function readFile(filePath: string, encoding: BufferEncoding = 'utf8'): Promise<string> {
+export async function readFile(
+  filePath: string,
+  encoding: BufferEncoding = "utf8"
+): Promise<string> {
   try {
     return await fs.readFile(filePath, { encoding });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw AppError.fileNotFound(filePath);
     }
     throw AppError.fileAccessError(filePath, error);
@@ -81,13 +87,13 @@ export async function readFile(filePath: string, encoding: BufferEncoding = 'utf
 export async function writeFile(
   filePath: string,
   data: string | Buffer,
-  encoding: BufferEncoding = 'utf8'
+  encoding: BufferEncoding = "utf8"
 ): Promise<void> {
   try {
     // Ensure the directory exists
     const dirPath = path.dirname(filePath);
     await ensureDirectory(dirPath);
-    
+
     // Write the file
     await fs.writeFile(filePath, data, { encoding });
   } catch (error) {
@@ -105,7 +111,7 @@ export async function deleteFile(filePath: string): Promise<boolean> {
     await fs.unlink(filePath);
     return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return false; // File doesn't exist
     }
     throw AppError.fileAccessError(filePath, error);
@@ -117,11 +123,13 @@ export async function deleteFile(filePath: string): Promise<boolean> {
  * @param filePath Path to the file
  * @returns File stats
  */
-export async function getFileStats(filePath: string): Promise<fs.Stats> {
+export async function getFileStats(
+  filePath: string
+): Promise<ReturnType<typeof fs.stat>> {
   try {
     return await fs.stat(filePath);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw AppError.fileNotFound(filePath);
     }
     throw AppError.fileAccessError(filePath, error);
@@ -142,15 +150,15 @@ export async function listFiles(
   } = {}
 ): Promise<string[]> {
   const { recursive = false, filter } = options;
-  
+
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    
+
     const files: string[] = [];
-    
+
     for (const entry of entries) {
       const entryPath = path.join(dirPath, entry.name);
-      
+
       if (entry.isDirectory() && recursive) {
         const subFiles = await listFiles(entryPath, options);
         files.push(...subFiles);
@@ -160,10 +168,10 @@ export async function listFiles(
         }
       }
     }
-    
+
     return files;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw AppError.fileNotFound(dirPath);
     }
     throw AppError.fileAccessError(dirPath, error);
@@ -185,7 +193,10 @@ export function getFileExtension(filePath: string): string {
  * @param extensions Array of extensions to check (without the dot)
  * @returns True if the file has one of the specified extensions
  */
-export function hasFileExtension(filePath: string, extensions: string[]): boolean {
+export function hasFileExtension(
+  filePath: string,
+  extensions: string[]
+): boolean {
   const ext = getFileExtension(filePath);
   return extensions.includes(ext);
 }
@@ -207,7 +218,7 @@ export function getFileNameWithoutExtension(filePath: string): string {
  * @returns Normalized path
  */
 export function normalizePath(filePath: string): string {
-  return path.normalize(filePath).replace(/\\/g, '/');
+  return path.normalize(filePath).replace(/\\/g, "/");
 }
 
 /**

@@ -280,6 +280,39 @@ export class LRUCache<K, V> {
   }
 
   /**
+   * Gets the current size of the cache
+   * @returns The number of items in the cache
+   */
+  getSize(): number {
+    return this.cache.size;
+  }
+
+  /**
+   * Trims the cache to the specified size by removing the least recently used items
+   * @param newSize The new maximum size
+   * @returns The number of items removed
+   */
+  trimToSize(newSize: number): number {
+    if (newSize >= this.cache.size) return 0;
+    if (newSize < 0) newSize = 0;
+
+    const itemsToRemove = this.cache.size - newSize;
+    const keys = this.cache.keys();
+    let removed = 0;
+
+    for (let i = 0; i < itemsToRemove; i++) {
+      const key = keys.next().value;
+      if (key !== undefined) {
+        this.cache.delete(key);
+        this.stats.evictions++;
+        removed++;
+      }
+    }
+
+    return removed;
+  }
+
+  /**
    * Creates a cache key from multiple values
    * @param values Values to include in the key
    * @returns A string key
