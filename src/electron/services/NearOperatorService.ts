@@ -8,9 +8,9 @@
 
 import { WordBoundaryService } from "./WordBoundaryService.js";
 import {
-  FuzzySearchService,
+  OptimizedFuzzySearchService,
   FuzzySearchOptions,
-} from "./FuzzySearchService.js";
+} from "./OptimizedFuzzySearchService.js";
 import { Logger } from "../../lib/services/Logger.js";
 import { CacheManager } from "../../lib/CacheManager.js";
 import { LRUCache } from "../../lib/LRUCache.js";
@@ -33,7 +33,7 @@ const PROXIMITY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 export class NearOperatorService {
   private static instance: NearOperatorService;
   private wordBoundaryService: WordBoundaryService;
-  private fuzzySearchService: FuzzySearchService;
+  private fuzzySearchService: OptimizedFuzzySearchService;
   private logger: Logger;
 
   // Caches for performance optimization
@@ -92,7 +92,7 @@ export class NearOperatorService {
   // Private constructor for singleton pattern
   private constructor() {
     this.wordBoundaryService = WordBoundaryService.getInstance();
-    this.fuzzySearchService = FuzzySearchService.getInstance();
+    this.fuzzySearchService = new OptimizedFuzzySearchService();
     this.logger = Logger.getInstance();
 
     // Initialize caches
@@ -220,74 +220,86 @@ export class NearOperatorService {
     );
 
     // If exact match fails for either term, try fuzzy search for string terms
+    // but only if we have a reasonable chance of success
     const fuzzySearchStart = performance.now();
     let fuzzySearchUsed = false;
 
+    // Only attempt fuzzy search if it's enabled and we have no exact matches
     if (
-      indices1.length === 0 &&
-      !(term1 instanceof RegExp) &&
-      typeof term1 === "string" &&
-      term1.length >= 3 &&
-      fuzzySearchEnabled
+      fuzzySearchEnabled &&
+      (indices1.length === 0 || indices2.length === 0)
     ) {
-      fuzzySearchUsed = true;
-      this.metrics.phaseMetrics.fuzzySearch.count++;
-
+      // Prepare fuzzy search options once
       const fuzzyOptions: FuzzySearchOptions = {
         isCaseSensitive: caseSensitive,
         useWholeWordMatching: wholeWordMatchingEnabled,
+        threshold: 0.4, // Stricter threshold for better performance
       };
 
-      const fuzzyResult = this.fuzzySearchService.search(
-        content,
-        term1,
-        fuzzyOptions
-      );
-
+      // Try fuzzy search for term1 if needed
       if (
-        fuzzyResult.isMatch &&
-        fuzzyResult.matchPositions &&
-        fuzzyResult.matchPositions.length > 0
+        indices1.length === 0 &&
+        !(term1 instanceof RegExp) &&
+        typeof term1 === "string" &&
+        term1.length >= 3
       ) {
-        indices1 = fuzzyResult.matchPositions;
-        this.metrics.phaseMetrics.fuzzySearch.successCount++;
+        fuzzySearchUsed = true;
+        this.metrics.phaseMetrics.fuzzySearch.count++;
+
+        const fuzzyResult = this.fuzzySearchService.search(
+          content,
+          term1,
+          fuzzyOptions
+        );
+
+        if (
+          fuzzyResult.isMatch &&
+          fuzzyResult.matchPositions &&
+          fuzzyResult.matchPositions.length > 0
+        ) {
+          indices1 = fuzzyResult.matchPositions;
+          this.metrics.phaseMetrics.fuzzySearch.successCount++;
+        }
       }
-    }
 
-    if (
-      indices2.length === 0 &&
-      !(term2 instanceof RegExp) &&
-      typeof term2 === "string" &&
-      term2.length >= 3 &&
-      fuzzySearchEnabled
-    ) {
-      fuzzySearchUsed = true;
-      this.metrics.phaseMetrics.fuzzySearch.count++;
-
-      const fuzzyOptions: FuzzySearchOptions = {
-        isCaseSensitive: caseSensitive,
-        useWholeWordMatching: wholeWordMatchingEnabled,
-      };
-
-      const fuzzyResult = this.fuzzySearchService.search(
-        content,
-        term2,
-        fuzzyOptions
-      );
-
+      // Only try fuzzy search for term2 if we have matches for term1 or term1 is a regex
+      // This is an optimization to avoid unnecessary fuzzy searches
       if (
-        fuzzyResult.isMatch &&
-        fuzzyResult.matchPositions &&
-        fuzzyResult.matchPositions.length > 0
+        indices2.length === 0 &&
+        !(term2 instanceof RegExp) &&
+        typeof term2 === "string" &&
+        term2.length >= 3 &&
+        (indices1.length > 0 || term1 instanceof RegExp)
       ) {
-        indices2 = fuzzyResult.matchPositions;
-        this.metrics.phaseMetrics.fuzzySearch.successCount++;
+        fuzzySearchUsed = true;
+        this.metrics.phaseMetrics.fuzzySearch.count++;
+
+        const fuzzyResult = this.fuzzySearchService.search(
+          content,
+          term2,
+          fuzzyOptions
+        );
+
+        if (
+          fuzzyResult.isMatch &&
+          fuzzyResult.matchPositions &&
+          fuzzyResult.matchPositions.length > 0
+        ) {
+          indices2 = fuzzyResult.matchPositions;
+          this.metrics.phaseMetrics.fuzzySearch.successCount++;
+        }
       }
     }
 
     const fuzzySearchEnd = performance.now();
     if (fuzzySearchUsed) {
       this.updatePhaseMetrics("fuzzySearch", fuzzySearchEnd - fuzzySearchStart);
+    }
+
+    // Early termination if either term has no matches after fuzzy search
+    if (indices1.length === 0 || indices2.length === 0) {
+      this.metrics.earlyTerminations++;
+      return false;
     }
 
     // Early termination if either term is not found
