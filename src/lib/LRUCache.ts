@@ -477,7 +477,7 @@ export class LRUCache<K, V> {
           // This allows the LRUCache to work without the MemoryMonitor
           console.debug("MemoryMonitor not available for LRUCache", error);
         });
-    } catch (error) {
+    } catch (_error) {
       // Silently fail if dynamic import is not supported
       console.debug(
         "Dynamic import not supported for MemoryMonitor integration"

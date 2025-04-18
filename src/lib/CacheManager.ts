@@ -201,7 +201,7 @@ export class CacheManager {
   public getMemoryUsage(): number {
     let totalSize = 0;
 
-    for (const [id, cache] of this.caches.entries()) {
+    for (const [_id, cache] of this.caches.entries()) {
       const entries = cache.entries();
 
       // Estimate size of each entry

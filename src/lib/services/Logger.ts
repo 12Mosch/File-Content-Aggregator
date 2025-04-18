@@ -189,7 +189,7 @@ export class Logger {
    * @param message Formatted message
    * @param context Optional context object
    */
-  private logToFile(message: string, context?: unknown): void {
+  private logToFile(_message: string, _context?: unknown): void {
     // TODO: Implement file logging
     // This would typically use fs.appendFile to write to the log file
   }

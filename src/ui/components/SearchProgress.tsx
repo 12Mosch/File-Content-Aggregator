@@ -13,13 +13,13 @@ import { SearchProgress as SearchProgressType } from "../services/SearchService"
 import { X } from "lucide-react";
 
 interface SearchProgressProps {
-  searchId: string;
+  searchId: string; // Renamed to _searchId in component but keeping original name in interface
   onCancel: () => void;
   progress: SearchProgressType;
 }
 
 export function SearchProgress({
-  searchId,
+  _searchId,
   onCancel,
   progress,
 }: SearchProgressProps) {

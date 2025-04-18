@@ -360,7 +360,7 @@ export class NearOperatorService {
           fuzzySearchUsed,
           cacheHit: cachedResult !== undefined,
         });
-      } catch (error) {
+      } catch (_error) {
         // Fallback if memory tracking fails
         profiler.end(profileId, {
           executionTime: totalTime,
@@ -987,7 +987,7 @@ export class NearOperatorService {
         const dirPath = path.dirname(reportPath);
         try {
           await fs.mkdir(dirPath, { recursive: true });
-        } catch (err) {
+        } catch (_err) {
           // Directory might already exist, ignore error
         }
 

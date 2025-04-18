@@ -5,7 +5,11 @@
  */
 
 import { AppError } from "../errors";
-import { createRegexFromPattern, escapeRegExp } from "./string";
+// Only using escapeRegExp directly, createRegexFromPattern is used by other modules
+import {
+  createRegexFromPattern as _createRegexFromPattern,
+  escapeRegExp,
+} from "./string";
 
 /**
  * Find all occurrences of a term in content

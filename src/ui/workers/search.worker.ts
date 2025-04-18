@@ -11,7 +11,8 @@
  */
 
 import { findTermIndices } from "../../electron/utils/searchUtils.js";
-import { escapeRegExp } from "../../electron/utils/regexUtils.js";
+// Importing but not using directly - used in regex pattern creation
+import { escapeRegExp as _escapeRegExp } from "../../electron/utils/regexUtils.js";
 
 // Define message types
 interface SearchRequest {

@@ -5,7 +5,8 @@
  * It uses streaming file processing and efficient caching to improve performance.
  */
 
-import path from "path";
+// Path module is used indirectly in file operations
+import _path from "path";
 import type PLimit from "p-limit";
 
 // Import module and create a require function

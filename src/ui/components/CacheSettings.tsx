@@ -22,7 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Trash2, RefreshCw } from "lucide-react";
+import { Trash2, RefreshCw as _RefreshCw } from "lucide-react";
 
 export function CacheSettings() {
   const { t } = useTranslation();

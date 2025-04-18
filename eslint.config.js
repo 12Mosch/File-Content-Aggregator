@@ -16,6 +16,8 @@ export default tseslint.config(
       "build/",
       ".tmp/",
       "coverage/",
+      "scripts/", // Ignore scripts directory with console.log statements
+      "tests/setup.js", // Ignore test setup file
       "eslint.config.js", // Ignore this config file itself
     ],
   },

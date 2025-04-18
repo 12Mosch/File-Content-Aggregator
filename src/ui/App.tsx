@@ -288,8 +288,8 @@ function App() {
     []
   );
 
-  // Handle worker search
-  const handleWorkerSearch = useCallback(
+  // Handle worker search (currently unused but kept for future use)
+  const _handleWorkerSearch = useCallback(
     async (
       files: Array<{ filePath: string; content: string }>,
       term: string | RegExp,
