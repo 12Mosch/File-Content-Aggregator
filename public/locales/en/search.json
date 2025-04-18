@@ -1,0 +1,16 @@
+{
+  "searchInProgress": "Search in Progress",
+  "filesProcessed": "Files Processed",
+  "matchesFound": "Matches Found",
+  "elapsedTime": "Elapsed Time",
+  "currentFile": "Current File",
+  "searchComplete": "Search Complete",
+  "searchCancelled": "Search Cancelled",
+  "searchError": "Search Error",
+  "cancel": "Cancel",
+  "workerStats": "Worker Stats",
+  "totalWorkers": "Total Workers",
+  "busyWorkers": "Busy Workers",
+  "queuedTasks": "Queued Tasks",
+  "maxWorkers": "Max Workers"
+}

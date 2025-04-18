@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useTranslation } from "react-i18next";
 import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
@@ -7,6 +13,11 @@ import SettingsModal from "./SettingsModal";
 import HistoryButton from "./HistoryButton";
 import HistoryModal from "./HistoryModal";
 import useDebounce from "./hooks/useDebounce";
+import {
+  SearchService,
+  SearchProgress as SearchProgressType,
+} from "./services/SearchService";
+import { SearchProgress } from "./components/SearchProgress";
 import type {
   ProgressData,
   SearchResult,
@@ -87,6 +98,12 @@ function App() {
     []
   );
 
+  // Worker search state
+  const [activeSearchId, setActiveSearchId] = useState<string | null>(null);
+  const [workerSearchProgress, setWorkerSearchProgress] =
+    useState<SearchProgressType | null>(null);
+  const searchServiceRef = useRef<SearchService | null>(null);
+
   const groupedFileReadErrors: GroupedErrors = useMemo(() => {
     return fileReadErrors.reduce((acc, error) => {
       const reasonKey = error.reason || "unknownError";
@@ -98,6 +115,23 @@ function App() {
     }, {} as GroupedErrors);
   }, [fileReadErrors]);
 
+  // Initialize the search service
+  useEffect(() => {
+    // Initialize the search service
+    if (!searchServiceRef.current) {
+      searchServiceRef.current = SearchService.getInstance();
+    }
+
+    // Clean up the search service on unmount
+    return () => {
+      if (searchServiceRef.current) {
+        searchServiceRef.current.dispose();
+        searchServiceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Set up the search progress listener
   useEffect(() => {
     if (window.electronAPI?.onSearchProgress) {
       const unsubscribe = window.electronAPI.onSearchProgress(
@@ -254,6 +288,65 @@ function App() {
     []
   );
 
+  // Handle worker search
+  const handleWorkerSearch = useCallback(
+    async (
+      files: Array<{ filePath: string; content: string }>,
+      term: string | RegExp,
+      options: any
+    ) => {
+      if (!searchServiceRef.current) return;
+
+      // Cancel any active search
+      if (activeSearchId) {
+        searchServiceRef.current.cancelSearch(activeSearchId);
+      }
+
+      // Start a new search
+      const searchId = searchServiceRef.current.startSearch(
+        files,
+        term,
+        options
+      );
+      setActiveSearchId(searchId);
+
+      // Add a listener for search events
+      const listenerId = searchServiceRef.current.addListener(
+        searchId,
+        (type, data) => {
+          if (type === "progress") {
+            setWorkerSearchProgress(data as SearchProgressType);
+          } else if (type === "complete") {
+            setWorkerSearchProgress(null);
+            setActiveSearchId(null);
+            // Process the results
+            const results = searchServiceRef.current?.getAllResults(searchId);
+            if (results) {
+              // Process the results here
+              console.log("Search complete with results:", results);
+            }
+          } else if (type === "error") {
+            setWorkerSearchProgress(null);
+            setActiveSearchId(null);
+            setGeneralError(`Search error: ${(data as Error).message}`);
+          } else if (type === "cancelled") {
+            setWorkerSearchProgress(null);
+            setActiveSearchId(null);
+          }
+        }
+      );
+
+      // Clean up the listener when the component unmounts
+      return () => {
+        if (searchServiceRef.current) {
+          searchServiceRef.current.removeListener(searchId, listenerId);
+        }
+      };
+    },
+    [activeSearchId]
+  );
+
+  // Handle search submit
   const handleSearchSubmit = useCallback(
     async (params: SearchParams) => {
       setIsLoading(true);
@@ -551,6 +644,15 @@ function App() {
     [t]
   );
 
+  // Handle cancelling a worker search
+  const handleCancelWorkerSearch = useCallback(() => {
+    if (activeSearchId && searchServiceRef.current) {
+      searchServiceRef.current.cancelSearch(activeSearchId);
+      setActiveSearchId(null);
+      setWorkerSearchProgress(null);
+    }
+  }, [activeSearchId]);
+
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
 
@@ -633,10 +735,19 @@ function App() {
           onSubmit={(params) => {
             void handleSearchSubmit(params);
           }}
-          isLoading={isLoading}
+          isLoading={isLoading || !!activeSearchId}
           historyEntryToLoad={historyEntryToLoad}
           onLoadComplete={handleHistoryLoadComplete}
         />
+
+        {/* Worker Search Progress */}
+        {workerSearchProgress && activeSearchId && (
+          <SearchProgress
+            searchId={activeSearchId}
+            onCancel={handleCancelWorkerSearch}
+            progress={workerSearchProgress}
+          />
+        )}
 
         {generalError && (
           <div className="p-4 rounded-md bg-destructive/10 border border-destructive/30 text-destructive">
