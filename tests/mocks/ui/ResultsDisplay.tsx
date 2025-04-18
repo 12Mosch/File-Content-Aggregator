@@ -5,7 +5,11 @@
 // Define the props interface
 interface ResultsDisplayProps {
   structuredItems: Array<{ filePath: string; matched: boolean }>;
-  summary: { filesFound: number; filesProcessed: number; errorsEncountered: number };
+  summary: {
+    filesFound: number;
+    filesProcessed: number;
+    errorsEncountered: number;
+  };
   viewMode: string;
   itemDisplayStates: Record<string, any>;
   itemDisplayVersion: number;

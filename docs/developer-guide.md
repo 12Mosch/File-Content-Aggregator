@@ -12,6 +12,7 @@ This guide provides technical information for developers working on or contribut
 - [Project Structure](#project-structure)
 - [Architecture](#architecture)
   - [Electron Main vs. Renderer](#electron-main-vs-renderer)
+  - [Application Lifecycle](#application-lifecycle)
   - [Preload Script & Context Isolation](#preload-script--context-isolation)
   - [Inter-Process Communication (IPC)](#inter-process-communication-ipc)
   - [Vite Integration](#vite-integration)
@@ -139,6 +140,17 @@ file-content-aggregator/
 
 - **Main Process (`src/electron/main.ts`):** Runs in a Node.js environment. Has access to all Node.js APIs and Electron APIs for managing windows, menus, dialogs, system events, etc. It orchestrates the application lifecycle and performs backend tasks like file searching, exporting results, reading individual file contents on demand, and generating formatted content for copying.
 - **Renderer Process (`src/ui/main.tsx` & components):** Runs the web page (`index.html`) inside a Chromium window. This is where the React UI lives. It _does not_ have direct access to Node.js or most Electron APIs for security reasons.
+
+### Application Lifecycle
+
+- **Startup:** The application starts with `npm run dev` which runs both the Vite development server and the Electron application in parallel using a custom Node.js script (`scripts/dev.js`).
+- **Window Management:** The main window is created in `createWindow()` in `main.ts`. When this window is closed, the `closed` event is triggered, and the `mainWindow` reference is set to null.
+- **Shutdown:**
+  - When all windows are closed, the `window-all-closed` event is triggered. On non-macOS platforms, `app.quit()` is called.
+  - On Windows specifically, we use `process.exit(0)` to ensure all processes terminate properly when the window is closed.
+  - In development mode, we also handle the `before-quit` event to ensure the application fully terminates when quitting.
+  - The `will-quit` event is used for cleanup tasks before the application exits, such as saving profiling data.
+  - The custom development script (`scripts/dev.js`) monitors the Electron process and terminates all child processes (including the Vite server) when the Electron application exits, ensuring a clean shutdown without requiring manual intervention (Ctrl+C).
 
 ### Preload Script & Context Isolation
 

@@ -15,21 +15,25 @@ The core search functionality is tested through three main test files:
 These tests verify that the application correctly parses different types of search terms:
 
 - **Simple Term Parsing**
+
   - Parsing of simple terms
   - Parsing of quoted terms
 
 - **Regex Pattern Parsing**
+
   - Parsing of regex patterns
   - Parsing of regex patterns with flags
   - Handling of invalid regex patterns
 
 - **Boolean Expression Parsing**
+
   - Parsing of AND expressions
   - Parsing of OR expressions
   - Parsing of NOT expressions
   - Parsing of complex boolean expressions
 
 - **NEAR Operator Parsing**
+
   - Parsing of NEAR function calls
   - Parsing of NEAR with regex patterns
 
@@ -42,20 +46,24 @@ These tests verify that the application correctly parses different types of sear
 These tests verify that the application correctly evaluates search terms against content:
 
 - **Exact Term Matching**
+
   - Matching exact terms in content
   - Finding all indices of a term in content
 
 - **Case Sensitivity**
+
   - Case-insensitive matching by default
   - Respecting case sensitivity when enabled
   - Matching exact case when case-sensitive
 
 - **Regex Pattern Matching**
+
   - Matching regex patterns in content
   - Not matching regex patterns that don't match content
   - Respecting regex flags
 
 - **Boolean Expression Evaluation**
+
   - Evaluating AND expressions
   - Evaluating OR expressions
   - Evaluating NOT expressions
@@ -64,6 +72,7 @@ These tests verify that the application correctly evaluates search terms against
   - Short-circuiting OR evaluation
 
 - **NEAR Operator Evaluation**
+
   - Evaluating NEAR with terms in proximity
   - Not matching NEAR with terms too far apart
   - Evaluating NEAR with regex patterns
@@ -80,17 +89,20 @@ These tests verify that the application correctly evaluates search terms against
 These tests verify that the application correctly filters files based on various criteria:
 
 - **File Extension Filtering**
+
   - Matching files with specified extensions
   - Not matching files with different extensions
   - Handling extensions with and without dots
 
 - **File Path Inclusion/Exclusion**
+
   - Excluding files matching exact pattern
   - Excluding files matching glob pattern
   - Excluding files matching regex pattern
   - Not excluding files not matching any pattern
 
 - **Directory Exclusion**
+
   - Excluding directory with 'contains' mode
   - Excluding directory with 'startsWith' mode
   - Excluding directory with 'endsWith' mode
@@ -98,12 +110,14 @@ These tests verify that the application correctly filters files based on various
   - Not excluding directory not matching pattern
 
 - **File Size Filtering**
+
   - Filtering files by minimum size
   - Filtering files by maximum size
   - Filtering files by size range
   - Excluding files outside size range
 
 - **File Date Filtering**
+
   - Filtering files by modified after date
   - Filtering files by modified before date
   - Filtering files by date range

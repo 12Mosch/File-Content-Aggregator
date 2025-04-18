@@ -66,22 +66,23 @@ describe("highlightTermsInHtml - Performance", () => {
     // Create a large HTML document with repeated elements
     const repeatedElement = '<span class="hljs-keyword">const</span> x = 10;\n';
     const largeHtml = repeatedElement.repeat(1000);
-    
+
     // This should not crash or timeout
     const result = highlightTermsInHtml(largeHtml, ["const"], true);
     expect(typeof result).toBe("string");
   });
 
   test("should handle many search terms", () => {
-    const html = '<span class="hljs-keyword">const</span> x = 10; <span class="hljs-keyword">let</span> y = 20;';
-    
+    const html =
+      '<span class="hljs-keyword">const</span> x = 10; <span class="hljs-keyword">let</span> y = 20;';
+
     // Create an array with many search terms
     const manyTerms = Array.from({ length: 50 }, (_, i) => `term${i}`);
-    
+
     // Add a few terms that will actually match
     manyTerms.push("const");
     manyTerms.push("let");
-    
+
     // This should not crash or timeout
     const result = highlightTermsInHtml(html, manyTerms, true);
     expect(typeof result).toBe("string");
@@ -90,15 +91,19 @@ describe("highlightTermsInHtml - Performance", () => {
   });
 
   test("should handle many regex terms", () => {
-    const html = '<span class="hljs-keyword">const</span> x = 10; <span class="hljs-keyword">let</span> y = 20;';
-    
+    const html =
+      '<span class="hljs-keyword">const</span> x = 10; <span class="hljs-keyword">let</span> y = 20;';
+
     // Create an array with many regex terms
-    const manyRegexTerms = Array.from({ length: 20 }, (_, i) => new RegExp(`term${i}`, "g"));
-    
+    const manyRegexTerms = Array.from(
+      { length: 20 },
+      (_, i) => new RegExp(`term${i}`, "g")
+    );
+
     // Add a few regex terms that will actually match
     manyRegexTerms.push(/const/g);
     manyRegexTerms.push(/let/g);
-    
+
     // This should not crash or timeout
     const result = highlightTermsInHtml(html, manyRegexTerms, true);
     expect(typeof result).toBe("string");
@@ -110,18 +115,18 @@ describe("highlightTermsInHtml - Performance", () => {
     // Create a very large HTML document
     const repeatedElement = '<span class="hljs-keyword">const</span> x = 10;\n';
     const veryLargeHtml = repeatedElement.repeat(5000);
-    
+
     // Create many search terms
     const manyTerms = Array.from({ length: 100 }, (_, i) => `term${i}`);
     manyTerms.push("const"); // Add one that will match
-    
+
     // Measure execution time
     const startTime = performance.now();
     const result = highlightTermsInHtml(veryLargeHtml, manyTerms, true);
     const endTime = performance.now();
-    
+
     console.log(`Execution time: ${endTime - startTime} ms`);
-    
+
     expect(typeof result).toBe("string");
   });
 });

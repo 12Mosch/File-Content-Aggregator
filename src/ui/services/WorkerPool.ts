@@ -1,11 +1,11 @@
 /**
  * Worker Pool
- * 
+ *
  * Manages a pool of web workers for parallel processing.
  * Distributes tasks among workers and handles communication.
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 interface WorkerTask {
   id: string;
@@ -29,7 +29,7 @@ export class WorkerPool {
   private maxWorkers: number;
   private isInitialized = false;
   private initPromise: Promise<void> | null = null;
-  
+
   /**
    * Creates a new worker pool
    * @param workerScript Path to the worker script
@@ -38,111 +38,114 @@ export class WorkerPool {
    */
   constructor(workerScript: string, initialWorkers = 2, maxWorkers = 4) {
     this.workerScript = workerScript;
-    this.maxWorkers = Math.max(1, Math.min(maxWorkers, navigator.hardwareConcurrency || 4));
-    
+    this.maxWorkers = Math.max(
+      1,
+      Math.min(maxWorkers, navigator.hardwareConcurrency || 4)
+    );
+
     // Create initial workers
     this.initPromise = this.initialize(initialWorkers);
   }
-  
+
   /**
    * Initialize the worker pool
    * @param count Number of workers to create
    */
   private async initialize(count: number): Promise<void> {
     const workerCount = Math.min(count, this.maxWorkers);
-    
+
     const initPromises: Promise<void>[] = [];
-    
+
     for (let i = 0; i < workerCount; i++) {
       initPromises.push(this.createWorker());
     }
-    
+
     await Promise.all(initPromises);
     this.isInitialized = true;
   }
-  
+
   /**
    * Create a new worker and set up message handling
    */
   private createWorker(): Promise<void> {
     return new Promise((resolve) => {
-      const worker = new Worker(this.workerScript, { type: 'module' });
-      
+      const worker = new Worker(this.workerScript, { type: "module" });
+
       const workerInfo: WorkerInfo = {
         worker,
         busy: false,
-        currentTask: null
+        currentTask: null,
       };
-      
+
       // Handle messages from the worker
       worker.onmessage = (event) => {
         const { id, status } = event.data;
-        
+
         // Handle worker ready message
-        if (status === 'ready' && !id) {
+        if (status === "ready" && !id) {
           this.workers.push(workerInfo);
           resolve();
           return;
         }
-        
+
         // Handle task completion
         if (workerInfo.currentTask && id === workerInfo.currentTask.id) {
           const task = workerInfo.currentTask;
-          
+
           // Mark worker as available
           workerInfo.busy = false;
           workerInfo.currentTask = null;
-          
+
           // Process the result
-          if (status === 'error') {
-            task.reject(new Error(event.data.error || 'Unknown error'));
-          } else if (status === 'cancelled') {
-            task.reject(new Error('Task was cancelled'));
+          if (status === "error") {
+            task.reject(new Error(event.data.error || "Unknown error"));
+          } else if (status === "cancelled") {
+            task.reject(new Error("Task was cancelled"));
           } else {
             task.resolve(event.data);
           }
-          
+
           // Process next task if available
           this.processQueue();
         }
       };
-      
+
       // Handle worker errors
       worker.onerror = (error) => {
-        console.error('Worker error:', error);
-        
+        console.error("Worker error:", error);
+
         // If there's a current task, reject it
         if (workerInfo.currentTask) {
           workerInfo.currentTask.reject(
-            new Error(`Worker error: ${error.message || 'Unknown error'}`)
+            new Error(`Worker error: ${error.message || "Unknown error"}`)
           );
           workerInfo.busy = false;
           workerInfo.currentTask = null;
         }
-        
+
         // Remove this worker from the pool
         const index = this.workers.indexOf(workerInfo);
         if (index !== -1) {
           this.workers.splice(index, 1);
         }
-        
+
         // Create a replacement worker
         this.createWorker().catch(console.error);
-        
+
         // Process next task if available
         this.processQueue();
       };
     });
   }
-  
+
   /**
    * Process the next task in the queue if workers are available
    */
   private processQueue(): void {
     if (this.taskQueue.length === 0) return;
-    
+
     // Find an available worker
-    const availableWorker = this.workers.find(w => !w.busy);
+    const availableWorker = this.workers.find((w) => !w.busy);
     if (!availableWorker) {
       // If all workers are busy and we haven't reached max, create a new one
       if (this.workers.length < this.maxWorkers) {
@@ -152,23 +155,23 @@ export class WorkerPool {
       }
       return;
     }
-    
+
     // Get the next task
     const task = this.taskQueue.shift();
     if (!task) return;
-    
+
     // Assign the task to the worker
     availableWorker.busy = true;
     availableWorker.currentTask = task;
-    
+
     // Send the task to the worker
     availableWorker.worker.postMessage({
       id: task.id,
       action: task.action,
-      payload: task.payload
+      payload: task.payload,
     });
   }
-  
+
   /**
    * Execute a task on an available worker
    * @param action The action to perform
@@ -180,7 +183,7 @@ export class WorkerPool {
     if (!this.isInitialized && this.initPromise) {
       await this.initPromise;
     }
-    
+
     return new Promise<T>((resolve, reject) => {
       const task: WorkerTask = {
         id: uuidv4(),
@@ -188,76 +191,76 @@ export class WorkerPool {
         payload,
         resolve,
         reject,
-        startTime: performance.now()
+        startTime: performance.now(),
       };
-      
+
       // Add task to queue
       this.taskQueue.push(task);
-      
+
       // Process queue
       this.processQueue();
     });
   }
-  
+
   /**
    * Cancel a specific task
    * @param taskId The ID of the task to cancel
    */
   public cancelTask(taskId: string): void {
     // Check if the task is in the queue
-    const queueIndex = this.taskQueue.findIndex(task => task.id === taskId);
+    const queueIndex = this.taskQueue.findIndex((task) => task.id === taskId);
     if (queueIndex !== -1) {
       // Remove from queue and reject
       const task = this.taskQueue.splice(queueIndex, 1)[0];
-      task.reject(new Error('Task was cancelled'));
+      task.reject(new Error("Task was cancelled"));
       return;
     }
-    
+
     // Check if the task is currently being processed
-    const workerInfo = this.workers.find(w => w.currentTask?.id === taskId);
+    const workerInfo = this.workers.find((w) => w.currentTask?.id === taskId);
     if (workerInfo) {
       // Send cancellation message to worker
       workerInfo.worker.postMessage({
         id: uuidv4(),
-        action: 'cancel',
+        action: "cancel",
         payload: {
-          requestId: taskId
-        }
+          requestId: taskId,
+        },
       });
     }
   }
-  
+
   /**
    * Terminate all workers and clear the queue
    */
   public terminate(): void {
     // Reject all queued tasks
     for (const task of this.taskQueue) {
-      task.reject(new Error('Worker pool terminated'));
+      task.reject(new Error("Worker pool terminated"));
     }
     this.taskQueue = [];
-    
+
     // Terminate all workers
     for (const workerInfo of this.workers) {
       if (workerInfo.currentTask) {
-        workerInfo.currentTask.reject(new Error('Worker pool terminated'));
+        workerInfo.currentTask.reject(new Error("Worker pool terminated"));
       }
       workerInfo.worker.terminate();
     }
     this.workers = [];
-    
+
     this.isInitialized = false;
   }
-  
+
   /**
    * Get statistics about the worker pool
    */
   public getStats() {
     return {
       totalWorkers: this.workers.length,
-      busyWorkers: this.workers.filter(w => w.busy).length,
+      busyWorkers: this.workers.filter((w) => w.busy).length,
       queuedTasks: this.taskQueue.length,
-      maxWorkers: this.maxWorkers
+      maxWorkers: this.maxWorkers,
     };
   }
 }

@@ -396,46 +396,87 @@ void app.whenReady().then(async () => {
   });
 });
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+  if (process.platform !== "darwin") {
+    console.log("All windows closed, quitting application...");
+    app.quit();
 
-app.on("will-quit", async (event) => {
-  // Save profiling data if profiling was enabled
-  const profiler = getProfiler();
-  if (profiler.isEnabled()) {
-    event.preventDefault(); // Prevent quitting until we save the report
-
-    try {
-      const timestamp = new Date().toISOString().replace(/:/g, "-");
-      // Save to project directory instead of user data directory
-      const reportPath = path.join(
-        __dirname,
-        "..",
-        "..",
-        "performance-results",
-        `profile-report-${timestamp}.json`
-      );
-
-      // Ensure directory exists
-      const fs = await import("fs/promises");
-      try {
-        await fs.mkdir(path.dirname(reportPath), { recursive: true });
-      } catch (err) {
-        // Ignore if directory already exists
-      }
-
-      await profiler.saveReport(reportPath);
-      console.log(`Profiling report saved to: ${reportPath}`);
-
-      // Log the report to the console as well
-      profiler.logReport();
-    } catch (error) {
-      console.error("Failed to save profiling report:", error);
-    } finally {
-      // Continue with app quit
-      app.quit();
+    // Force exit on Windows to ensure all processes terminate
+    if (process.platform === "win32") {
+      console.log("Windows platform detected, forcing process exit...");
+      // Use a more aggressive approach to terminate all processes
+      setTimeout(() => {
+        console.log("Forcing immediate exit...");
+        process.exit(0);
+      }, 100); // Small delay to allow logs to be written
     }
   }
+});
+
+// Force quit the application when running in development mode
+if (isDev()) {
+  app.on("before-quit", () => {
+    console.log("Application is quitting, terminating process...");
+    // Use a more aggressive approach to terminate all processes
+    setTimeout(() => {
+      console.log("Forcing immediate exit in development mode...");
+      process.exit(0); // Force exit the process
+    }, 100); // Small delay to allow logs to be written
+  });
+
+  // Also handle the 'will-quit' event in development mode
+  app.on("will-quit", () => {
+    console.log("Application will quit, ensuring all processes terminate...");
+    setTimeout(() => {
+      console.log("Forcing exit from will-quit event...");
+      process.exit(0);
+    }, 100);
+  });
+}
+
+// Handle profiling data saving in production mode or when profiling is enabled
+app.on("will-quit", (event) => {
+  // Skip this handler in development mode as we have a separate handler for that
+  if (isDev()) return;
+
+  // Use async IIFE to handle async operations
+  void (async () => {
+    // Save profiling data if profiling was enabled
+    const profiler = getProfiler();
+    if (profiler.isEnabled()) {
+      event.preventDefault(); // Prevent quitting until we save the report
+
+      try {
+        const timestamp = new Date().toISOString().replace(/:/g, "-");
+        // Save to project directory instead of user data directory
+        const reportPath = path.join(
+          __dirname,
+          "..",
+          "..",
+          "performance-results",
+          `profile-report-${timestamp}.json`
+        );
+
+        // Ensure directory exists
+        const fs = await import("fs/promises");
+        try {
+          await fs.mkdir(path.dirname(reportPath), { recursive: true });
+        } catch (_err) {
+          // Ignore if directory already exists
+        }
+
+        await profiler.saveReport(reportPath);
+        console.log(`Profiling report saved to: ${reportPath}`);
+
+        // Log the report to the console as well
+        profiler.logReport();
+      } catch (error) {
+        console.error("Failed to save profiling report:", error);
+      } finally {
+        // Continue with app quit
+        app.quit();
+      }
+    }
+  })();
 });
 app.on("web-contents-created", (_event, contents) => {
   contents.on("will-navigate", (event, navigationUrl) => {

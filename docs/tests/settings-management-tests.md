@@ -74,6 +74,7 @@ jest.mock("../../../src/electron/fileSearchService", () => {
 ### Default Settings Values
 
 1. **Default Values When Settings Not Found**
+
    - Verifies that default values are used when settings are not found in the store
    - Tests default values for theme preference, fuzzy search settings, and export format
 
@@ -84,14 +85,17 @@ jest.mock("../../../src/electron/fileSearchService", () => {
 ### Saving and Loading Fuzzy Search Settings
 
 1. **Save Fuzzy Search Boolean Setting**
+
    - Verifies that the fuzzy search Boolean setting is saved correctly
    - Tests that the setting is passed to the search service
 
 2. **Save Fuzzy Search NEAR Setting**
+
    - Verifies that the fuzzy search NEAR setting is saved correctly
    - Tests that the setting is passed to the search service
 
 3. **Load Fuzzy Search Boolean Setting**
+
    - Verifies that the fuzzy search Boolean setting is loaded correctly
    - Tests that the correct value is returned by the IPC handler
 
@@ -102,10 +106,12 @@ jest.mock("../../../src/electron/fileSearchService", () => {
 ### Settings Validation
 
 1. **Validate Theme Preference Values**
+
    - Verifies that theme preference values are validated correctly
    - Tests that valid values are accepted and applied
 
 2. **Handle Errors During Settings Operations**
+
    - Verifies that errors during settings operations are handled correctly
    - Tests that default values are returned when errors occur
 

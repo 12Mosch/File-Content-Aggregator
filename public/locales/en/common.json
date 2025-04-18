@@ -62,5 +62,6 @@
   "accessibilityCopyShortcut": "Press Ctrl+C to copy results",
   "accessibilityExportShortcut": "Press Ctrl+E to export results",
   "accessibilitySettingsShortcut": "Press Ctrl+Comma to open settings",
-  "accessibilityHistoryShortcut": "Press Ctrl+H to open history"
+  "accessibilityHistoryShortcut": "Press Ctrl+H to open history",
+  "appTerminating": "Application is terminating..."
 }

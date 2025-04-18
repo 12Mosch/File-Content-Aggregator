@@ -38,7 +38,11 @@ export function updateSearchSettings(
   wholeWordMatchingEnabled = wholeWordEnabled;
 
   // Update the optimized service
-  optimizedService.updateSearchSettings(booleanEnabled, nearEnabled, wholeWordEnabled);
+  optimizedService.updateSearchSettings(
+    booleanEnabled,
+    nearEnabled,
+    wholeWordEnabled
+  );
 }
 
 /**
@@ -67,5 +71,9 @@ export async function searchFiles(
   checkCancellation: CancellationChecker
 ): Promise<SearchResult> {
   // Delegate to the optimized service
-  return optimizedService.searchFiles(params, progressCallback, checkCancellation);
+  return optimizedService.searchFiles(
+    params,
+    progressCallback,
+    checkCancellation
+  );
 }

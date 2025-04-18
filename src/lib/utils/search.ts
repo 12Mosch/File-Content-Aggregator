@@ -1,11 +1,11 @@
 /**
  * Search Utility Functions
- * 
+ *
  * Utility functions for search operations.
  */
 
-import { AppError } from '../errors';
-import { createRegexFromPattern, escapeRegExp } from './string';
+import { AppError } from "../errors";
+import { createRegexFromPattern, escapeRegExp } from "./string";
 
 /**
  * Find all occurrences of a term in content
@@ -23,7 +23,11 @@ export function findTermIndices(
     useWholeWordMatching?: boolean;
   } = {}
 ): number[] {
-  const { caseSensitive = false, isRegex = false, useWholeWordMatching = false } = options;
+  const {
+    caseSensitive = false,
+    isRegex = false,
+    useWholeWordMatching = false,
+  } = options;
   const indices: number[] = [];
 
   if (!content || (typeof term === "string" && !term)) {
@@ -37,7 +41,7 @@ export function findTermIndices(
         term.source,
         term.flags.includes("g") ? term.flags : term.flags + "g"
       );
-      
+
       let match;
       while ((match = regex.exec(content)) !== null) {
         indices.push(match.index);
@@ -51,7 +55,7 @@ export function findTermIndices(
           `\\b${escapeRegExp(term)}\\b`,
           flags
         );
-        
+
         let match;
         while ((match = wordBoundaryRegex.exec(content)) !== null) {
           indices.push(match.index);
@@ -64,14 +68,14 @@ export function findTermIndices(
         // Standard substring search
         const searchTerm = caseSensitive ? term : term.toLowerCase();
         const searchContent = caseSensitive ? content : content.toLowerCase();
-        
+
         let i = -1;
         while ((i = searchContent.indexOf(searchTerm, i + 1)) !== -1) {
           indices.push(i);
         }
       }
     }
-    
+
     return indices;
   } catch (error) {
     throw AppError.searchError(
@@ -109,10 +113,10 @@ export function contentMatchesTerm(
  */
 export function getWordBoundaries(content: string): number[] {
   if (!content) return [];
-  
+
   const boundaries: number[] = [];
   const wordBoundaryRegex = /\b/g;
-  
+
   let match;
   while ((match = wordBoundaryRegex.exec(content)) !== null) {
     boundaries.push(match.index);
@@ -121,7 +125,7 @@ export function getWordBoundaries(content: string): number[] {
       wordBoundaryRegex.lastIndex++;
     }
   }
-  
+
   return boundaries;
 }
 
@@ -131,7 +135,10 @@ export function getWordBoundaries(content: string): number[] {
  * @param boundaries Array of word boundary positions
  * @returns True if the position is at a word boundary
  */
-export function isWordBoundary(position: number, boundaries: number[]): boolean {
+export function isWordBoundary(
+  position: number,
+  boundaries: number[]
+): boolean {
   return boundaries.includes(position);
 }
 
@@ -153,19 +160,21 @@ export function isWholeWordMatch(
   } = {}
 ): boolean {
   const { caseSensitive = false, boundaries } = options;
-  
+
   // If we have pre-computed boundaries, use them
   if (boundaries) {
     const startBoundary = isWordBoundary(matchIndex, boundaries);
     const endBoundary = isWordBoundary(matchIndex + term.length, boundaries);
     return startBoundary && endBoundary;
   }
-  
+
   // Otherwise, use regex to check
   const flags = caseSensitive ? "" : "i";
   const wordBoundaryRegex = new RegExp(`\\b${escapeRegExp(term)}\\b`, flags);
-  
-  return wordBoundaryRegex.test(content.substring(matchIndex, matchIndex + term.length + 1));
+
+  return wordBoundaryRegex.test(
+    content.substring(matchIndex, matchIndex + term.length + 1)
+  );
 }
 
 /**
@@ -186,52 +195,52 @@ export function findTermDistance(
   } = {}
 ): number {
   const { caseSensitive = false, useWholeWordMatching = false } = options;
-  
+
   // Find all occurrences of both terms
   const term1Indices = findTermIndices(content, term1, {
     caseSensitive,
-    useWholeWordMatching
+    useWholeWordMatching,
   });
-  
+
   const term2Indices = findTermIndices(content, term2, {
     caseSensitive,
-    useWholeWordMatching
+    useWholeWordMatching,
   });
-  
+
   if (term1Indices.length === 0 || term2Indices.length === 0) {
     return -1; // One or both terms not found
   }
-  
+
   // Split content into words
   const words = content.split(/\s+/);
   const wordPositions: number[] = [];
-  
+
   // Calculate the position of each word in the original content
   let position = 0;
   for (const word of words) {
     wordPositions.push(position);
     position += word.length + 1; // +1 for the space
   }
-  
+
   // Find the word index for each term occurrence
-  const term1WordIndices = term1Indices.map(index => {
-    return wordPositions.findIndex(pos => pos > index) - 1;
+  const term1WordIndices = term1Indices.map((index) => {
+    return wordPositions.findIndex((pos) => pos > index) - 1;
   });
-  
-  const term2WordIndices = term2Indices.map(index => {
-    return wordPositions.findIndex(pos => pos > index) - 1;
+
+  const term2WordIndices = term2Indices.map((index) => {
+    return wordPositions.findIndex((pos) => pos > index) - 1;
   });
-  
+
   // Find the minimum distance between any pair of occurrences
   let minDistance = Infinity;
-  
+
   for (const t1Index of term1WordIndices) {
     for (const t2Index of term2WordIndices) {
       const distance = Math.abs(t1Index - t2Index);
       minDistance = Math.min(minDistance, distance);
     }
   }
-  
+
   return minDistance === Infinity ? -1 : minDistance;
 }
 

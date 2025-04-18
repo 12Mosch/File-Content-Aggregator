@@ -1,6 +1,6 @@
 /**
  * Application Error Classes
- * 
+ *
  * Standardized error classes for the application.
  * These provide consistent error handling and reporting.
  */
@@ -22,7 +22,7 @@ export class AppError extends Error {
   ) {
     super(message);
     this.name = "AppError";
-    
+
     // Ensure proper prototype chain for instanceof checks
     Object.setPrototypeOf(this, AppError.prototype);
   }
@@ -43,7 +43,10 @@ export class AppError extends Error {
    * @returns AppError instance
    */
   static fileAccessError(path: string, details?: unknown): AppError {
-    return new AppError(`Cannot access file: ${path}`, "FILE_ACCESS_ERROR", { path, details });
+    return new AppError(`Cannot access file: ${path}`, "FILE_ACCESS_ERROR", {
+      path,
+      details,
+    });
   }
 
   /**
@@ -63,7 +66,10 @@ export class AppError extends Error {
    * @returns AppError instance
    */
   static regexError(pattern: string, details?: unknown): AppError {
-    return new AppError(`Invalid regex pattern: ${pattern}`, "REGEX_ERROR", { pattern, details });
+    return new AppError(`Invalid regex pattern: ${pattern}`, "REGEX_ERROR", {
+      pattern,
+      details,
+    });
   }
 
   /**
@@ -73,7 +79,11 @@ export class AppError extends Error {
    * @returns AppError instance
    */
   static parsingError(expression: string, details?: unknown): AppError {
-    return new AppError(`Failed to parse expression: ${expression}`, "PARSING_ERROR", { expression, details });
+    return new AppError(
+      `Failed to parse expression: ${expression}`,
+      "PARSING_ERROR",
+      { expression, details }
+    );
   }
 
   /**
@@ -83,7 +93,11 @@ export class AppError extends Error {
    * @returns AppError instance
    */
   static configError(message: string, details?: unknown): AppError {
-    return new AppError(`Configuration error: ${message}`, "CONFIG_ERROR", details);
+    return new AppError(
+      `Configuration error: ${message}`,
+      "CONFIG_ERROR",
+      details
+    );
   }
 
   /**
@@ -106,7 +120,11 @@ export class AppError extends Error {
    * @returns AppError instance
    */
   static cancellationError(operation: string): AppError {
-    return new AppError(`Operation cancelled: ${operation}`, "CANCELLATION_ERROR", { operation });
+    return new AppError(
+      `Operation cancelled: ${operation}`,
+      "CANCELLATION_ERROR",
+      { operation }
+    );
   }
 
   /**
@@ -116,8 +134,15 @@ export class AppError extends Error {
    * @param value Invalid value
    * @returns AppError instance
    */
-  static validationError(message: string, field?: string, value?: unknown): AppError {
-    return new AppError(`Validation error: ${message}`, "VALIDATION_ERROR", { field, value });
+  static validationError(
+    message: string,
+    field?: string,
+    value?: unknown
+  ): AppError {
+    return new AppError(`Validation error: ${message}`, "VALIDATION_ERROR", {
+      field,
+      value,
+    });
   }
 
   /**
@@ -126,15 +151,22 @@ export class AppError extends Error {
    * @param defaultMessage Default message if error is not an Error instance
    * @returns AppError instance
    */
-  static fromUnknown(error: unknown, defaultMessage = "An unknown error occurred"): AppError {
+  static fromUnknown(
+    error: unknown,
+    defaultMessage = "An unknown error occurred"
+  ): AppError {
     if (error instanceof AppError) {
       return error;
     }
-    
+
     if (error instanceof Error) {
-      return new AppError(error.message, "UNKNOWN_ERROR", { originalError: error });
+      return new AppError(error.message, "UNKNOWN_ERROR", {
+        originalError: error,
+      });
     }
-    
-    return new AppError(defaultMessage, "UNKNOWN_ERROR", { originalError: error });
+
+    return new AppError(defaultMessage, "UNKNOWN_ERROR", {
+      originalError: error,
+    });
   }
 }

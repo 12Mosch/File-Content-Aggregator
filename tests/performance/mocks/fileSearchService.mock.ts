@@ -12,7 +12,7 @@ export function findTermIndices(
   useWholeWordMatching: boolean = false
 ): number[] {
   const indices: number[] = [];
-  
+
   if (isRegex && term instanceof RegExp) {
     // Ensure the regex has the global flag for iterative searching
     const regex = new RegExp(
@@ -47,7 +47,7 @@ export function findTermIndices(
       // Simple string search
       let startIndex = 0;
       let index;
-      
+
       if (caseSensitive) {
         while ((index = content.indexOf(term, startIndex)) !== -1) {
           indices.push(index);
@@ -56,7 +56,7 @@ export function findTermIndices(
       } else {
         const lowerContent = content.toLowerCase();
         const lowerTerm = term.toLowerCase();
-        
+
         while ((index = lowerContent.indexOf(lowerTerm, startIndex)) !== -1) {
           indices.push(index);
           startIndex = index + 1;
@@ -64,7 +64,7 @@ export function findTermIndices(
       }
     }
   }
-  
+
   return indices;
 }
 
@@ -111,20 +111,20 @@ export function evaluateSearchExpression(
           }
         }
       }
-    
+
     case "boolean":
       // Simplified boolean evaluation for testing
       if (searchTerm.includes("AND")) {
-        const terms = searchTerm.split("AND").map(t => t.trim());
-        return terms.every(term => {
+        const terms = searchTerm.split("AND").map((t) => t.trim());
+        return terms.every((term) => {
           if (term.startsWith("(") && term.endsWith(")")) {
             term = term.substring(1, term.length - 1).trim();
           }
           return evaluateSearchExpression(
-            content, 
-            term, 
-            "term", 
-            isRegex, 
+            content,
+            term,
+            "term",
+            isRegex,
             fuzzySearchBooleanEnabled,
             fuzzySearchNearEnabled,
             caseSensitive,
@@ -132,16 +132,16 @@ export function evaluateSearchExpression(
           );
         });
       } else if (searchTerm.includes("OR")) {
-        const terms = searchTerm.split("OR").map(t => t.trim());
-        return terms.some(term => {
+        const terms = searchTerm.split("OR").map((t) => t.trim());
+        return terms.some((term) => {
           if (term.startsWith("(") && term.endsWith(")")) {
             term = term.substring(1, term.length - 1).trim();
           }
           return evaluateSearchExpression(
-            content, 
-            term, 
-            "term", 
-            isRegex, 
+            content,
+            term,
+            "term",
+            isRegex,
             fuzzySearchBooleanEnabled,
             fuzzySearchNearEnabled,
             caseSensitive,
@@ -152,19 +152,19 @@ export function evaluateSearchExpression(
         // Very simplified NEAR implementation
         return true;
       }
-      
+
       // Default to term search if no operators
       return evaluateSearchExpression(
-        content, 
-        searchTerm, 
-        "term", 
-        isRegex, 
+        content,
+        searchTerm,
+        "term",
+        isRegex,
         fuzzySearchBooleanEnabled,
         fuzzySearchNearEnabled,
         caseSensitive,
         wholeWordMatchingEnabled
       );
-      
+
     default:
       return false;
   }

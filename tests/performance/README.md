@@ -7,6 +7,7 @@ This directory contains performance tests for the File Content Aggregator applic
 ### 1. Search Performance Tests (`searchPerformance.test.ts`)
 
 Tests the performance of search operations with different content sizes and query types:
+
 - Simple term search
 - Boolean query evaluation
 - NEAR operator evaluation
@@ -15,12 +16,14 @@ Tests the performance of search operations with different content sizes and quer
 ### 2. UI Performance Tests (`uiPerformance.test.ts`)
 
 Tests the rendering performance of UI components:
+
 - Initial render time with different result set sizes
 - Interaction performance (filtering, expanding items)
 
 ### 3. Memory Leak Detection Tests (`memoryLeakDetection.test.ts`)
 
 Tests for potential memory leaks:
+
 - Memory usage in repeated search operations
 - Memory usage in word boundary cache
 
@@ -68,6 +71,7 @@ npm run test:complexity
 The refactoring plan defines the following success metrics:
 
 1. **Performance Improvements:**
+
    - 50% reduction in search time for large file sets
    - 30% reduction in memory usage
    - Smoother UI experience with no blocking operations
@@ -82,6 +86,7 @@ Use the comparison script to evaluate whether these metrics have been achieved a
 ## Notes for Running Tests
 
 - For memory leak detection tests, run with the `--expose-gc` flag to enable garbage collection:
+
   ```bash
   NODE_OPTIONS=--expose-gc npx jest tests/performance/memoryLeakDetection.test.ts
   ```

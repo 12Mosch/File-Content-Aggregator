@@ -1,6 +1,6 @@
 /**
  * Boolean Expression Utilities
- * 
+ *
  * Utilities for parsing and evaluating boolean expressions.
  */
 
@@ -77,16 +77,18 @@ export function evaluateBooleanAst(
           case "OR":
             return left || right;
           default:
-            console.warn(
-              `Unsupported binary operator: ${binaryNode.operator}`
-            );
+            console.warn(`Unsupported binary operator: ${binaryNode.operator}`);
             return false;
         }
       }
       case "UnaryExpression": {
         const unaryNode = node as Jsep.UnaryExpression;
         if (unaryNode.operator === "!" || unaryNode.operator === "NOT") {
-          return !evaluateBooleanAst(unaryNode.argument, content, caseSensitive);
+          return !evaluateBooleanAst(
+            unaryNode.argument,
+            content,
+            caseSensitive
+          );
         }
         console.warn(`Unsupported unary operator: ${unaryNode.operator}`);
         return false;
@@ -131,7 +133,10 @@ export function evaluateBooleanAst(
           // Extract distance
           if (distanceArg.type === "Literal") {
             const distVal = (distanceArg as Jsep.Literal).value;
-            distance = typeof distVal === "number" ? distVal : parseInt(String(distVal), 10);
+            distance =
+              typeof distVal === "number"
+                ? distVal
+                : parseInt(String(distVal), 10);
             if (isNaN(distance)) {
               console.warn("Third argument to NEAR must be a number");
               return false;
@@ -144,7 +149,6 @@ export function evaluateBooleanAst(
           // Use the optimized NearOperatorService
           const nearOperatorService = NearOperatorService.getInstance();
 
-           
           return nearOperatorService.evaluateNear(
             content,
             term1,
@@ -191,7 +195,8 @@ export function evaluateBooleanAst(
 
           if (wholeWordMatchingEnabled) {
             // Use word boundary service for whole word matching
-            const wordBoundaries = wordBoundaryService.getWordBoundaries(content);
+            const wordBoundaries =
+              wordBoundaryService.getWordBoundaries(content);
             found = wordBoundaryService.isWholeWordMatch(
               content,
               searchTerm,
@@ -210,14 +215,10 @@ export function evaluateBooleanAst(
             // Use the optimized FuzzySearchService
             const fuzzySearchService = FuzzySearchService.getInstance();
 
-            const fuzzyResult = fuzzySearchService.search(
-              content,
-              searchTerm,
-              {
-                isCaseSensitive: caseSensitive,
-                useWholeWordMatching: wholeWordMatchingEnabled,
-              }
-            );
+            const fuzzyResult = fuzzySearchService.search(content, searchTerm, {
+              isCaseSensitive: caseSensitive,
+              useWholeWordMatching: wholeWordMatchingEnabled,
+            });
 
             found = fuzzyResult.isMatch;
             console.log(

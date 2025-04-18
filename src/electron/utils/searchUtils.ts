@@ -1,6 +1,6 @@
 /**
  * Search Utilities
- * 
+ *
  * Utility functions for searching content.
  */
 

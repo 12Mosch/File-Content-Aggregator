@@ -31,24 +31,24 @@ export function evaluateBooleanAst(
       return content.toLowerCase().includes(term.toLowerCase());
     }
   }
-  
+
   if (node.type === "BinaryExpression") {
     const left = evaluateBooleanAst(node.left, content, caseSensitive);
     const right = evaluateBooleanAst(node.right, content, caseSensitive);
-    
+
     if (node.operator === "&&" || node.operator === "AND") {
       return left && right;
     } else if (node.operator === "||" || node.operator === "OR") {
       return left || right;
     }
   }
-  
+
   if (node.type === "UnaryExpression") {
     if (node.operator === "!" || node.operator === "NOT") {
       return !evaluateBooleanAst(node.argument, content, caseSensitive);
     }
   }
-  
+
   return false;
 }
 

@@ -181,20 +181,22 @@ describe("Regex Search Integration Tests", () => {
           }
         } else if (params.contentSearchMode === "boolean") {
           // Boolean query with regex
-          if (params.contentSearchTerm === '/test/ AND /\\d+/') {
+          if (params.contentSearchTerm === "/test/ AND /\\d+/") {
             result.structuredItems[2].matched = true;
-          } else if (params.contentSearchTerm === '/test/ OR /example/') {
+          } else if (params.contentSearchTerm === "/test/ OR /example/") {
             result.structuredItems[0].matched = true;
             result.structuredItems[2].matched = true;
             result.structuredItems[3].matched = true;
-          } else if (params.contentSearchTerm === 'NOT /test/') {
+          } else if (params.contentSearchTerm === "NOT /test/") {
             result.structuredItems[1].matched = true;
             result.structuredItems[3].matched = true;
-          } else if (params.contentSearchTerm.includes('NEAR')) {
+          } else if (params.contentSearchTerm.includes("NEAR")) {
             // NEAR operator with regex
             if (params.contentSearchTerm === 'NEAR("/test/", "/\\d+/", 5)') {
               result.structuredItems[2].matched = true;
-            } else if (params.contentSearchTerm === 'NEAR("/\\w+/", "example", 3)') {
+            } else if (
+              params.contentSearchTerm === 'NEAR("/\\w+/", "example", 3)'
+            ) {
               result.structuredItems[0].matched = true;
               result.structuredItems[3].matched = true;
             }
@@ -202,9 +204,11 @@ describe("Regex Search Integration Tests", () => {
         }
 
         // Simulate complex regex pattern performance
-        if (params.contentSearchTerm === '/(?:^|\\s)\\w{3,10}(?:ing|ed)(?:$|\\s)/') {
+        if (
+          params.contentSearchTerm === "/(?:^|\\s)\\w{3,10}(?:ing|ed)(?:$|\\s)/"
+        ) {
           // Simulate longer processing time for complex regex
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 50));
           result.structuredItems[0].matched = true;
           result.structuredItems[3].matched = true;
         }
@@ -227,7 +231,7 @@ describe("Regex Search Integration Tests", () => {
       const result = await searchFiles(
         {
           ...defaultSearchParams,
-          contentSearchTerm: '/test/ AND /\\d+/',
+          contentSearchTerm: "/test/ AND /\\d+/",
           contentSearchMode: "boolean",
         },
         mockProgressCallback,
@@ -237,7 +241,7 @@ describe("Regex Search Integration Tests", () => {
       // Verify searchFiles was called with the correct parameters
       expect(searchFiles).toHaveBeenCalledWith(
         expect.objectContaining({
-          contentSearchTerm: '/test/ AND /\\d+/',
+          contentSearchTerm: "/test/ AND /\\d+/",
           contentSearchMode: "boolean",
         }),
         mockProgressCallback,
@@ -246,8 +250,13 @@ describe("Regex Search Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(1);
-      expect(result.structuredItems.find(item => item.filePath === "file3.js")?.matched).toBe(true);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        1
+      );
+      expect(
+        result.structuredItems.find((item) => item.filePath === "file3.js")
+          ?.matched
+      ).toBe(true);
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -257,7 +266,7 @@ describe("Regex Search Integration Tests", () => {
       const result = await searchFiles(
         {
           ...defaultSearchParams,
-          contentSearchTerm: '/test/ OR /example/',
+          contentSearchTerm: "/test/ OR /example/",
           contentSearchMode: "boolean",
         },
         mockProgressCallback,
@@ -267,7 +276,7 @@ describe("Regex Search Integration Tests", () => {
       // Verify searchFiles was called with the correct parameters
       expect(searchFiles).toHaveBeenCalledWith(
         expect.objectContaining({
-          contentSearchTerm: '/test/ OR /example/',
+          contentSearchTerm: "/test/ OR /example/",
           contentSearchMode: "boolean",
         }),
         mockProgressCallback,
@@ -276,7 +285,9 @@ describe("Regex Search Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(3);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        3
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -286,7 +297,7 @@ describe("Regex Search Integration Tests", () => {
       const result = await searchFiles(
         {
           ...defaultSearchParams,
-          contentSearchTerm: 'NOT /test/',
+          contentSearchTerm: "NOT /test/",
           contentSearchMode: "boolean",
         },
         mockProgressCallback,
@@ -296,7 +307,7 @@ describe("Regex Search Integration Tests", () => {
       // Verify searchFiles was called with the correct parameters
       expect(searchFiles).toHaveBeenCalledWith(
         expect.objectContaining({
-          contentSearchTerm: 'NOT /test/',
+          contentSearchTerm: "NOT /test/",
           contentSearchMode: "boolean",
         }),
         mockProgressCallback,
@@ -305,9 +316,17 @@ describe("Regex Search Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(2);
-      expect(result.structuredItems.find(item => item.filePath === "file1.txt")?.matched).toBe(false);
-      expect(result.structuredItems.find(item => item.filePath === "file3.js")?.matched).toBe(false);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        2
+      );
+      expect(
+        result.structuredItems.find((item) => item.filePath === "file1.txt")
+          ?.matched
+      ).toBe(false);
+      expect(
+        result.structuredItems.find((item) => item.filePath === "file3.js")
+          ?.matched
+      ).toBe(false);
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -338,8 +357,13 @@ describe("Regex Search Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(1);
-      expect(result.structuredItems.find(item => item.filePath === "file3.js")?.matched).toBe(true);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        1
+      );
+      expect(
+        result.structuredItems.find((item) => item.filePath === "file3.js")
+          ?.matched
+      ).toBe(true);
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -368,7 +392,9 @@ describe("Regex Search Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(2);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        2
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
@@ -378,11 +404,11 @@ describe("Regex Search Integration Tests", () => {
   describe("Performance with complex regex patterns", () => {
     test("should handle complex regex patterns efficiently", async () => {
       const startTime = Date.now();
-      
+
       const result = await searchFiles(
         {
           ...defaultSearchParams,
-          contentSearchTerm: '/(?:^|\\s)\\w{3,10}(?:ing|ed)(?:$|\\s)/',
+          contentSearchTerm: "/(?:^|\\s)\\w{3,10}(?:ing|ed)(?:$|\\s)/",
           contentSearchMode: "term",
         },
         mockProgressCallback,
@@ -395,7 +421,7 @@ describe("Regex Search Integration Tests", () => {
       // Verify searchFiles was called with the correct parameters
       expect(searchFiles).toHaveBeenCalledWith(
         expect.objectContaining({
-          contentSearchTerm: '/(?:^|\\s)\\w{3,10}(?:ing|ed)(?:$|\\s)/',
+          contentSearchTerm: "/(?:^|\\s)\\w{3,10}(?:ing|ed)(?:$|\\s)/",
           contentSearchMode: "term",
         }),
         mockProgressCallback,
@@ -404,14 +430,16 @@ describe("Regex Search Integration Tests", () => {
 
       // Verify the results
       expect(result.filesProcessed).toBe(4);
-      expect(result.structuredItems.filter(item => item.matched).length).toBe(2);
+      expect(result.structuredItems.filter((item) => item.matched).length).toBe(
+        2
+      );
 
       // Verify progress was reported
       expect(mockProgressCallback).toHaveBeenCalled();
-      
+
       // Log execution time for performance reference
       console.log(`Complex regex search execution time: ${executionTime}ms`);
-      
+
       // We don't assert on execution time as it's environment-dependent,
       // but we can log it for manual inspection
     });

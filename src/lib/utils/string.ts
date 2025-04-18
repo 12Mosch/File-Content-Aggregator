@@ -1,10 +1,10 @@
 /**
  * String Utility Functions
- * 
+ *
  * Utility functions for string manipulation and processing.
  */
 
-import { AppError } from '../errors';
+import { AppError } from "../errors";
 
 /**
  * Escape special characters in a string for use in a regular expression
@@ -12,7 +12,7 @@ import { AppError } from '../errors';
  * @returns Escaped string
  */
 export function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
 }
 
 /**
@@ -23,7 +23,7 @@ export function escapeRegExp(string: string): string {
  */
 export function createSafeRegex(
   pattern: string,
-  flags: string = ''
+  flags: string = ""
 ): RegExp | null {
   try {
     return new RegExp(pattern, flags);
@@ -83,31 +83,35 @@ export function createRegexFromPattern(
     isLiteral?: boolean;
   } = {}
 ): RegExp {
-  const { caseSensitive = false, wholeWord = false, isLiteral = false } = options;
-  
+  const {
+    caseSensitive = false,
+    wholeWord = false,
+    isLiteral = false,
+  } = options;
+
   // If it's already a regex literal (e.g., "/pattern/flags"), parse it
   if (!isLiteral) {
     const regexLiteral = parseRegexLiteral(pattern);
     if (regexLiteral) {
       // Ensure it has the global flag
-      const flags = regexLiteral.flags.includes('g') 
-        ? regexLiteral.flags 
-        : regexLiteral.flags + 'g';
-      
+      const flags = regexLiteral.flags.includes("g")
+        ? regexLiteral.flags
+        : regexLiteral.flags + "g";
+
       return new RegExp(regexLiteral.source, flags);
     }
   }
-  
+
   // Otherwise, treat it as a plain string pattern
   let processedPattern = escapeRegExp(pattern);
-  
+
   // Add word boundaries if whole word matching is enabled
   if (wholeWord) {
     processedPattern = `\\b${processedPattern}\\b`;
   }
-  
+
   // Create the regex with appropriate flags
-  const flags = caseSensitive ? 'g' : 'gi';
+  const flags = caseSensitive ? "g" : "gi";
   return new RegExp(processedPattern, flags);
 }
 
@@ -121,7 +125,7 @@ export function createRegexFromPattern(
 export function truncate(
   str: string,
   maxLength: number,
-  ellipsis = '...'
+  ellipsis = "..."
 ): string {
   if (str.length <= maxLength) return str;
   return str.substring(0, maxLength - ellipsis.length) + ellipsis;
@@ -141,17 +145,17 @@ export function extractSnippet(
   contextLength = 50,
   matchLength = 1
 ): string {
-  if (!text) return '';
-  
+  if (!text) return "";
+
   const start = Math.max(0, matchIndex - contextLength);
   const end = Math.min(text.length, matchIndex + matchLength + contextLength);
-  
+
   let snippet = text.substring(start, end);
-  
+
   // Add ellipsis if we truncated the text
-  if (start > 0) snippet = '...' + snippet;
-  if (end < text.length) snippet = snippet + '...';
-  
+  if (start > 0) snippet = "..." + snippet;
+  if (end < text.length) snippet = snippet + "...";
+
   return snippet;
 }
 
@@ -177,7 +181,7 @@ export function containsString(
   caseSensitive = false
 ): boolean {
   if (!text || !search) return false;
-  
+
   if (caseSensitive) {
     return text.includes(search);
   } else {
@@ -198,16 +202,16 @@ export function findAllOccurrences(
   caseSensitive = false
 ): number[] {
   if (!text || !search) return [];
-  
+
   const indices: number[] = [];
   const searchText = caseSensitive ? text : text.toLowerCase();
   const searchTerm = caseSensitive ? search : search.toLowerCase();
-  
+
   let index = -1;
   while ((index = searchText.indexOf(searchTerm, index + 1)) !== -1) {
     indices.push(index);
   }
-  
+
   return indices;
 }
 
@@ -227,7 +231,7 @@ export function splitLines(text: string): string[] {
  * @param lineEnding Line ending to use
  * @returns Joined string
  */
-export function joinLines(lines: string[], lineEnding = '\n'): string {
+export function joinLines(lines: string[], lineEnding = "\n"): string {
   return lines.join(lineEnding);
 }
 
@@ -242,16 +246,12 @@ export function getLineAndColumn(
   position: number
 ): { line: number; column: number } {
   if (!text || position < 0 || position > text.length) {
-    throw AppError.validationError(
-      'Invalid position',
-      'position',
-      position
-    );
+    throw AppError.validationError("Invalid position", "position", position);
   }
-  
+
   const lines = splitLines(text.substring(0, position));
   const line = lines.length;
   const column = lines[lines.length - 1]?.length + 1 || 1;
-  
+
   return { line, column };
 }
