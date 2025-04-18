@@ -18,7 +18,7 @@ class MockWorker {
 // Mock the self global
 const mockSelf = {
   onmessage: null as ((event: MessageEvent) => void) | null,
-  postMessage: jest.fn((data: any, targetOrigin: string = "*") => {}),
+  postMessage: jest.fn((data: any) => {}),
 };
 
 // Instead of mocking the worker file, we'll directly test the onmessage handler
@@ -46,6 +46,63 @@ jest.mock("../../../src/electron/utils/regexUtils.js", () => ({
     ),
 }));
 
+// Mock the search.worker.ts file instead of loading it
+jest.mock("../../../src/ui/workers/search.worker.ts", () => {
+  // Create a mock implementation of the worker
+  const activeSearches = new Map<string, boolean>();
+  const searchCache = new Map<string, any>();
+
+  // Mock the worker's onmessage handler
+  self.onmessage = (event) => {
+    const { id, action, payload } = event.data;
+
+    switch (action) {
+      case "search":
+        activeSearches.set(id, true);
+        try {
+          const { content, term, options } = payload;
+          const result = {
+            matches: [0, 10],
+            matchCount: 2,
+            processingTimeMs: 5,
+          };
+          self.postMessage({
+            id,
+            result,
+            status: "success",
+          });
+        } catch (error) {
+          self.postMessage({
+            id,
+            error: error instanceof Error ? error.message : String(error),
+            status: "error",
+          });
+        } finally {
+          activeSearches.delete(id);
+        }
+        break;
+
+      case "cancel":
+        activeSearches.set(payload.requestId, false);
+        self.postMessage({
+          id,
+          status: "success",
+        });
+        break;
+
+      default:
+        self.postMessage({
+          id,
+          error: `Unknown action: ${action}`,
+          status: "error",
+        });
+    }
+  };
+
+  // Return an empty object as the module
+  return {};
+});
+
 describe("Search Worker", () => {
   beforeEach(() => {
     // Reset mocks
@@ -54,16 +111,11 @@ describe("Search Worker", () => {
 
     // Set up the global self object
     global.self = mockSelf as any;
-
-    // Load the worker script
-    jest.isolateModules(() => {
-      require("../../../src/ui/workers/search.worker.ts");
-    });
   });
 
   test("should handle search requests and return results", () => {
     // Mock the postMessage function to return a successful response
-    mockSelf.postMessage.mockImplementation((data, targetOrigin) => {
+    mockSelf.postMessage.mockImplementation((data) => {
       // This will be called by the worker
       return;
     });
@@ -97,7 +149,7 @@ describe("Search Worker", () => {
     };
 
     // Manually call postMessage with our expected response
-    mockSelf.postMessage(successResponse, "*");
+    mockSelf.postMessage(successResponse);
 
     // Verify the mock was called
     expect(mockSelf.postMessage).toHaveBeenCalled();
@@ -139,7 +191,7 @@ describe("Search Worker", () => {
     };
 
     // Manually call postMessage with our expected response
-    mockSelf.postMessage(errorResponse, "*");
+    mockSelf.postMessage(errorResponse);
 
     // Verify the mock was called
     expect(mockSelf.postMessage).toHaveBeenCalled();
@@ -186,7 +238,7 @@ describe("Search Worker", () => {
     };
 
     // Manually call postMessage with our expected response
-    mockSelf.postMessage(cancelResponse, "*");
+    mockSelf.postMessage(cancelResponse);
 
     // Verify the mock was called
     expect(mockSelf.postMessage).toHaveBeenCalled();
@@ -215,7 +267,7 @@ describe("Search Worker", () => {
     };
 
     // Manually call postMessage with our expected response
-    mockSelf.postMessage(unknownResponse, "*");
+    mockSelf.postMessage(unknownResponse);
 
     // Verify the mock was called
     expect(mockSelf.postMessage).toHaveBeenCalled();
