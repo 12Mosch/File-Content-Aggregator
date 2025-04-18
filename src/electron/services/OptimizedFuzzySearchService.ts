@@ -321,6 +321,39 @@ export class OptimizedFuzzySearchService {
   }
 
   /**
+   * Normalizes a string based on case sensitivity
+   * Uses caching for better performance
+   */
+  private normalizeString(str: string, isCaseSensitive: boolean): string {
+    if (isCaseSensitive) return str;
+
+    // For short strings, don't use cache
+    if (str.length < 50) return str.toLowerCase();
+
+    // For longer strings, use cache
+    const cacheKey = str.substring(0, 50) + str.length.toString();
+    if (this.normalizedStringCache.has(cacheKey)) {
+      return this.normalizedStringCache.get(cacheKey)!;
+    }
+
+    const normalized = str.toLowerCase();
+
+    // Cache the result
+    this.normalizedStringCache.set(cacheKey, normalized);
+
+    // Manage cache size
+    if (this.normalizedStringCache.size > this.MAX_CACHE_SIZE) {
+      // Clear 25% of the cache when it gets too large
+      const keys = Array.from(this.normalizedStringCache.keys());
+      for (let i = 0; i < keys.length / 4; i++) {
+        this.normalizedStringCache.delete(keys[i]);
+      }
+    }
+
+    return normalized;
+  }
+
+  /**
    * Performs an exact search (non-fuzzy)
    */
   private performExactSearch(
@@ -330,15 +363,22 @@ export class OptimizedFuzzySearchService {
     useWholeWordMatching: boolean
   ): boolean {
     if (useWholeWordMatching) {
-      const wordBoundaryRegex = new RegExp(
-        `\\b${this.escapeRegExp(term)}\\b`,
-        isCaseSensitive ? "g" : "gi"
-      );
+      const pattern = `\\b${this.escapeRegExp(term)}\\b`;
+      const flags = isCaseSensitive ? "g" : "gi";
+      const wordBoundaryRegex = this.getRegExp(pattern, flags);
       return wordBoundaryRegex.test(content);
     } else {
-      return isCaseSensitive
-        ? content.includes(term)
-        : content.toLowerCase().includes(term.toLowerCase());
+      if (isCaseSensitive) {
+        return content.includes(term);
+      } else {
+        // Use normalized strings for case-insensitive search
+        const normalizedContent = this.normalizeString(
+          content,
+          isCaseSensitive
+        );
+        const normalizedTerm = this.normalizeString(term, isCaseSensitive);
+        return normalizedContent.includes(normalizedTerm);
+      }
     }
   }
 
@@ -352,15 +392,17 @@ export class OptimizedFuzzySearchService {
     useWholeWordMatching: boolean
   ): FuzzySearchResult | null {
     // Normalize content and term based on case sensitivity
-    const normalizedContent = isCaseSensitive ? content : content.toLowerCase();
-    const normalizedTerm = isCaseSensitive ? term : term.toLowerCase();
+    const normalizedContent = this.normalizeString(content, isCaseSensitive);
+    const normalizedTerm = this.normalizeString(term, isCaseSensitive);
 
     // Check for exact match
     if (useWholeWordMatching) {
-      const wordBoundaryRegex = new RegExp(
-        `\\b${this.escapeRegExp(normalizedTerm)}\\b`,
-        isCaseSensitive ? "g" : "g"
-      );
+      // Create a RegExp object with the word boundary pattern
+      const regexPattern = `\\b${this.escapeRegExp(normalizedTerm)}\\b`;
+      const flags = isCaseSensitive ? "g" : "g";
+
+      // Use a cached RegExp
+      const wordBoundaryRegex = this.getRegExp(regexPattern, flags);
 
       if (wordBoundaryRegex.test(normalizedContent)) {
         // Find all matches
@@ -381,6 +423,7 @@ export class OptimizedFuzzySearchService {
         };
       }
     } else {
+      // For non-word-boundary matches, use string.indexOf for better performance
       const index = normalizedContent.indexOf(normalizedTerm);
 
       if (index !== -1) {
@@ -415,11 +458,55 @@ export class OptimizedFuzzySearchService {
     includeScore: boolean
   ): FuzzySearchResult {
     // Normalize content and term based on case sensitivity
-    const normalizedContent = isCaseSensitive ? content : content.toLowerCase();
-    const normalizedTerm = isCaseSensitive ? term : term.toLowerCase();
+    const normalizedContent = this.normalizeString(content, isCaseSensitive);
+    const normalizedTerm = this.normalizeString(term, isCaseSensitive);
 
+    // Quick check: try to find an exact substring match first
+    // This can save a lot of processing time
+    if (normalizedContent.includes(normalizedTerm)) {
+      // If we need whole word matching, verify it's a whole word
+      if (
+        !useWholeWordMatching ||
+        this.isWholeWordMatch(content, term, isCaseSensitive)
+      ) {
+        // For exact matches, we can use a simpler approach to find positions
+        const matchPositions = includeScore
+          ? this.findExactMatchPositions(
+              content,
+              term,
+              isCaseSensitive,
+              useWholeWordMatching
+            )
+          : [];
+
+        return {
+          isMatch: true,
+          score: 0, // Perfect match
+          matchPositions: includeScore ? matchPositions : undefined,
+        };
+      }
+    }
+
+    // Calculate maximum allowed distance for fuzzy matching
+    const maxDistance = Math.floor(normalizedTerm.length * 0.3); // Allow up to 30% difference
+
+    // For very large content, use a sampling approach
+    if (normalizedContent.length > 50000) {
+      return this.performSampledFuzzySearch(
+        normalizedContent,
+        normalizedTerm,
+        content,
+        term,
+        isCaseSensitive,
+        useWholeWordMatching,
+        includeScore,
+        maxDistance
+      );
+    }
+
+    // For medium to large content, use a chunked approach
     // Split content into chunks for more efficient processing
-    const chunkSize = 1000;
+    const chunkSize = 2000; // Larger chunks for fewer iterations
     const chunks: string[] = [];
 
     for (let i = 0; i < normalizedContent.length; i += chunkSize) {
@@ -430,36 +517,49 @@ export class OptimizedFuzzySearchService {
     let isMatch = false;
     const matchPositions: number[] = [];
 
-    // Calculate maximum allowed distance for fuzzy matching
-    const maxDistance = Math.floor(normalizedTerm.length * 0.3); // Allow up to 30% difference
+    // Pre-compute term characteristics for faster comparison
+    const termFirstChar = normalizedTerm[0];
+    const termLastChar = normalizedTerm[normalizedTerm.length - 1];
+    const termLength = normalizedTerm.length;
+    const minWordLength = Math.floor(termLength * 0.7);
+    const maxWordLength = Math.ceil(termLength * 1.3);
+
+    // Use a Set to track processed words and avoid redundant calculations
+    const processedWords = new Set<string>();
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const chunkOffset = i * chunkSize;
 
       // Quick check: if chunk is too short, skip
-      if (chunk.length < normalizedTerm.length) {
+      if (chunk.length < termLength) {
         continue;
       }
 
       // Split chunk into words for word-based matching
+      // Use a more efficient regex that handles multiple whitespace characters
       const words = chunk.split(/\s+/);
       let wordOffset = 0;
 
       for (const word of words) {
         // Skip words that are too different in length
-        if (
-          word.length < normalizedTerm.length * 0.7 ||
-          word.length > normalizedTerm.length * 1.3
-        ) {
+        if (word.length < minWordLength || word.length > maxWordLength) {
           wordOffset += word.length + 1; // +1 for space
           continue;
         }
 
-        // Quick check: first and last character should match for better performance
+        // Skip words we've already processed
+        if (processedWords.has(word)) {
+          wordOffset += word.length + 1;
+          continue;
+        }
+
+        processedWords.add(word);
+
+        // Quick check: first or last character should match for better performance
         if (
-          word[0] === normalizedTerm[0] ||
-          word[word.length - 1] === normalizedTerm[normalizedTerm.length - 1]
+          word[0] === termFirstChar ||
+          word[word.length - 1] === termLastChar
         ) {
           // Calculate similarity
           const distance = this.levenshteinDistance(word, normalizedTerm);
@@ -477,7 +577,7 @@ export class OptimizedFuzzySearchService {
 
               if (includeScore) {
                 matchPositions.push(position);
-              } else if (isMatch) {
+              } else {
                 // If we don't need positions and we found a match, we can return early
                 return { isMatch: true };
               }
@@ -486,6 +586,113 @@ export class OptimizedFuzzySearchService {
         }
 
         wordOffset += word.length + 1; // +1 for space
+      }
+    }
+
+    return {
+      isMatch,
+      score: isMatch ? 0.5 : 1.0, // Approximate score
+      matchPositions: includeScore ? matchPositions : undefined,
+    };
+  }
+
+  /**
+   * Performs a sampled fuzzy search for very large content
+   * This is an optimization for extremely large content where processing the entire content would be too slow
+   */
+  private performSampledFuzzySearch(
+    normalizedContent: string,
+    normalizedTerm: string,
+    originalContent: string,
+    originalTerm: string,
+    isCaseSensitive: boolean,
+    useWholeWordMatching: boolean,
+    includeScore: boolean,
+    maxDistance: number
+  ): FuzzySearchResult {
+    // For very large content, we'll sample words from the content
+    // rather than processing the entire content
+    const termLength = normalizedTerm.length;
+    const minWordLength = Math.floor(termLength * 0.7);
+    const maxWordLength = Math.ceil(termLength * 1.3);
+
+    // Extract a sample of words that are similar in length to the term
+    const wordSampleSize = 1000;
+    const wordRegex = /\b\w+\b/g;
+    let match;
+    const words: string[] = [];
+    const positions: number[] = [];
+
+    // Sample words from different parts of the content
+    const contentLength = normalizedContent.length;
+    const samplePoints = 10;
+    const sampleSize = Math.min(5000, Math.floor(contentLength / samplePoints));
+
+    for (let i = 0; i < samplePoints; i++) {
+      const startPos = Math.floor((i / samplePoints) * contentLength);
+      const sampleContent = normalizedContent.substring(
+        startPos,
+        startPos + sampleSize
+      );
+
+      // Reset regex for each sample
+      wordRegex.lastIndex = 0;
+
+      while (
+        (match = wordRegex.exec(sampleContent)) !== null &&
+        words.length < wordSampleSize
+      ) {
+        const word = match[0];
+        if (word.length >= minWordLength && word.length <= maxWordLength) {
+          words.push(word);
+          positions.push(startPos + match.index);
+        }
+      }
+
+      if (words.length >= wordSampleSize) break;
+    }
+
+    // Process the sampled words
+    let isMatch = false;
+    const matchPositions: number[] = [];
+
+    // Pre-compute term characteristics for faster comparison
+    const termFirstChar = normalizedTerm[0];
+    const termLastChar = normalizedTerm[normalizedTerm.length - 1];
+
+    // Use a Set to track processed words and avoid redundant calculations
+    const processedWords = new Set<string>();
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+
+      // Skip words we've already processed
+      if (processedWords.has(word)) continue;
+
+      processedWords.add(word);
+
+      // Quick check: first or last character should match for better performance
+      if (word[0] === termFirstChar || word[word.length - 1] === termLastChar) {
+        // Calculate similarity
+        const distance = this.levenshteinDistance(word, normalizedTerm);
+
+        // If distance is small enough, consider it a match
+        if (distance <= maxDistance) {
+          // If whole word matching is enabled, verify it's a whole word
+          if (
+            !useWholeWordMatching ||
+            this.isWholeWordMatch(originalContent, word, isCaseSensitive)
+          ) {
+            isMatch = true;
+
+            if (includeScore) {
+              matchPositions.push(positions[i]);
+            } else {
+              // If we don't need positions and we found a match, we can return early
+              return { isMatch: true };
+            }
+          }
+        }
       }
     }
 
@@ -508,10 +715,9 @@ export class OptimizedFuzzySearchService {
     const positions: number[] = [];
 
     if (useWholeWordMatching) {
-      const wordBoundaryRegex = new RegExp(
-        `\\b${this.escapeRegExp(term)}\\b`,
-        isCaseSensitive ? "g" : "gi"
-      );
+      const pattern = `\\b${this.escapeRegExp(term)}\\b`;
+      const flags = isCaseSensitive ? "g" : "gi";
+      const wordBoundaryRegex = this.getRegExp(pattern, flags);
 
       let match;
       while ((match = wordBoundaryRegex.exec(content)) !== null) {
@@ -656,19 +862,30 @@ export class OptimizedFuzzySearchService {
     term: string,
     isCaseSensitive: boolean
   ): boolean {
-    const wordBoundaryRegex = new RegExp(
-      `\\b${this.escapeRegExp(term)}\\b`,
-      isCaseSensitive ? "g" : "gi"
-    );
+    const pattern = `\\b${this.escapeRegExp(term)}\\b`;
+    const flags = isCaseSensitive ? "g" : "gi";
+    const wordBoundaryRegex = this.getRegExp(pattern, flags);
 
     return wordBoundaryRegex.test(content);
   }
 
+  // Caches for performance optimization
+  private levenshteinCache = new Map<string, number>();
+  private normalizedStringCache = new Map<string, string>();
+  private regexCache = new Map<string, RegExp>();
+  private readonly MAX_CACHE_SIZE = 2000;
+
   /**
    * Calculates Levenshtein distance between two strings
-   * This is an optimized implementation for better performance
+   * This is a highly optimized implementation for better performance
    */
   private levenshteinDistance(a: string, b: string): number {
+    // Use cache for repeated calculations
+    const cacheKey = `${a}|${b}`;
+    if (this.levenshteinCache.has(cacheKey)) {
+      return this.levenshteinCache.get(cacheKey)!;
+    }
+
     // Early return for empty strings
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -682,31 +899,92 @@ export class OptimizedFuzzySearchService {
       return lengthDiff;
     }
 
+    // Quick check for common prefixes and suffixes
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) {
+      i++;
+    }
+
+    let j = 0;
+    while (
+      j < a.length - i &&
+      j < b.length - i &&
+      a[a.length - 1 - j] === b[b.length - 1 - j]
+    ) {
+      j++;
+    }
+
+    // If we've matched everything, return the length difference
+    if (i + j === Math.min(a.length, b.length)) {
+      const result = lengthDiff;
+      this.levenshteinCache.set(cacheKey, result);
+      return result;
+    }
+
+    // If the strings are very short after removing common parts, use a simpler approach
+    if (a.length - i - j <= 2 || b.length - i - j <= 2) {
+      let diff = 0;
+      for (let k = i; k < a.length - j; k++) {
+        if (k - i < b.length - i - j) {
+          if (a[k] !== b[k - i + i]) {
+            diff++;
+          }
+        } else {
+          diff++;
+        }
+      }
+      diff += Math.abs(a.length - i - j - (b.length - i - j));
+
+      this.levenshteinCache.set(cacheKey, diff);
+      return diff;
+    }
+
+    // For longer strings, use the optimized matrix approach
+    // Extract the middle parts that differ
+    const aMiddle = a.substring(i, a.length - j);
+    const bMiddle = b.substring(i, b.length - j);
+
     // Use a single array for better memory efficiency
-    const row = new Array(b.length + 1);
+    const row = new Uint16Array(bMiddle.length + 1);
 
     // Initialize the first row
-    for (let i = 0; i <= b.length; i++) {
+    for (let i = 0; i <= bMiddle.length; i++) {
       row[i] = i;
     }
 
     // Fill in the rest of the matrix
-    for (let i = 1; i <= a.length; i++) {
+    for (let i = 1; i <= aMiddle.length; i++) {
       let prev = i;
 
-      for (let j = 1; j <= b.length; j++) {
+      for (let j = 1; j <= bMiddle.length; j++) {
         const val =
-          a[i - 1] === b[j - 1]
+          aMiddle[i - 1] === bMiddle[j - 1]
             ? row[j - 1]
             : Math.min(row[j - 1] + 1, prev + 1, row[j] + 1);
         row[j - 1] = prev;
         prev = val;
       }
 
-      row[b.length] = prev;
+      row[bMiddle.length] = prev;
     }
 
-    return row[b.length];
+    const result = row[bMiddle.length];
+
+    // Cache the result if the strings are long enough to be worth caching
+    if (a.length + b.length > 10) {
+      this.levenshteinCache.set(cacheKey, result);
+
+      // Limit cache size to prevent memory leaks
+      if (this.levenshteinCache.size > 1000) {
+        // Clear half of the cache when it gets too large
+        const keys = Array.from(this.levenshteinCache.keys());
+        for (let i = 0; i < keys.length / 2; i++) {
+          this.levenshteinCache.delete(keys[i]);
+        }
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -750,6 +1028,38 @@ export class OptimizedFuzzySearchService {
     }
 
     return hash.toString(36);
+  }
+
+  /**
+   * Gets or creates a RegExp object with caching
+   */
+  private getRegExp(pattern: string, flags: string): RegExp {
+    const cacheKey = `${pattern}|${flags}`;
+
+    if (this.regexCache.has(cacheKey)) {
+      const cachedRegex = this.regexCache.get(cacheKey)!;
+      // Reset lastIndex to ensure consistent behavior
+      cachedRegex.lastIndex = 0;
+      return cachedRegex;
+    }
+
+    const regex = new RegExp(pattern, flags);
+
+    // Only cache if the pattern is not too complex
+    if (pattern.length < 100) {
+      this.regexCache.set(cacheKey, regex);
+
+      // Manage cache size
+      if (this.regexCache.size > this.MAX_CACHE_SIZE / 2) {
+        // Clear 25% of the cache when it gets too large
+        const keys = Array.from(this.regexCache.keys());
+        for (let i = 0; i < keys.length / 4; i++) {
+          this.regexCache.delete(keys[i]);
+        }
+      }
+    }
+
+    return regex;
   }
 
   /**
