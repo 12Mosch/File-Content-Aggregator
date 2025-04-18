@@ -344,7 +344,7 @@ npm run test:coverage
 - **Performance Tests:** Test performance with large inputs or many operations.
 - **Integration Tests:** Test how multiple components work together.
 
-For detailed information about testing, see the [Testing Guide](development/testing.md).
+For detailed information about testing, see the [Testing Guide](tests/testing.md).
 
 ## Contributing
 
