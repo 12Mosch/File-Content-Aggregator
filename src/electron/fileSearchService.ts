@@ -1,6 +1,6 @@
 // D:/Code/Electron/src/electron/fileSearchService.ts
 /*
- * Bug Fix: Remove diagnostic logging after confirming backend works.
+ * Refactored: Optimized search algorithm with improved caching and performance
  */
 import path from "path";
 import fs from "fs/promises";
@@ -30,6 +30,13 @@ const pLimit: typeof PLimit =
 import type * as Jsep from "jsep";
 const jsep = require("jsep") as typeof import("jsep");
 // -------------------------------------------------------------
+
+// Import optimized services
+import {
+  FuzzySearchService,
+  WordBoundaryService,
+  NearOperatorService,
+} from "./services";
 
 // --- Define ContentSearchMode directly in this file ---
 type ContentSearchMode = "term" | "regex" | "boolean";
@@ -333,130 +340,11 @@ export function findTermIndices(
   return indices;
 }
 
-/**
- * Finds approximate match positions for fuzzy search results.
- * This is used to locate the positions of fuzzy-matched terms in the content.
- * @param content The content to search within
- * @param term The search term to find approximate matches for
- * @returns An array of starting indices for approximate matches
- */
-function findApproximateMatchIndices(content: string, term: string): number[] {
-  const indices: number[] = [];
-  if (!term || term.length < 3 || !content) return indices;
+// Removed findApproximateMatchIndices function - now handled by FuzzySearchService
 
-  // Split content into words for better fuzzy matching
-  const words = content.split(/\s+/);
-  const termLower = term.toLowerCase();
-
-  // Track the current position in the content
-  let position = 0;
-
-  for (const word of words) {
-    // Skip very short words
-    if (word.length < 3) {
-      position += word.length + 1; // +1 for the space
-      continue;
-    }
-
-    const wordLower = word.toLowerCase();
-
-    // Check if this word is a potential fuzzy match
-    // Simple check: at least 60% of characters match
-    let matchScore = 0;
-    const minLength = Math.min(termLower.length, wordLower.length);
-    const maxLength = Math.max(termLower.length, wordLower.length);
-
-    // Count matching characters (simple approach)
-    for (let i = 0; i < minLength; i++) {
-      if (termLower[i] === wordLower[i]) {
-        matchScore++;
-      }
-    }
-
-    // Calculate similarity ratio
-    const similarity = matchScore / maxLength;
-
-    // If similarity is high enough, consider it a match
-    if (similarity >= 0.6) {
-      indices.push(position);
-    }
-
-    position += word.length + 1; // +1 for the space
-  }
-
-  return indices;
-}
-
-// --- Word Boundary Cache and Helpers ---
-interface WordBoundary {
-  word: string;
-  start: number;
-  end: number;
-}
-
-/**
- * Extracts word boundaries (word, start index, end index) from content.
- * Uses a simple regex for word detection.
- * @param content The string to extract words from.
- * @returns An array of WordBoundary objects.
- */
-function getWordBoundaries(content: string): WordBoundary[] {
-  const boundaries: WordBoundary[] = [];
-  // Simple regex for alphanumeric words
-  const wordRegex = /\b[a-zA-Z0-9]+\b/g;
-  let match;
-  while ((match = wordRegex.exec(content)) !== null) {
-    boundaries.push({
-      word: match[0],
-      start: match.index,
-      end: match.index + match[0].length - 1,
-    });
-  }
-  return boundaries;
-}
-
-// Cache for word boundaries to avoid re-calculating for the same content
-const wordBoundariesCache = new Map<string, WordBoundary[]>();
-
-/**
- * Finds the word index corresponding to a character index in the content.
- * Uses the wordBoundariesCache for efficiency.
- * @param charIndex The character index to find the word index for.
- * @param content The string content.
- * @returns The word index (0-based) or -1 if not found within/near a word.
- */
-function getWordIndexFromCharIndex(charIndex: number, content: string): number {
-  let boundaries = wordBoundariesCache.get(content);
-  if (!boundaries) {
-    boundaries = getWordBoundaries(content);
-    wordBoundariesCache.set(content, boundaries);
-  }
-
-  // Check if charIndex falls directly within a word boundary
-  for (let i = 0; i < boundaries.length; i++) {
-    if (charIndex >= boundaries[i].start && charIndex <= boundaries[i].end) {
-      return i;
-    }
-  }
-
-  // If not directly within, check if it's immediately after a word (separated by whitespace)
-  // This helps associate indices in whitespace with the preceding word for distance calculation.
-  for (let i = boundaries.length - 1; i >= 0; i--) {
-    if (boundaries[i].end < charIndex) {
-      // Check if the space between the word end and charIndex is only whitespace
-      if (
-        /^\s*$/.test(content.substring(boundaries[i].end + 1, charIndex + 1))
-      ) {
-        return i; // Associate with the preceding word
-      }
-      // If non-whitespace is found, stop searching backwards
-      break;
-    }
-  }
-
-  // If charIndex is before the first word or in non-whitespace before it
-  return -1;
-}
+// --- Word Boundary Service ---
+// Use the optimized WordBoundaryService instead of direct cache management
+const wordBoundaryService = WordBoundaryService.getInstance();
 
 /**
  * Evaluates a JSEP Abstract Syntax Tree (AST) against file content.
@@ -663,52 +551,22 @@ export function evaluateBooleanAst(
             // If exact match fails, try fuzzy search if enabled
             // Apply fuzzy search when no match was found and fuzzy search is enabled
             if (!found && searchTerm.length >= 3 && fuzzySearchBooleanEnabled) {
-              // Only do fuzzy search for terms of 3+ chars
-              try {
-                // Import Fuse.js dynamically
-                const Fuse = require("fuse.js");
+              // Use the optimized FuzzySearchService
+              const fuzzySearchService = FuzzySearchService.getInstance();
 
-                // Configure Fuse.js options
-                const fuseOptions = {
-                  includeScore: true,
-                  threshold: 0.4, // Lower is more strict
-                  ignoreLocation: true,
-                  useExtendedSearch: true,
-                  ignoreFieldNorm: true,
+              const fuzzyResult = fuzzySearchService.search(
+                content,
+                searchTerm,
+                {
                   isCaseSensitive: caseSensitive,
-                };
-
-                // Create a Fuse instance with the content
-                // We wrap the content in an array since Fuse expects a collection
-                const fuse = new Fuse([content], fuseOptions);
-
-                // Search for the term
-                const result = fuse.search(searchTerm);
-
-                // Consider it found if score is below threshold
-                found = result.length > 0 && result[0].score < 0.6;
-                console.log(
-                  `[AST Eval] Fuzzy search: ${found ? "FOUND" : "NOT FOUND"} (score: ${result.length > 0 ? result[0].score : "N/A"})`
-                );
-
-                // If fuzzy search found a match, verify it's a whole word if whole word matching is enabled
-                if (found && wholeWordMatchingEnabled) {
-                  // Create a regex with word boundaries to check if the match is a whole word
-                  const wordBoundaryRegex = new RegExp(
-                    `\\b${escapeRegExp(searchTerm)}\\b`,
-                    caseSensitive ? "g" : "gi"
-                  );
-
-                  // Only consider it found if it matches as a whole word
-                  found = wordBoundaryRegex.test(content);
-                  console.log(
-                    `[AST Eval] Fuzzy search whole word verification: ${found ? "FOUND" : "NOT FOUND"}`
-                  );
+                  useWholeWordMatching: wholeWordMatchingEnabled,
                 }
-              } catch (error) {
-                console.error("Error in fuzzy search:", error);
-                // Keep found as false if fuzzy search fails
-              }
+              );
+
+              found = fuzzyResult.isMatch;
+              console.log(
+                `[AST Eval] Fuzzy search: ${found ? "FOUND" : "NOT FOUND"} (score: ${fuzzyResult.score || "N/A"})`
+              );
             }
 
             console.log(
@@ -730,15 +588,12 @@ export function evaluateBooleanAst(
       case "CallExpression": {
         // Handle function calls, specifically NEAR
         if (!isJsepCallExpression(node)) {
-          // console.warn("Node is not a valid CallExpression:", node);
           return false;
         }
         if (!isJsepIdentifier(node.callee) || node.callee.name !== "NEAR") {
-          // console.warn(`Unsupported function call: ${isJsepIdentifier(node.callee) ? node.callee.name : "unknown"}`);
           return false;
         }
         if (node.arguments.length !== 3) {
-          // console.warn(`NEAR function requires exactly 3 arguments (term1, term2, distance), got ${node.arguments.length}`);
           return false;
         }
 
@@ -748,28 +603,22 @@ export function evaluateBooleanAst(
 
         // Extract term1 (string or regex)
         let term1: string | RegExp | null = null;
-        let term1IsRegex = false;
         if (isJsepLiteral(arg1Node) && typeof arg1Node.value === "string") {
           const valueStr = arg1Node.value;
           term1 = parseRegexLiteral(valueStr) || valueStr;
-          term1IsRegex = term1 instanceof RegExp;
         } else if (isJsepIdentifier(arg1Node)) {
           const nameStr = arg1Node.name;
           term1 = parseRegexLiteral(nameStr) || nameStr;
-          term1IsRegex = term1 instanceof RegExp;
         }
 
         // Extract term2 (string or regex)
         let term2: string | RegExp | null = null;
-        let term2IsRegex = false;
         if (isJsepLiteral(arg2Node) && typeof arg2Node.value === "string") {
           const valueStr = arg2Node.value;
           term2 = parseRegexLiteral(valueStr) || valueStr;
-          term2IsRegex = term2 instanceof RegExp;
         } else if (isJsepIdentifier(arg2Node)) {
           const nameStr = arg2Node.name;
           term2 = parseRegexLiteral(nameStr) || nameStr;
-          term2IsRegex = term2 instanceof RegExp;
         }
 
         // Extract distance (number)
@@ -783,148 +632,23 @@ export function evaluateBooleanAst(
         }
 
         if (term1 === null || term2 === null || distance === null) {
-          // console.warn(`Invalid arguments for NEAR function. term1: ${String(term1)}, term2: ${String(term2)}, distance: ${String(distance)}`);
           return false;
         }
 
-        // Find indices of both terms
-        let indices1 = findTermIndices(
+        // Use the optimized NearOperatorService
+        const nearOperatorService = NearOperatorService.getInstance();
+
+        return nearOperatorService.evaluateNear(
           content,
           term1,
-          term1IsRegex ? false : caseSensitive, // Use global caseSensitive only for simple terms
-          term1IsRegex,
-          !term1IsRegex && wholeWordMatchingEnabled // Apply whole word matching only to string terms
-        );
-        let indices2 = findTermIndices(
-          content,
           term2,
-          term2IsRegex ? false : caseSensitive,
-          term2IsRegex,
-          !term2IsRegex && wholeWordMatchingEnabled // Apply whole word matching only to string terms
+          distance,
+          {
+            caseSensitive,
+            fuzzySearchEnabled: fuzzySearchNearEnabled,
+            wholeWordMatchingEnabled,
+          }
         );
-
-        // If exact match fails for either term, try fuzzy search for non-regex terms
-        let _usedFuzzyForTerm1 = false;
-        let _usedFuzzyForTerm2 = false;
-
-        if (
-          indices1.length === 0 &&
-          !term1IsRegex &&
-          typeof term1 === "string" &&
-          term1.length >= 3 &&
-          fuzzySearchNearEnabled
-        ) {
-          try {
-            // Import Fuse.js dynamically
-            const Fuse = require("fuse.js");
-
-            // Configure Fuse.js options
-            const fuseOptions = {
-              includeScore: true,
-              threshold: 0.4, // Lower is more strict
-              ignoreLocation: true,
-              useExtendedSearch: true,
-              ignoreFieldNorm: true,
-              isCaseSensitive: caseSensitive,
-            };
-
-            // Create a Fuse instance with the content
-            const fuse = new Fuse([content], fuseOptions);
-
-            // Search for the term
-            const result = fuse.search(term1);
-
-            // If fuzzy match found, use the match position
-            if (result.length > 0 && result[0].score < 0.6) {
-              // For fuzzy search, we need to find the actual position in the content
-              // This is an approximation - we search for the matched substring
-              const _matchedContent = result[0].item;
-              const matchIndices = findApproximateMatchIndices(content, term1);
-              if (matchIndices.length > 0) {
-                indices1 = matchIndices;
-                _usedFuzzyForTerm1 = true;
-                console.log(
-                  `[AST Eval] NEAR: Used fuzzy search for term1 "${term1}" (found ${indices1.length} positions)`
-                );
-              }
-            }
-          } catch (error) {
-            console.error("Error in fuzzy search for NEAR term1:", error);
-          }
-        }
-
-        if (
-          indices2.length === 0 &&
-          !term2IsRegex &&
-          typeof term2 === "string" &&
-          term2.length >= 3 &&
-          fuzzySearchNearEnabled
-        ) {
-          try {
-            // Import Fuse.js dynamically
-            const Fuse = require("fuse.js");
-
-            // Configure Fuse.js options
-            const fuseOptions = {
-              includeScore: true,
-              threshold: 0.4, // Lower is more strict
-              ignoreLocation: true,
-              useExtendedSearch: true,
-              ignoreFieldNorm: true,
-              isCaseSensitive: caseSensitive,
-            };
-
-            // Create a Fuse instance with the content
-            const fuse = new Fuse([content], fuseOptions);
-
-            // Search for the term
-            const result = fuse.search(term2);
-
-            // If fuzzy match found, use the match position
-            if (result.length > 0 && result[0].score < 0.6) {
-              // For fuzzy search, we need to find the actual position in the content
-              // This is an approximation - we search for the matched substring
-              const _matchedContent = result[0].item;
-              const matchIndices = findApproximateMatchIndices(content, term2);
-              if (matchIndices.length > 0) {
-                indices2 = matchIndices;
-                _usedFuzzyForTerm2 = true;
-                console.log(
-                  `[AST Eval] NEAR: Used fuzzy search for term2 "${term2}" (found ${indices2.length} positions)`
-                );
-              }
-            }
-          } catch (error) {
-            console.error("Error in fuzzy search for NEAR term2:", error);
-          }
-        }
-
-        if (indices1.length === 0 || indices2.length === 0) {
-          return false; // One of the terms not found, even after fuzzy search
-        }
-
-        // Ensure word boundaries are cached/calculated
-        if (!wordBoundariesCache.has(content)) {
-          wordBoundariesCache.set(content, getWordBoundaries(content));
-        }
-
-        // Check word distance between all occurrences
-        for (const index1 of indices1) {
-          const wordIndex1 = getWordIndexFromCharIndex(index1, content);
-          if (wordIndex1 === -1) continue; // Skip if index not associated with a word
-
-          for (const index2 of indices2) {
-            const wordIndex2 = getWordIndexFromCharIndex(index2, content);
-            if (wordIndex2 === -1) continue;
-
-            // Check if the absolute difference in word indices is within the distance
-            const wordDist = Math.abs(wordIndex1 - wordIndex2);
-            if (wordDist <= distance) {
-              return true; // Found a pair within the specified distance
-            }
-          }
-        }
-        return false; // No pair found within the distance
       }
       default: {
         // console.warn(`Unsupported AST node type: ${String(node.type)}`);
@@ -940,12 +664,10 @@ export function evaluateBooleanAst(
       "Node:",
       node
     );
-    // --- Added Cleanup ---
-    // Ensure the cache entry for this content is removed if evaluation fails
+    // Clean up any cached data if evaluation fails
     if (typeof content === "string") {
-      wordBoundariesCache.delete(content);
+      wordBoundaryService.removeFromCache(content);
     }
-    // --- End Added Cleanup ---
     return false; // Return false on any evaluation error
   }
 }
@@ -1643,7 +1365,7 @@ export async function searchFiles(
           // Create matcher function that evaluates the AST
           contentMatcher = (content) => {
             // Clear cache for this specific content before evaluation
-            wordBoundariesCache.delete(content);
+            wordBoundaryService.removeFromCache(content);
             console.log(
               `[SearchService] Evaluating boolean query: "${contentSearchTerm}"`
             );
@@ -1653,7 +1375,6 @@ export async function searchFiles(
               caseSensitive // Pass case sensitivity from params
             );
             console.log(`[SearchService] Boolean query result: ${result}`);
-            // No need to clear cache here, evaluateBooleanAst handles cleanup on error
             return result;
           };
         } catch (parseError: unknown) {
