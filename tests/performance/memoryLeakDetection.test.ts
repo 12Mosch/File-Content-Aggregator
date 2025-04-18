@@ -1,12 +1,11 @@
 import { performance as _performance } from "perf_hooks";
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+// import { fileURLToPath } from "url"; // Not needed with CommonJS approach
 import { evaluateSearchExpression } from "./mocks/fileSearchService.mock";
 
-// Get __dirname equivalent in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get directory path - compatible with both CommonJS and ESM
+const currentDirPath = path.resolve(__dirname || ".");
 
 // Helper function to measure memory usage
 function getMemoryUsage(): { heapUsed: number; heapTotal: number } {
@@ -29,7 +28,7 @@ async function saveTestResults(
   testName: string,
   results: unknown
 ): Promise<void> {
-  const resultsDir = path.join(__dirname, "../../performance-results");
+  const resultsDir = path.join(currentDirPath, "../../performance-results");
 
   try {
     await fs.mkdir(resultsDir, { recursive: true });

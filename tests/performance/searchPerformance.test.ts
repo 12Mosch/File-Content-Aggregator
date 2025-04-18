@@ -2,17 +2,14 @@ import { performance } from "perf_hooks";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { fileURLToPath } from "url";
+// import { fileURLToPath } from "url"; // Not needed with CommonJS approach
 import {
   evaluateSearchExpression,
   findTermIndices as _findTermIndices,
 } from "./mocks/fileSearchService.mock";
 
-// Get __dirname equivalent in ESM
-// @ts-expect-error - Ignoring redeclaration of __filename
-const __filename = fileURLToPath(import.meta.url);
-// @ts-expect-error - Ignoring redeclaration of __dirname
-const __dirname = path.dirname(__filename);
+// Get directory path - compatible with both CommonJS and ESM
+const currentDirPath = path.resolve(__dirname || ".");
 
 // Mock the console methods to reduce test output noise
 beforeEach(() => {
@@ -42,7 +39,7 @@ async function saveTestResults(
   testName: string,
   results: unknown
 ): Promise<void> {
-  const resultsDir = path.join(__dirname, "../../performance-results");
+  const resultsDir = path.join(currentDirPath, "../../performance-results");
 
   try {
     await fs.mkdir(resultsDir, { recursive: true });
