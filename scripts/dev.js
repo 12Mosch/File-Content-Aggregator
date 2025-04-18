@@ -4,7 +4,6 @@
  * This script replaces the npm-run-all approach to ensure proper cleanup.
  */
 
- 
 /* eslint-disable no-undef */
 
 import { spawn } from "child_process";

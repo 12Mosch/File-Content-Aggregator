@@ -5,7 +5,6 @@
  * It can be used to compare performance data from different runs and identify bottlenecks.
  */
 
- 
 /* eslint-disable no-undef */
 
 const fs = require("fs");

@@ -41,7 +41,7 @@ export class CacheManager {
   ): LRUCache<K, V> {
     const existing = this.caches.get(id) as LRUCache<K, V>;
     if (existing) return existing;
-    
+
     const cache = new LRUCache<K, V>(config.maxSize, config.timeToLive);
     this.caches.set(id, cache);
     return cache;

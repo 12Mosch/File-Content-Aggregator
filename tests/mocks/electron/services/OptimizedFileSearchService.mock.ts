@@ -2,7 +2,10 @@
  * Mock implementation of OptimizedFileSearchService
  */
 
-import { SearchParams, SearchResult } from "../../../../src/electron/types/search";
+import {
+  SearchParams,
+  SearchResult,
+} from "../../../../src/electron/types/search";
 
 // Mock implementation of the OptimizedFileSearchService
 export class OptimizedFileSearchService {

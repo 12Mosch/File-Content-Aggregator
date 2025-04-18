@@ -1,6 +1,6 @@
 /**
  * MemoryMonitor
- * 
+ *
  * A service for monitoring memory usage and providing memory pressure information.
  * This service helps optimize memory usage by detecting high memory conditions
  * and triggering cleanup actions when necessary.
@@ -12,13 +12,13 @@ export interface MemoryStats {
   heapUsed: number;
   heapTotal: number;
   rss: number;
-  memoryPressure: 'low' | 'medium' | 'high';
+  memoryPressure: "low" | "medium" | "high";
   timestamp: number;
 }
 
 export interface MemoryThresholds {
   mediumPressureThreshold: number; // Percentage of heap used (0-1)
-  highPressureThreshold: number;   // Percentage of heap used (0-1)
+  highPressureThreshold: number; // Percentage of heap used (0-1)
 }
 
 export class MemoryMonitor {
@@ -29,7 +29,7 @@ export class MemoryMonitor {
   private listeners: Array<(stats: MemoryStats) => void> = [];
   private thresholds: MemoryThresholds = {
     mediumPressureThreshold: 0.7, // 70% of heap
-    highPressureThreshold: 0.85,  // 85% of heap
+    highPressureThreshold: 0.85, // 85% of heap
   };
   private monitoringInterval: NodeJS.Timeout | null = null;
   private monitoringEnabled = false;
@@ -64,7 +64,7 @@ export class MemoryMonitor {
     this.monitoringInterval = setInterval(() => {
       const stats = this.getMemoryStats();
       this.memoryHistory.push(stats);
-      
+
       // Trim history if it exceeds the limit
       if (this.memoryHistory.length > this.historyLimit) {
         this.memoryHistory = this.memoryHistory.slice(-this.historyLimit);
@@ -77,16 +77,19 @@ export class MemoryMonitor {
       if (this.memoryHistory.length > 1) {
         const previousStats = this.memoryHistory[this.memoryHistory.length - 2];
         if (previousStats.memoryPressure !== stats.memoryPressure) {
-          this.logger.info(`Memory pressure changed from ${previousStats.memoryPressure} to ${stats.memoryPressure}`, {
-            heapUsed: `${(stats.heapUsed / 1024 / 1024).toFixed(2)} MB`,
-            heapTotal: `${(stats.heapTotal / 1024 / 1024).toFixed(2)} MB`,
-            percentUsed: `${((stats.heapUsed / stats.heapTotal) * 100).toFixed(1)}%`
-          });
+          this.logger.info(
+            `Memory pressure changed from ${previousStats.memoryPressure} to ${stats.memoryPressure}`,
+            {
+              heapUsed: `${(stats.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+              heapTotal: `${(stats.heapTotal / 1024 / 1024).toFixed(2)} MB`,
+              percentUsed: `${((stats.heapUsed / stats.heapTotal) * 100).toFixed(1)}%`,
+            }
+          );
         }
       }
     }, intervalMs);
 
-    this.logger.debug('Memory monitoring started', { intervalMs });
+    this.logger.debug("Memory monitoring started", { intervalMs });
   }
 
   /**
@@ -98,7 +101,7 @@ export class MemoryMonitor {
       this.monitoringInterval = null;
     }
     this.monitoringEnabled = false;
-    this.logger.debug('Memory monitoring stopped');
+    this.logger.debug("Memory monitoring stopped");
   }
 
   /**
@@ -110,7 +113,7 @@ export class MemoryMonitor {
     let rss = 0;
 
     // Get memory usage from Node.js process
-    if (typeof process !== 'undefined' && process.memoryUsage) {
+    if (typeof process !== "undefined" && process.memoryUsage) {
       const memoryUsage = process.memoryUsage();
       heapUsed = memoryUsage.heapUsed;
       heapTotal = memoryUsage.heapTotal;
@@ -125,24 +128,27 @@ export class MemoryMonitor {
       heapTotal,
       rss,
       memoryPressure,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
   /**
    * Calculate memory pressure level based on heap usage
    */
-  private calculateMemoryPressure(heapUsed: number, heapTotal: number): 'low' | 'medium' | 'high' {
-    if (heapTotal === 0) return 'low';
-    
+  private calculateMemoryPressure(
+    heapUsed: number,
+    heapTotal: number
+  ): "low" | "medium" | "high" {
+    if (heapTotal === 0) return "low";
+
     const usageRatio = heapUsed / heapTotal;
-    
+
     if (usageRatio >= this.thresholds.highPressureThreshold) {
-      return 'high';
+      return "high";
     } else if (usageRatio >= this.thresholds.mediumPressureThreshold) {
-      return 'medium';
+      return "medium";
     } else {
-      return 'low';
+      return "low";
     }
   }
 
@@ -159,7 +165,7 @@ export class MemoryMonitor {
    * @param listener The listener to remove
    */
   public removeListener(listener: (stats: MemoryStats) => void): void {
-    this.listeners = this.listeners.filter(l => l !== listener);
+    this.listeners = this.listeners.filter((l) => l !== listener);
   }
 
   /**
@@ -170,7 +176,7 @@ export class MemoryMonitor {
       try {
         listener(stats);
       } catch (error) {
-        this.logger.error('Error in memory monitor listener', { error });
+        this.logger.error("Error in memory monitor listener", { error });
       }
     }
   }
@@ -203,13 +209,13 @@ export class MemoryMonitor {
    * @returns True if garbage collection was triggered, false otherwise
    */
   public forceGarbageCollection(): boolean {
-    if (typeof global !== 'undefined' && (global as any).gc) {
+    if (typeof global !== "undefined" && (global as any).gc) {
       try {
         (global as any).gc();
-        this.logger.debug('Manual garbage collection triggered');
+        this.logger.debug("Manual garbage collection triggered");
         return true;
       } catch (error) {
-        this.logger.error('Error triggering garbage collection', { error });
+        this.logger.error("Error triggering garbage collection", { error });
       }
     }
     return false;

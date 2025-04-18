@@ -35,8 +35,11 @@ export class SearchService extends EventEmitter {
 
     try {
       // Simulate a search
-      this.emit(SearchEventType.PROGRESS, { filesProcessed: 1, totalFiles: 10 });
-      
+      this.emit(SearchEventType.PROGRESS, {
+        filesProcessed: 1,
+        totalFiles: 10,
+      });
+
       // Return mock results
       const result = {
         matches: [],
@@ -44,7 +47,7 @@ export class SearchService extends EventEmitter {
         matchedFiles: 5,
         processingTimeMs: 100,
       };
-      
+
       this.emit(SearchEventType.RESULT, result);
       this.isSearching = false;
       return result;

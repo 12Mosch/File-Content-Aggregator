@@ -25,7 +25,7 @@ The `MemoryMonitor` service tracks memory usage and provides memory pressure inf
 ```typescript
 // Example of memory pressure handling
 memoryMonitor.addListener((stats) => {
-  if (stats.memoryPressure === 'high') {
+  if (stats.memoryPressure === "high") {
     // Perform aggressive memory optimization
     cache.trimToSize(Math.floor(cache.getMaxSize() * 0.3));
   }
@@ -43,7 +43,11 @@ The enhanced `LRUCache` implementation includes memory usage estimation and auto
 
 ```typescript
 // Creating a memory-aware cache
-const cache = new LRUCache<string, string>(100, 5 * 60 * 1000, 50 * 1024 * 1024);
+const cache = new LRUCache<string, string>(
+  100,
+  5 * 60 * 1000,
+  50 * 1024 * 1024
+);
 // 100 items max, 5 minute TTL, 50MB memory limit
 ```
 
@@ -65,7 +69,7 @@ const result = await fileProcessingService.processFileInChunks(
   {
     chunkSize: 64 * 1024, // 64KB chunks
     earlyTermination: true, // Stop after first match
-    maxFileSize: 50 * 1024 * 1024 // 50MB max file size
+    maxFileSize: 50 * 1024 * 1024, // 50MB max file size
   }
 );
 ```

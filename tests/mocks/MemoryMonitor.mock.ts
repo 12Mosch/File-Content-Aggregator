@@ -6,7 +6,7 @@ export interface MemoryStats {
   heapUsed: number;
   heapTotal: number;
   rss: number;
-  memoryPressure: 'low' | 'medium' | 'high';
+  memoryPressure: "low" | "medium" | "high";
   timestamp: number;
 }
 
@@ -54,7 +54,7 @@ export class MemoryMonitor {
     let rss = 0;
 
     // Get memory usage from Node.js process
-    if (typeof process !== 'undefined' && process.memoryUsage) {
+    if (typeof process !== "undefined" && process.memoryUsage) {
       const memoryUsage = process.memoryUsage();
       heapUsed = memoryUsage.heapUsed;
       heapTotal = memoryUsage.heapTotal;
@@ -65,8 +65,8 @@ export class MemoryMonitor {
       heapUsed,
       heapTotal,
       rss,
-      memoryPressure: 'low',
-      timestamp: Date.now()
+      memoryPressure: "low",
+      timestamp: Date.now(),
     };
   }
 
@@ -83,7 +83,7 @@ export class MemoryMonitor {
    * @param listener The listener to remove
    */
   public removeListener(listener: (stats: MemoryStats) => void): void {
-    this.listeners = this.listeners.filter(l => l !== listener);
+    this.listeners = this.listeners.filter((l) => l !== listener);
   }
 
   /**
@@ -99,7 +99,7 @@ export class MemoryMonitor {
    * @returns True if garbage collection was triggered, false otherwise
    */
   public forceGarbageCollection(): boolean {
-    if (typeof global !== 'undefined' && (global as any).gc) {
+    if (typeof global !== "undefined" && (global as any).gc) {
       try {
         (global as any).gc();
         return true;

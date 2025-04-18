@@ -7,12 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -165,9 +160,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               <TabsTrigger value="operations">
                 {t("settings:operations")}
               </TabsTrigger>
-              <TabsTrigger value="memory">
-                {t("settings:memory")}
-              </TabsTrigger>
+              <TabsTrigger value="memory">{t("settings:memory")}</TabsTrigger>
               <TabsTrigger value="timeline">
                 {t("settings:timeline")}
               </TabsTrigger>
@@ -365,7 +358,9 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                 <>
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t("settings:memoryUsageByOperation")}</CardTitle>
+                      <CardTitle>
+                        {t("settings:memoryUsageByOperation")}
+                      </CardTitle>
                       <CardDescription>
                         {t("settings:memoryUsageByOperationDescription")}
                       </CardDescription>
@@ -412,9 +407,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                             {Object.entries(
                               performanceSummary.memoryUsage.byOperation
                             )
-                              .sort(
-                                (a, b) => Math.abs(b[1]) - Math.abs(a[1])
-                              )
+                              .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
                               .map(([name, memoryDelta], index) => (
                                 <tr
                                   key={name}
@@ -422,7 +415,9 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                                     index % 2 === 0 ? "bg-muted/50" : undefined
                                   }
                                 >
-                                  <td className="py-2 px-4 text-left">{name}</td>
+                                  <td className="py-2 px-4 text-left">
+                                    {name}
+                                  </td>
                                   <td className="py-2 px-4 text-right">
                                     <Badge
                                       variant={
@@ -445,7 +440,9 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               ) : (
                 <Card>
                   <CardHeader>
-                    <CardTitle>{t("settings:memoryTrackingDisabled")}</CardTitle>
+                    <CardTitle>
+                      {t("settings:memoryTrackingDisabled")}
+                    </CardTitle>
                     <CardDescription>
                       {t("settings:memoryTrackingDisabledDescription")}
                     </CardDescription>
