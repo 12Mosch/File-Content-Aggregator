@@ -11,8 +11,10 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "npm-run-all --parallel dev:react dev:electron",
+    "dev:profile": "npm-run-all --parallel dev:react dev:electron:profile",
+    "dev:electron:profile": "npm run transpile:electron && cross-env NODE_ENV=development electron . --profile",
     "dev:react": "vite",
-    "dev:electron": "npm run transpile:electron && cross-env NODE_ENV=development electron .",
+    "dev:electron": "npm run transpile:electron && cross-env NODE_ENV=development electron . -- ",
     "build": "npm run transpile:electron && vite build",
     "lint": "eslint . --fix",
     "preview": "vite preview",

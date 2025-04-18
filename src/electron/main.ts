@@ -407,10 +407,22 @@ app.on("will-quit", async (event) => {
 
     try {
       const timestamp = new Date().toISOString().replace(/:/g, "-");
+      // Save to project directory instead of user data directory
       const reportPath = path.join(
-        app.getPath("userData"),
+        __dirname,
+        "..",
+        "..",
+        "performance-results",
         `profile-report-${timestamp}.json`
       );
+
+      // Ensure directory exists
+      const fs = await import("fs/promises");
+      try {
+        await fs.mkdir(path.dirname(reportPath), { recursive: true });
+      } catch (err) {
+        // Ignore if directory already exists
+      }
 
       await profiler.saveReport(reportPath);
       console.log(`Profiling report saved to: ${reportPath}`);
