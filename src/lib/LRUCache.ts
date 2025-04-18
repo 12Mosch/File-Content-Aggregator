@@ -1,6 +1,7 @@
 /**
  * LRU (Least Recently Used) Cache implementation
  * This cache automatically evicts the least recently used items when it reaches capacity
+ * or when memory pressure is high. It also provides memory usage estimation.
  */
 
 export interface CacheStats {
@@ -11,27 +12,39 @@ export interface CacheStats {
   capacity: number;
   hitRate: number;
   timeToLive?: number;
+  estimatedMemoryUsage?: number;
 }
 
 interface CacheEntry<V> {
   value: V;
   expires?: number; // Timestamp when this entry expires
+  size?: number; // Estimated size in bytes
 }
 
 export class LRUCache<K, V> {
   private cache = new Map<K, CacheEntry<V>>();
   private maxSize: number;
   private timeToLive?: number; // Time in milliseconds before entries expire
+  private maxMemorySize?: number; // Maximum memory size in bytes
+  private estimatedMemoryUsage = 0; // Estimated memory usage in bytes
   private stats = { hits: 0, misses: 0, evictions: 0 };
+  private memoryPressureListener:
+    | ((pressure: "low" | "medium" | "high") => void)
+    | null = null;
 
   /**
    * Creates a new LRU cache with the specified maximum size
    * @param maxSize Maximum number of items to store in the cache (default: 100)
    * @param timeToLive Optional time in milliseconds before entries expire
+   * @param maxMemorySize Optional maximum memory size in bytes
    */
-  constructor(maxSize = 100, timeToLive?: number) {
+  constructor(maxSize = 100, timeToLive?: number, maxMemorySize?: number) {
     this.maxSize = maxSize;
     this.timeToLive = timeToLive;
+    this.maxMemorySize = maxMemorySize;
+
+    // Try to set up memory pressure handling
+    this.setupMemoryPressureHandling();
   }
 
   /**
@@ -71,26 +84,53 @@ export class LRUCache<K, V> {
     // Remove expired entries before checking size
     this.removeExpiredEntries();
 
+    // Calculate the size of the new entry
+    const entrySize =
+      this.estimateObjectSize(key) + this.estimateObjectSize(value);
+
+    // If we already have this key, subtract its current size from our total
     if (this.cache.has(key)) {
+      const existingEntry = this.cache.get(key)!;
+      if (existingEntry.size !== undefined) {
+        this.estimatedMemoryUsage -= existingEntry.size;
+      }
       // Update existing entry
       this.cache.delete(key);
-    } else if (this.cache.size >= this.maxSize) {
-      // Evict least recently used (first item)
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) {
-        this.cache.delete(firstKey);
-        this.stats.evictions++;
+    }
+    // Check if we need to evict based on count
+    else if (this.cache.size >= this.maxSize) {
+      this.evictLeastRecentlyUsed();
+    }
+
+    // Check if we need to evict based on memory size
+    if (
+      this.maxMemorySize &&
+      this.estimatedMemoryUsage + entrySize > this.maxMemorySize
+    ) {
+      // Keep evicting until we have enough space
+      while (
+        this.maxMemorySize &&
+        this.estimatedMemoryUsage + entrySize > this.maxMemorySize &&
+        this.cache.size > 0
+      ) {
+        this.evictLeastRecentlyUsed();
       }
     }
 
     // Create the cache entry
-    const entry: CacheEntry<V> = { value };
+    const entry: CacheEntry<V> = {
+      value,
+      size: entrySize,
+    };
 
     // Set expiration if applicable
     const ttl = customTTL !== undefined ? customTTL : this.timeToLive;
     if (ttl !== undefined) {
       entry.expires = Date.now() + ttl;
     }
+
+    // Update our memory usage estimate
+    this.estimatedMemoryUsage += entrySize;
 
     this.cache.set(key, entry);
   }
@@ -220,6 +260,7 @@ export class LRUCache<K, V> {
       capacity: this.maxSize,
       hitRate,
       timeToLive: this.timeToLive,
+      estimatedMemoryUsage: this.estimatedMemoryUsage,
     };
   }
 
@@ -326,5 +367,156 @@ export class LRUCache<K, V> {
         return String(v);
       })
       .join(":");
+  }
+
+  /**
+   * Evict the least recently used item from the cache
+   * @returns True if an item was evicted, false if the cache was empty
+   */
+  private evictLeastRecentlyUsed(): boolean {
+    if (this.cache.size === 0) return false;
+
+    const firstKey = this.cache.keys().next().value;
+    if (firstKey !== undefined) {
+      const entry = this.cache.get(firstKey)!;
+
+      // Update memory usage estimate
+      if (entry.size !== undefined) {
+        this.estimatedMemoryUsage -= entry.size;
+      }
+
+      this.cache.delete(firstKey);
+      this.stats.evictions++;
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Estimate the size of an object in bytes (approximate)
+   * @param obj The object to measure
+   * @returns Approximate size in bytes
+   */
+  private estimateObjectSize(obj: any): number {
+    if (obj === null || obj === undefined) return 0;
+
+    const type = typeof obj;
+
+    if (type === "number") return 8;
+    if (type === "boolean") return 4;
+    if (type === "string") return obj.length * 2;
+
+    if (type === "object") {
+      if (Array.isArray(obj)) {
+        return obj.reduce(
+          (size, item) => size + this.estimateObjectSize(item),
+          0
+        );
+      }
+
+      let size = 0;
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          size += key.length * 2; // Key size
+          size += this.estimateObjectSize(obj[key]); // Value size
+        }
+      }
+      return size;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Set up memory pressure handling
+   * This will automatically trim the cache when memory pressure is high
+   */
+  private setupMemoryPressureHandling(): void {
+    // In test environments, we might not have access to dynamic imports
+    // or the MemoryMonitor might be mocked differently
+    if (process.env.NODE_ENV === "test") {
+      return;
+    }
+
+    try {
+      // Try to import the MemoryMonitor dynamically
+      // This is done to avoid circular dependencies
+      import("./services/MemoryMonitor.js")
+        .then((module) => {
+          const MemoryMonitor = module.MemoryMonitor;
+          const monitor = MemoryMonitor.getInstance();
+
+          // Set up a listener for memory pressure changes
+          this.memoryPressureListener = (pressure) => {
+            if (pressure === "high") {
+              // Under high memory pressure, trim the cache aggressively
+              this.trimToSize(Math.floor(this.maxSize * 0.5)); // Reduce to 50%
+            } else if (pressure === "medium") {
+              // Under medium pressure, do a moderate trim
+              this.trimToSize(Math.floor(this.maxSize * 0.75)); // Reduce to 75%
+            }
+          };
+
+          // Add the listener to the monitor
+          monitor.addListener(
+            (stats: { memoryPressure: "low" | "medium" | "high" }) => {
+              if (this.memoryPressureListener) {
+                this.memoryPressureListener(stats.memoryPressure);
+              }
+            }
+          );
+
+          // Start monitoring if not already started
+          if (!monitor.isMonitoringEnabled()) {
+            monitor.startMonitoring();
+          }
+        })
+        .catch((error) => {
+          // Silently fail if MemoryMonitor is not available
+          // This allows the LRUCache to work without the MemoryMonitor
+          console.debug("MemoryMonitor not available for LRUCache", error);
+        });
+    } catch (error) {
+      // Silently fail if dynamic import is not supported
+      console.debug(
+        "Dynamic import not supported for MemoryMonitor integration"
+      );
+    }
+  }
+
+  /**
+   * Set the maximum memory size for this cache
+   * @param maxMemorySize Maximum memory size in bytes, or undefined to disable
+   */
+  public setMaxMemorySize(maxMemorySize?: number): void {
+    this.maxMemorySize = maxMemorySize;
+
+    // If we're over the new limit, trim the cache
+    if (
+      maxMemorySize !== undefined &&
+      this.estimatedMemoryUsage > maxMemorySize
+    ) {
+      // Keep evicting until we're under the limit
+      while (this.estimatedMemoryUsage > maxMemorySize && this.cache.size > 0) {
+        this.evictLeastRecentlyUsed();
+      }
+    }
+  }
+
+  /**
+   * Get the current maximum memory size setting
+   * @returns The maximum memory size in bytes, or undefined if not set
+   */
+  public getMaxMemorySize(): number | undefined {
+    return this.maxMemorySize;
+  }
+
+  /**
+   * Get the current estimated memory usage
+   * @returns The estimated memory usage in bytes
+   */
+  public getEstimatedMemoryUsage(): number {
+    return this.estimatedMemoryUsage;
   }
 }
