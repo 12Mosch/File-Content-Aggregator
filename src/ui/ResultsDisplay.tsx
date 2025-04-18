@@ -240,340 +240,330 @@ const getLanguageFromPath = (filePath: string): string => {
 // Define a default entry that matches the ContentCacheEntry type
 const defaultContentEntry: ContentCacheEntry = { status: "idle" };
 
-const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
-  index,
-  style,
-  data,
-}) => {
-  const {
-    items,
-    itemDisplayStates,
-    toggleExpand,
-    showFullContentHandler,
-    t,
-    pathFilterTerm, // Use renamed prop
-    pathFilterCaseSensitive, // Use renamed prop
-    contentHighlightTerms, // Use new prop for content highlighting
-    contentHighlightCaseSensitive, // Use new prop for content highlighting case sensitivity
-    highlightCache,
-    requestHighlighting,
-    onCopyContent,
-    contentCache, // Destructure new props
-    requestContent, // Destructure new props
-    selectedFiles, // Destructure selection state
-    toggleSelection, // Destructure toggle selection function
-  } = data;
+// Memoize the TreeRow component to prevent unnecessary re-renders
+const TreeRow = React.memo(
+  function TreeRow({
+    index,
+    style,
+    data,
+  }: ListChildComponentProps<TreeRowData>) {
+    const {
+      items,
+      itemDisplayStates,
+      toggleExpand,
+      showFullContentHandler,
+      t,
+      pathFilterTerm, // Use renamed prop
+      pathFilterCaseSensitive, // Use renamed prop
+      contentHighlightTerms, // Use new prop for content highlighting
+      contentHighlightCaseSensitive, // Use new prop for content highlighting case sensitivity
+      highlightCache,
+      requestHighlighting,
+      onCopyContent,
+      contentCache, // Destructure new props
+      requestContent, // Destructure new props
+      selectedFiles, // Destructure selection state
+      toggleSelection, // Destructure toggle selection function
+    } = data;
 
-  // --- Hooks moved to top level ---
-  const item = items?.[index];
-  const displayState = item ? itemDisplayStates.get(item.filePath) : undefined;
-  const isExpanded = displayState?.expanded ?? false;
-  const showFull = displayState?.showFull ?? false;
-  const language = useMemo(
-    () => (item ? getLanguageFromPath(item.filePath) : "plaintext"),
-    [item]
-  );
-  const wasPreviewHighlightedRef = useRef(false);
-
-  // Use the default entry when getting from cache to ensure consistent type
-  const contentInfo: ContentCacheEntry = item
-    ? (contentCache.get(item.filePath) ?? defaultContentEntry)
-    : defaultContentEntry;
-
-  // Effect to request content when expanded and not already loaded/loading
-  useEffect(() => {
-    if (
-      item &&
-      isExpanded &&
-      !item.readError && // Don't request if there was a read error initially
-      contentInfo.status === "idle"
-    ) {
-      requestContent(item.filePath);
-    }
-    // Only depend on item path, expansion state, and initial read error status
-  }, [
-    item?.filePath,
-    isExpanded,
-    item?.readError,
-    contentInfo.status,
-    requestContent,
-    item,
-  ]);
-
-  const { contentPreview, totalContentLines, isContentLarge } = useMemo(() => {
-    // Use content from the cache if available
-    const currentContent = contentInfo.content; // Access is safe due to consistent type
-    const lines = currentContent?.split("\n") ?? [];
-    const totalLines = lines.length;
-    const large = currentContent ? totalLines > MAX_PREVIEW_LINES : false;
-    const preview =
-      large && !showFull
-        ? lines.slice(0, MAX_PREVIEW_LINES).join("\n")
-        : currentContent;
-    if (large && !showFull) {
-      wasPreviewHighlightedRef.current = true;
-    }
-    return {
-      contentPreview: preview,
-      totalContentLines: totalLines,
-      isContentLarge: large,
-    };
-    // Depend on cached content and showFull state
-  }, [contentInfo.content, showFull]);
-
-  const highlightInfo: HighlightCacheEntry = item
-    ? (highlightCache.get(item.filePath) ?? {
-        status: "idle",
-        html: undefined,
-        error: undefined,
-      })
-    : { status: "idle", html: undefined, error: undefined };
-
-  // Effect for requesting highlighting (now depends on contentPreview)
-  useEffect(() => {
-    if (!item) return;
-    const currentCacheEntry = highlightCache.get(item.filePath);
-    let needsHighlighting = false;
-    let forceUpdate = false;
-    if (
-      isExpanded &&
-      typeof contentPreview === "string" && // Check if contentPreview is available
-      language !== "plaintext"
-    ) {
-      if (!currentCacheEntry || currentCacheEntry.status === "idle") {
-        needsHighlighting = true;
-      } else if (
-        showFull &&
-        wasPreviewHighlightedRef.current &&
-        currentCacheEntry.status === "done"
-      ) {
-        needsHighlighting = true;
-        forceUpdate = true;
-        wasPreviewHighlightedRef.current = false;
-      }
-    }
-    if (needsHighlighting && typeof contentPreview === "string") {
-      requestHighlighting(item.filePath, contentPreview, language, forceUpdate);
-    }
-  }, [
-    isExpanded,
-    contentPreview, // Depend on the derived preview content
-    language,
-    item?.filePath,
-    requestHighlighting,
-    highlightCache,
-    showFull,
-    item,
-  ]);
-
-  if (!item)
-    return (
-      <div style={style} className="p-2 text-destructive">
-        Error: Item not found
-      </div>
+    // --- Hooks moved to top level ---
+    const item = items?.[index];
+    const displayState = item
+      ? itemDisplayStates.get(item.filePath)
+      : undefined;
+    const isExpanded = displayState?.expanded ?? false;
+    const showFull = displayState?.showFull ?? false;
+    const language = useMemo(
+      () => (item ? getLanguageFromPath(item.filePath) : "plaintext"),
+      [item]
     );
+    const wasPreviewHighlightedRef = useRef(false);
 
-  const showShowMoreButton = isExpanded && isContentLarge && !showFull;
-  const handleToggle = () => toggleExpand(item.filePath);
-  const handleShowMore = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    showFullContentHandler(item.filePath);
-  };
+    // Use the default entry when getting from cache to ensure consistent type
+    const contentInfo: ContentCacheEntry = item
+      ? (contentCache.get(item.filePath) ?? defaultContentEntry)
+      : defaultContentEntry;
 
-  const handleCopyClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Use cached content if available
-    if (contentInfo.status === "loaded" && contentInfo.content) {
-      onCopyContent(contentInfo.content);
-    } else {
-      // Optionally handle cases where content isn't loaded yet
-      console.warn("Content not loaded for copying:", item.filePath);
-    }
-  };
+    // Effect to request content when expanded and not already loaded/loading
+    useEffect(() => {
+      if (
+        item &&
+        isExpanded &&
+        !item.readError && // Don't request if there was a read error initially
+        contentInfo.status === "idle"
+      ) {
+        requestContent(item.filePath);
+      }
+      // Only depend on item path, expansion state, and initial read error status
+    }, [
+      item?.filePath,
+      isExpanded,
+      item?.readError,
+      contentInfo.status,
+      requestContent,
+      item,
+    ]);
 
-  const handleOpenFileClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.electronAPI?.openFile) {
-      console.log(`Requesting to open file: ${item.filePath}`);
-      window.electronAPI
-        .openFile(item.filePath)
-        .then(({ success, error }) => {
-          if (!success && error) {
-            console.error(`Error opening file '${item.filePath}':`, error);
-          }
+    const { contentPreview, totalContentLines, isContentLarge } =
+      useMemo(() => {
+        // Use content from the cache if available
+        const currentContent = contentInfo.content; // Access is safe due to consistent type
+        const lines = currentContent?.split("\n") ?? [];
+        const totalLines = lines.length;
+        const large = currentContent ? totalLines > MAX_PREVIEW_LINES : false;
+        const preview =
+          large && !showFull
+            ? lines.slice(0, MAX_PREVIEW_LINES).join("\n")
+            : currentContent;
+        if (large && !showFull) {
+          wasPreviewHighlightedRef.current = true;
+        }
+        return {
+          contentPreview: preview,
+          totalContentLines: totalLines,
+          isContentLarge: large,
+        };
+        // Depend on cached content and showFull state
+      }, [contentInfo.content, showFull]);
+
+    const highlightInfo: HighlightCacheEntry = item
+      ? (highlightCache.get(item.filePath) ?? {
+          status: "idle",
+          html: undefined,
+          error: undefined,
         })
-        .catch((err) => {
-          console.error(`Failed to open file '${item.filePath}':`, err);
-        });
-    } else {
-      console.warn("openFile API not available.");
-    }
-  };
+      : { status: "idle", html: undefined, error: undefined };
 
-  const handleOpenFileLocationClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.electronAPI?.openFileLocation) {
-      console.log(`Requesting to show file location: ${item.filePath}`);
-      window.electronAPI
-        .openFileLocation(item.filePath)
-        .then(({ success, error }) => {
-          if (!success && error) {
-            console.error(
-              `Error showing file location for '${item.filePath}':`,
-              error
-            );
-          }
-        })
-        .catch((err) => {
-          console.error(
-            `Failed to show file location for '${item.filePath}':`,
-            err
-          );
-        });
-    } else {
-      console.warn("openFileLocation API not available.");
-    }
-  };
+    // Effect for requesting highlighting (now depends on contentPreview)
+    useEffect(() => {
+      if (!item) return;
+      const currentCacheEntry = highlightCache.get(item.filePath);
+      let needsHighlighting = false;
+      let forceUpdate = false;
+      if (
+        isExpanded &&
+        typeof contentPreview === "string" && // Check if contentPreview is available
+        language !== "plaintext"
+      ) {
+        if (!currentCacheEntry || currentCacheEntry.status === "idle") {
+          needsHighlighting = true;
+        } else if (
+          showFull &&
+          wasPreviewHighlightedRef.current &&
+          currentCacheEntry.status === "done"
+        ) {
+          needsHighlighting = true;
+          forceUpdate = true;
+          wasPreviewHighlightedRef.current = false;
+        }
+      }
+      if (needsHighlighting && typeof contentPreview === "string") {
+        requestHighlighting(
+          item.filePath,
+          contentPreview,
+          language,
+          forceUpdate
+        );
+      }
+    }, [
+      isExpanded,
+      contentPreview, // Depend on the derived preview content
+      language,
+      item?.filePath,
+      requestHighlighting,
+      highlightCache,
+      showFull,
+      item,
+    ]);
 
-  // Handle checkbox click for selection
-  const handleCheckboxClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent row toggle
-    toggleSelection(item.filePath);
-  };
-
-  // Determine if content is available for the copy button
-  const canCopy = contentInfo.status === "loaded" && !!contentInfo.content;
-
-  // Determine if file is selected
-  const isSelected = selectedFiles.has(item.filePath);
-
-  return (
-    <div
-      style={style}
-      className="border-b border-border overflow-hidden box-border"
-    >
-      {/* Header */}
-      <div
-        className="flex items-center px-2 py-1 cursor-pointer bg-muted/50 hover:bg-muted h-[32px] box-border transition-colors"
-        onClick={handleToggle}
-        title={item.filePath}
-      >
-        {/* Checkbox for selection */}
-        <div className="mr-1" onClick={handleCheckboxClick}>
-          <Checkbox
-            checked={isSelected}
-            className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-            aria-label={
-              isSelected ? t("results:deselectFile") : t("results:selectFile")
-            }
-          />
+    if (!item)
+      return (
+        <div style={style} className="p-2 text-destructive">
+          Error: Item not found
         </div>
-        <span className="inline-block w-6 text-xs mr-1 text-center text-muted-foreground shrink-0">
-          {isExpanded ? "▼" : "▶"}
-        </span>
-        <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
-          {/* Use HighlightMatches for the file path with pathFilterTerm */}
-          <HighlightMatches
-            text={item.filePath}
-            terms={
-              pathFilterTerm && pathFilterTerm.trim() ? [pathFilterTerm] : []
-            } // Only pass non-empty path filter term
-            caseSensitive={pathFilterCaseSensitive} // Pass case sensitivity for path
-          />
-        </span>
-        {/* Only show copy button if content is loadable (no initial read error) */}
-        {!item.readError && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-2 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={handleCopyClick}
-              title={t("results:copyFileContentButton")}
-              aria-label={t("results:copyFileContentButton")}
-              disabled={!canCopy} // Disable if content not loaded
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={handleOpenFileClick}
-              title={t("results:openFileButton")}
-              aria-label={t("results:openFileButton")}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={handleOpenFileLocationClick}
-              title={t("results:openFileLocationButton")}
-              aria-label={t("results:openFileLocationButton")}
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        )}
-      </div>
-      {/* Content Area */}
-      {isExpanded && (
-        <div className="pl-[2.1rem] pr-2 py-1 bg-background text-left box-border">
-          {/* Handle initial read error */}
-          {item.readError ? (
-            <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
-              {/* Highlight error message if filter term matches */}
-              <HighlightMatches
-                text={t(`errors:${item.readError}`, {
-                  defaultValue: item.readError,
-                })}
-                terms={[pathFilterTerm]} // Use path filter term for error message
-                caseSensitive={pathFilterCaseSensitive} // Use path filter case sensitivity
-              />
-            </span>
-          ) : // Handle content loading states
-          contentInfo.status === "loading" ? (
-            <span className="flex items-center font-mono text-xs text-muted-foreground italic">
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              {t("results:loadingContent")}
-            </span>
-          ) : contentInfo.status === "error" ? (
-            <span className="flex items-center font-mono text-xs text-destructive italic">
-              <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
-              {t("results:contentError")}:{" "}
-              {t(`errors:${contentInfo.error}`, {
-                defaultValue: contentInfo.error ?? "Unknown error",
-              })}
-            </span>
-          ) : contentInfo.status === "loaded" &&
-            typeof contentPreview === "string" ? (
-            // Content loaded, handle highlighting
+      );
+
+    const showShowMoreButton = isExpanded && isContentLarge && !showFull;
+    const handleToggle = () => toggleExpand(item.filePath);
+    const handleShowMore = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      showFullContentHandler(item.filePath);
+    };
+
+    const handleCopyClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      // Use cached content if available
+      if (contentInfo.status === "loaded" && contentInfo.content) {
+        onCopyContent(contentInfo.content);
+      } else {
+        // Optionally handle cases where content isn't loaded yet
+        console.warn("Content not loaded for copying:", item.filePath);
+      }
+    };
+
+    const handleOpenFileClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.electronAPI?.openFile) {
+        console.log(`Requesting to open file: ${item.filePath}`);
+        window.electronAPI
+          .openFile(item.filePath)
+          .then(({ success, error }) => {
+            if (!success && error) {
+              console.error(`Error opening file '${item.filePath}':`, error);
+            }
+          })
+          .catch((err) => {
+            console.error(`Failed to open file '${item.filePath}':`, err);
+          });
+      } else {
+        console.warn("openFile API not available.");
+      }
+    };
+
+    const handleOpenFileLocationClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.electronAPI?.openFileLocation) {
+        console.log(`Requesting to show file location: ${item.filePath}`);
+        window.electronAPI
+          .openFileLocation(item.filePath)
+          .then(({ success, error }) => {
+            if (!success && error) {
+              console.error(
+                `Error showing file location for '${item.filePath}':`,
+                error
+              );
+            }
+          })
+          .catch((err) => {
+            console.error(
+              `Failed to show file location for '${item.filePath}':`,
+              err
+            );
+          });
+      } else {
+        console.warn("openFileLocation API not available.");
+      }
+    };
+
+    // Handle checkbox click for selection
+    const handleCheckboxClick = (e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent row toggle
+      toggleSelection(item.filePath);
+    };
+
+    // Determine if content is available for the copy button
+    const canCopy = contentInfo.status === "loaded" && !!contentInfo.content;
+
+    // Determine if file is selected
+    const isSelected = selectedFiles.has(item.filePath);
+
+    return (
+      <div
+        style={style}
+        className="border-b border-border overflow-hidden box-border"
+      >
+        {/* Header */}
+        <div
+          className="flex items-center px-2 py-1 cursor-pointer bg-muted/50 hover:bg-muted h-[32px] box-border transition-colors"
+          onClick={handleToggle}
+          title={item.filePath}
+        >
+          {/* Checkbox for selection */}
+          <div className="mr-1" onClick={handleCheckboxClick}>
+            <Checkbox
+              checked={isSelected}
+              className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+              aria-label={
+                isSelected ? t("results:deselectFile") : t("results:selectFile")
+              }
+            />
+          </div>
+          <span className="inline-block w-6 text-xs mr-1 text-center text-muted-foreground shrink-0">
+            {isExpanded ? "▼" : "▶"}
+          </span>
+          <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
+            {/* Use HighlightMatches for the file path with pathFilterTerm */}
+            <HighlightMatches
+              text={item.filePath}
+              terms={
+                pathFilterTerm && pathFilterTerm.trim() ? [pathFilterTerm] : []
+              } // Only pass non-empty path filter term
+              caseSensitive={pathFilterCaseSensitive} // Pass case sensitivity for path
+            />
+          </span>
+          {/* Only show copy button if content is loadable (no initial read error) */}
+          {!item.readError && (
             <>
-              <pre className="m-0 text-left w-full font-mono text-xs leading-normal text-foreground whitespace-pre-wrap break-all">
-                {language === "plaintext" ? (
-                  // For plaintext, use HighlightMatches with content terms
-                  <code>
-                    <HighlightMatches
-                      text={contentPreview}
-                      terms={
-                        contentHighlightTerms &&
-                        contentHighlightTerms.length > 0
-                          ? contentHighlightTerms
-                          : []
-                      } // Use content terms if available
-                      caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                    />
-                  </code>
-                ) : highlightInfo.status === "pending" ? (
-                  <code className="hljs">{t("results:highlighting")}</code>
-                ) : highlightInfo.status === "error" ? (
-                  // Show error and fallback to plaintext highlighting
-                  <>
-                    <span className="block text-destructive italic mb-1">
-                      {t("results:highlightError")}: {highlightInfo.error}
-                    </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-2 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={handleCopyClick}
+                title={t("results:copyFileContentButton")}
+                aria-label={t("results:copyFileContentButton")}
+                disabled={!canCopy} // Disable if content not loaded
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={handleOpenFileClick}
+                title={t("results:openFileButton")}
+                aria-label={t("results:openFileButton")}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={handleOpenFileLocationClick}
+                title={t("results:openFileLocationButton")}
+                aria-label={t("results:openFileLocationButton")}
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+        {/* Content Area */}
+        {isExpanded && (
+          <div className="pl-[2.1rem] pr-2 py-1 bg-background text-left box-border">
+            {/* Handle initial read error */}
+            {item.readError ? (
+              <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
+                {/* Highlight error message if filter term matches */}
+                <HighlightMatches
+                  text={t(`errors:${item.readError}`, {
+                    defaultValue: item.readError,
+                  })}
+                  terms={[pathFilterTerm]} // Use path filter term for error message
+                  caseSensitive={pathFilterCaseSensitive} // Use path filter case sensitivity
+                />
+              </span>
+            ) : // Handle content loading states
+            contentInfo.status === "loading" ? (
+              <span className="flex items-center font-mono text-xs text-muted-foreground italic">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                {t("results:loadingContent")}
+              </span>
+            ) : contentInfo.status === "error" ? (
+              <span className="flex items-center font-mono text-xs text-destructive italic">
+                <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
+                {t("results:contentError")}:{" "}
+                {t(`errors:${contentInfo.error}`, {
+                  defaultValue: contentInfo.error ?? "Unknown error",
+                })}
+              </span>
+            ) : contentInfo.status === "loaded" &&
+              typeof contentPreview === "string" ? (
+              // Content loaded, handle highlighting
+              <>
+                <pre className="m-0 text-left w-full font-mono text-xs leading-normal text-foreground whitespace-pre-wrap break-all">
+                  {language === "plaintext" ? (
+                    // For plaintext, use HighlightMatches with content terms
                     <code>
                       <HighlightMatches
                         text={contentPreview}
@@ -586,66 +576,137 @@ const TreeRow: React.FC<ListChildComponentProps<TreeRowData>> = ({
                         caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
                       />
                     </code>
-                  </>
-                ) : highlightInfo.status === "done" && highlightInfo.html ? (
-                  // Syntax highlighted: Apply content term highlighting *after* syntax highlighting
-                  // Use our new utility function to highlight search terms within the HTML
-                  <code
-                    className={`language-${language} hljs block`}
-                    dangerouslySetInnerHTML={{
-                      __html: highlightTermsInHtml(
-                        highlightInfo.html,
-                        contentHighlightTerms &&
-                          contentHighlightTerms.length > 0
-                          ? contentHighlightTerms
-                          : [],
-                        contentHighlightCaseSensitive
-                      ),
-                    }}
-                  />
-                ) : (
-                  // Fallback: Plaintext highlighting
-                  <code>
-                    <HighlightMatches
-                      text={contentPreview}
-                      terms={
-                        contentHighlightTerms &&
-                        contentHighlightTerms.length > 0
-                          ? contentHighlightTerms
-                          : []
-                      } // Use content terms if available
-                      caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                  ) : highlightInfo.status === "pending" ? (
+                    <code className="hljs">{t("results:highlighting")}</code>
+                  ) : highlightInfo.status === "error" ? (
+                    // Show error and fallback to plaintext highlighting
+                    <>
+                      <span className="block text-destructive italic mb-1">
+                        {t("results:highlightError")}: {highlightInfo.error}
+                      </span>
+                      <code>
+                        <HighlightMatches
+                          text={contentPreview}
+                          terms={
+                            contentHighlightTerms &&
+                            contentHighlightTerms.length > 0
+                              ? contentHighlightTerms
+                              : []
+                          } // Use content terms if available
+                          caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                        />
+                      </code>
+                    </>
+                  ) : highlightInfo.status === "done" && highlightInfo.html ? (
+                    // Syntax highlighted: Apply content term highlighting *after* syntax highlighting
+                    // Use our new utility function to highlight search terms within the HTML
+                    <code
+                      className={`language-${language} hljs block`}
+                      dangerouslySetInnerHTML={{
+                        __html: highlightTermsInHtml(
+                          highlightInfo.html,
+                          contentHighlightTerms &&
+                            contentHighlightTerms.length > 0
+                            ? contentHighlightTerms
+                            : [],
+                          contentHighlightCaseSensitive
+                        ),
+                      }}
                     />
-                  </code>
+                  ) : (
+                    // Fallback: Plaintext highlighting
+                    <code>
+                      <HighlightMatches
+                        text={contentPreview}
+                        terms={
+                          contentHighlightTerms &&
+                          contentHighlightTerms.length > 0
+                            ? contentHighlightTerms
+                            : []
+                        } // Use content terms if available
+                        caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                      />
+                    </code>
+                  )}
+                </pre>
+                {showShowMoreButton && (
+                  <Button
+                    onClick={handleShowMore}
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1 h-auto px-2 py-0.5"
+                  >
+                    {t("results:showMore", {
+                      remaining: totalContentLines - MAX_PREVIEW_LINES,
+                    })}
+                  </Button>
                 )}
-              </pre>
-              {showShowMoreButton && (
-                <Button
-                  onClick={handleShowMore}
-                  variant="ghost"
-                  size="sm"
-                  className="mt-1 h-auto px-2 py-0.5"
-                >
-                  {t("results:showMore", {
-                    remaining: totalContentLines - MAX_PREVIEW_LINES,
-                  })}
-                </Button>
-              )}
-            </>
-          ) : (
-            // Fallback for idle state or null content after load
-            <span className="block font-mono text-xs text-muted-foreground italic">
-              {/* Display "Not Matched" only if a content query was active */}
-              {contentHighlightTerms.length > 0
-                ? t("results:notMatched")
-                : t("results:noContentPreview")}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+              </>
+            ) : (
+              // Fallback for idle state or null content after load
+              <span className="block font-mono text-xs text-muted-foreground italic">
+                {/* Display "Not Matched" only if a content query was active */}
+                {contentHighlightTerms.length > 0
+                  ? t("results:notMatched")
+                  : t("results:noContentPreview")}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom equality function to prevent unnecessary re-renders
+    // Only re-render if the item, display state, or highlight/content cache has changed
+    if (prevProps.index !== nextProps.index) return false;
+
+    const prevItem = prevProps.data.items[prevProps.index];
+    const nextItem = nextProps.data.items[nextProps.index];
+
+    // Different items or no items
+    if (!prevItem || !nextItem || prevItem.filePath !== nextItem.filePath)
+      return false;
+
+    // Check if display state changed
+    const prevDisplayState = prevProps.data.itemDisplayStates.get(
+      prevItem.filePath
+    );
+    const nextDisplayState = nextProps.data.itemDisplayStates.get(
+      nextItem.filePath
+    );
+    if (
+      prevDisplayState?.expanded !== nextDisplayState?.expanded ||
+      prevDisplayState?.showFull !== nextDisplayState?.showFull
+    )
+      return false;
+
+    // Check if content cache changed
+    const prevContent = prevProps.data.contentCache.get(prevItem.filePath);
+    const nextContent = nextProps.data.contentCache.get(nextItem.filePath);
+    if (prevContent?.status !== nextContent?.status) return false;
+
+    // Check if highlight cache changed
+    const prevHighlight = prevProps.data.highlightCache.get(prevItem.filePath);
+    const nextHighlight = nextProps.data.highlightCache.get(nextItem.filePath);
+    if (prevHighlight?.status !== nextHighlight?.status) return false;
+
+    // Check if selection state changed
+    const prevSelected = prevProps.data.selectedFiles.has(prevItem.filePath);
+    const nextSelected = nextProps.data.selectedFiles.has(nextItem.filePath);
+    if (prevSelected !== nextSelected) return false;
+
+    // Check if highlight terms changed
+    if (
+      prevProps.data.contentHighlightTerms.length !==
+      nextProps.data.contentHighlightTerms.length
+    )
+      return false;
+
+    // If we got here, we can skip re-rendering
+    return true;
+  }
+);
 
 // --- Main ResultsDisplay Component ---
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({

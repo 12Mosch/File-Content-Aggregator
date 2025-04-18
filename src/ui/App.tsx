@@ -66,10 +66,11 @@ function App() {
   // State for filter case sensitivity
   const [resultsFilterCaseSensitive, setResultsFilterCaseSensitive] =
     useState<boolean>(false);
-  // Debounced filter term to pass down to ResultsDisplay
+  // Debounced filter term to pass down to ResultsDisplay with optimized debouncing
   const debouncedFilterTerm = useDebounce(
     resultsFilterTerm,
-    FILTER_DEBOUNCE_DELAY
+    FILTER_DEBOUNCE_DELAY,
+    true // Skip debouncing if the value hasn't changed
   );
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);

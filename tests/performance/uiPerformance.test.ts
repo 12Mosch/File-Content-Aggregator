@@ -1,9 +1,9 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { performance } from 'perf_hooks';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { performance } from "perf_hooks";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Get __dirname equivalent in ESM
 // @ts-expect-error - Ignoring redeclaration of __filename
@@ -13,7 +13,13 @@ const __dirname = path.dirname(__filename);
 
 // Mock ResultsDisplay component
 // @ts-expect-error - Ignoring JSX parsing issues in test files
-const ResultsDisplay = jest.fn(() => <div data-testid="results-display">Results Display Mock</div>);
+const ResultsDisplay = jest.fn(() =>
+  React.createElement(
+    "div",
+    { "data-testid": "results-display" },
+    "Results Display Mock"
+  )
+);
 
 // Define StructuredItem type
 type StructuredItem = {
@@ -27,11 +33,11 @@ type StructuredItem = {
 };
 
 // Mock the necessary dependencies
-jest.mock('react-i18next', () => ({
+jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
-    i18n: { language: 'en' }
-  })
+    i18n: { language: "en" },
+  }),
 }));
 
 // Mock the Worker class globally
@@ -41,13 +47,15 @@ class MockWorker {
   constructor() {
     setTimeout(() => {
       if (this.onmessage) {
-        this.onmessage(new MessageEvent('message', {
-          data: {
-            filePath: 'test.txt',
-            highlightedHtml: '<span>test</span>',
-            status: 'done'
-          }
-        }));
+        this.onmessage(
+          new MessageEvent("message", {
+            data: {
+              filePath: "test.txt",
+              highlightedHtml: "<span>test</span>",
+              status: "done",
+            },
+          })
+        );
       }
     }, 10);
   }
@@ -72,7 +80,7 @@ function generateMockItems(count: number): StructuredItem[] {
       lastModified: new Date().toISOString(),
       matched: true,
       matchedLines: [],
-      readError: null
+      readError: null,
     });
   }
 
@@ -81,26 +89,32 @@ function generateMockItems(count: number): StructuredItem[] {
 
 // Helper function to save test results
 async function saveTestResults(testName: string, results: any): Promise<void> {
-  const resultsDir = path.join(__dirname, '../../performance-results');
+  const resultsDir = path.join(__dirname, "../../performance-results");
 
   try {
     await fs.mkdir(resultsDir, { recursive: true });
-    const filePath = path.join(resultsDir, `${testName}-${new Date().toISOString().replace(/:/g, '-')}.json`);
+    const filePath = path.join(
+      resultsDir,
+      `${testName}-${new Date().toISOString().replace(/:/g, "-")}.json`
+    );
     await fs.writeFile(filePath, JSON.stringify(results, null, 2));
     console.log(`Results saved to ${filePath}`);
   } catch (error) {
-    console.error('Error saving test results:', error instanceof Error ? error.message : String(error));
+    console.error(
+      "Error saving test results:",
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }
 
-describe('UI Performance Tests', () => {
+describe("UI Performance Tests", () => {
   beforeEach(() => {
     // Mock window.URL.createObjectURL
-    Object.defineProperty(window, 'URL', {
+    Object.defineProperty(window, "URL", {
       value: {
-        createObjectURL: jest.fn(() => 'blob:test'),
-        revokeObjectURL: jest.fn()
-      }
+        createObjectURL: jest.fn(() => "blob:test"),
+        revokeObjectURL: jest.fn(),
+      },
     });
 
     // Mock ResizeObserver
@@ -111,8 +125,8 @@ describe('UI Performance Tests', () => {
     };
   });
 
-  describe('ResultsDisplay Rendering Performance', () => {
-    test('should measure initial render time with different result set sizes', async () => {
+  describe("ResultsDisplay Rendering Performance", () => {
+    test("should measure initial render time with different result set sizes", async () => {
       const testSizes = [10, 100, 1000, 5000];
       const results = [];
 
@@ -122,27 +136,27 @@ describe('UI Performance Tests', () => {
         // Measure render time
         const startTime = performance.now();
 
-        // @ts-expect-error - Ignoring JSX parsing issues in test files
+        // Use React.createElement instead of JSX
         render(
-          <ResultsDisplay
-            structuredItems={mockItems}
-            summary={{
+          React.createElement(ResultsDisplay, {
+            structuredItems: mockItems,
+            summary: {
               filesFound: size,
               filesProcessed: size,
-              errorsEncountered: 0
-            }}
-            viewMode="tree"
-            itemDisplayStates={new Map()}
-            itemDisplayVersion={0}
-            onToggleExpand={() => {}}
-            onShowFullContent={() => {}}
-            isFilterActive={false}
-            filterTerm=""
-            filterCaseSensitive={false}
-            searchQueryStructure={null}
-            searchQueryCaseSensitive={false}
-            searchHighlightTerms={[]}
-          />
+              errorsEncountered: 0,
+            },
+            viewMode: "tree",
+            itemDisplayStates: new Map(),
+            itemDisplayVersion: 0,
+            onToggleExpand: () => {},
+            onShowFullContent: () => {},
+            isFilterActive: false,
+            filterTerm: "",
+            filterCaseSensitive: false,
+            searchQueryStructure: null,
+            searchQueryCaseSensitive: false,
+            searchHighlightTerms: [],
+          })
         );
 
         const endTime = performance.now();
@@ -150,76 +164,85 @@ describe('UI Performance Tests', () => {
 
         results.push({
           itemCount: size,
-          renderTime: `${renderTime.toFixed(2)} ms`
+          renderTime: `${renderTime.toFixed(2)} ms`,
         });
 
-        console.log(`Initial render with ${size} items: ${renderTime.toFixed(2)} ms`);
+        console.log(
+          `Initial render with ${size} items: ${renderTime.toFixed(2)} ms`
+        );
 
         // Clean up
         jest.clearAllMocks();
       }
 
       // Save results
-      await saveTestResults('results-display-render-performance', results);
+      await saveTestResults("results-display-render-performance", results);
 
       // Basic assertion to ensure test runs
       expect(results.length).toBe(testSizes.length);
     });
 
-    test('should measure interaction performance with large result sets', async () => {
+    test("should measure interaction performance with large result sets", async () => {
       const mockItems = generateMockItems(1000);
       const results = [];
 
       // Create a map with some items expanded
       const itemDisplayStates = new Map();
       for (let i = 0; i < 10; i++) {
-        itemDisplayStates.set(`file${i}.txt`, { expanded: true, showFull: false });
+        itemDisplayStates.set(`file${i}.txt`, {
+          expanded: true,
+          showFull: false,
+        });
       }
 
       // Render the component
-      // @ts-expect-error - Ignoring JSX parsing issues in test files
+      // Use React.createElement instead of JSX
       render(
-        <ResultsDisplay
-          structuredItems={mockItems}
-          summary={{
+        React.createElement(ResultsDisplay, {
+          structuredItems: mockItems,
+          summary: {
             filesFound: mockItems.length,
             filesProcessed: mockItems.length,
-            errorsEncountered: 0
-          }}
-          viewMode="tree"
-          itemDisplayStates={itemDisplayStates}
-          itemDisplayVersion={0}
-          onToggleExpand={() => {}}
-          onShowFullContent={() => {}}
-          isFilterActive={false}
-          filterTerm=""
-          filterCaseSensitive={false}
-          searchQueryStructure={null}
-          searchQueryCaseSensitive={false}
-          searchHighlightTerms={[]}
-        />
+            errorsEncountered: 0,
+          },
+          viewMode: "tree",
+          itemDisplayStates: itemDisplayStates,
+          itemDisplayVersion: 0,
+          onToggleExpand: () => {},
+          onShowFullContent: () => {},
+          isFilterActive: false,
+          filterTerm: "",
+          filterCaseSensitive: false,
+          searchQueryStructure: null,
+          searchQueryCaseSensitive: false,
+          searchHighlightTerms: [],
+        })
       );
 
       // Measure filter performance
       const filterStartTime = performance.now();
 
       // Simulate typing in the filter input
-      const filterInput = screen.getByPlaceholderText('results:filterPlaceholder');
-      fireEvent.change(filterInput, { target: { value: 'file1' } });
+      const filterInput = screen.getByPlaceholderText(
+        "results:filterPlaceholder"
+      );
+      fireEvent.change(filterInput, { target: { value: "file1" } });
 
       const filterEndTime = performance.now();
       const filterTime = filterEndTime - filterStartTime;
 
       results.push({
-        operation: 'Filter Results',
+        operation: "Filter Results",
         itemCount: mockItems.length,
-        executionTime: `${filterTime.toFixed(2)} ms`
+        executionTime: `${filterTime.toFixed(2)} ms`,
       });
 
-      console.log(`Filter operation with ${mockItems.length} items: ${filterTime.toFixed(2)} ms`);
+      console.log(
+        `Filter operation with ${mockItems.length} items: ${filterTime.toFixed(2)} ms`
+      );
 
       // Save results
-      await saveTestResults('results-display-interaction-performance', results);
+      await saveTestResults("results-display-interaction-performance", results);
 
       // Basic assertion to ensure test runs
       expect(results.length).toBeGreaterThan(0);

@@ -13,6 +13,12 @@ import java from "highlight.js/lib/languages/java";
 import csharp from "highlight.js/lib/languages/csharp";
 import plaintext from "highlight.js/lib/languages/plaintext";
 
+// Cache for highlighted content to avoid redundant processing
+const highlightCache = new Map<string, string>();
+
+// Maximum cache size to prevent memory issues
+const MAX_CACHE_SIZE = 100;
+
 // Register languages in the worker scope
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("jsx", javascript);
@@ -31,6 +37,27 @@ hljs.registerLanguage("plaintext", plaintext);
 
 // --- Message Handling ---
 
+// Helper function to generate a cache key
+function getCacheKey(code: string, language: string): string {
+  // Use a simple hash of the content and language as the cache key
+  // This is a basic implementation - could be improved for production
+  return `${language}:${code.length}:${code.substring(0, 100)}`;
+}
+
+// Helper function to maintain cache size
+function maintainCacheSize(): void {
+  if (highlightCache.size > MAX_CACHE_SIZE) {
+    // Remove oldest entries (first 20% of entries)
+    const entriesToRemove = Math.floor(MAX_CACHE_SIZE * 0.2);
+    let count = 0;
+    for (const key of highlightCache.keys()) {
+      highlightCache.delete(key);
+      count++;
+      if (count >= entriesToRemove) break;
+    }
+  }
+}
+
 self.onmessage = (
   event: MessageEvent<{ filePath: string; code: string; language: string }>
 ) => {
@@ -42,14 +69,25 @@ self.onmessage = (
   }
 
   try {
-    // Perform the highlighting
-    // ignoreIllegals: true helps prevent errors on potentially invalid code snippets
-    const result = hljs.highlight(code, { language, ignoreIllegals: true });
+    // Check if we have this content cached
+    const cacheKey = getCacheKey(code, language);
+    let highlightedHtml = highlightCache.get(cacheKey);
+
+    if (!highlightedHtml) {
+      // Not in cache, perform the highlighting
+      // ignoreIllegals: true helps prevent errors on potentially invalid code snippets
+      const result = hljs.highlight(code, { language, ignoreIllegals: true });
+      highlightedHtml = result.value;
+
+      // Store in cache
+      highlightCache.set(cacheKey, highlightedHtml);
+      maintainCacheSize();
+    }
 
     // Send the highlighted HTML back to the main thread
     self.postMessage({
       filePath: filePath,
-      highlightedHtml: result.value,
+      highlightedHtml: highlightedHtml,
       status: "done",
     });
   } catch (error) {
