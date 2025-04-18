@@ -14,6 +14,7 @@ import {
 import { Logger } from "../../lib/services/Logger.js";
 import { CacheManager } from "../../lib/CacheManager.js";
 import { LRUCache } from "../../lib/LRUCache.js";
+import { getProfiler } from "../../lib/utils/Profiler.js";
 
 export interface NearOperatorOptions {
   caseSensitive?: boolean;
@@ -104,6 +105,9 @@ export class NearOperatorService {
     distance: number,
     options: NearOperatorOptions = {}
   ): boolean {
+    const profiler = getProfiler();
+    const profileId = profiler.start("NearOperatorService.evaluateNear");
+
     const startTime = performance.now();
     this.metrics.totalEvaluations++;
 
@@ -248,6 +252,9 @@ export class NearOperatorService {
     const endTime = performance.now();
     this.updateMetrics(endTime - startTime);
 
+    // End profiling
+    profiler.end(profileId);
+
     return result;
   }
 
@@ -267,6 +274,9 @@ export class NearOperatorService {
     isRegex: boolean = false,
     useWholeWordMatching: boolean = false
   ): number[] {
+    const profiler = getProfiler();
+    const profileId = profiler.start("NearOperatorService.findTermIndices");
+
     const indices: number[] = [];
 
     if (isRegex && term instanceof RegExp) {
@@ -321,6 +331,7 @@ export class NearOperatorService {
       }
     }
 
+    profiler.end(profileId);
     return indices;
   }
 
@@ -384,6 +395,10 @@ export class NearOperatorService {
     maxDistance: number,
     content: string
   ): boolean {
+    const profiler = getProfiler();
+    const profileId = profiler.start(
+      "NearOperatorService.checkProximityOptimized"
+    );
     // Early termination optimization:
     // If we have many indices, first check if any character indices are close enough
     // This avoids expensive word boundary calculations for obviously distant terms
@@ -397,6 +412,7 @@ export class NearOperatorService {
         !this.areAnyIndicesWithinDistance(indices1, indices2, maxCharDistance)
       ) {
         this.metrics.earlyTerminations++;
+        profiler.end(profileId);
         return false;
       }
     }
@@ -436,11 +452,13 @@ export class NearOperatorService {
         // Check if the word distance is within the limit
         const wordDist = Math.abs(wordIndex1 - wordIndex2);
         if (wordDist <= maxDistance) {
+          profiler.end(profileId);
           return true;
         }
       }
     }
 
+    profiler.end(profileId);
     return false;
   }
 
@@ -583,6 +601,10 @@ export class NearOperatorService {
     indices2: number[],
     maxDistance: number
   ): boolean {
+    const profiler = getProfiler();
+    const profileId = profiler.start(
+      "NearOperatorService.areAnyIndicesWithinDistance"
+    );
     // Use a sliding window approach for better performance
     let i = 0;
     let j = 0;
@@ -591,6 +613,7 @@ export class NearOperatorService {
       const diff = indices1[i] - indices2[j];
 
       if (Math.abs(diff) <= maxDistance) {
+        profiler.end(profileId);
         return true;
       }
 
@@ -602,6 +625,7 @@ export class NearOperatorService {
       }
     }
 
+    profiler.end(profileId);
     return false;
   }
 

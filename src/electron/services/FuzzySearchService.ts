@@ -203,7 +203,7 @@ export class FuzzySearchService {
 
       // Perform the search
       const searchResults = (
-        fuse as unknown as {
+        fuse as {
           search: (term: string) => Array<{ score: number }>;
         }
       ).search(term);

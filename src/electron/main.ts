@@ -18,12 +18,10 @@ import Backend from "i18next-fs-backend";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
 import type PLimit from "p-limit";
+import { getProfiler } from "../lib/utils/Profiler.js";
 
 // Import from optimized file search service
-import {
-  searchFiles,
-  updateSearchSettings,
-} from "./FileSearchService.js";
+import { searchFiles, updateSearchSettings } from "./FileSearchService.js";
 
 // Import types from types.ts
 import {
@@ -347,6 +345,13 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 void app.whenReady().then(async () => {
+  // Check for profiling flag
+  const enableProfiling = process.argv.includes("--profile");
+  if (enableProfiling) {
+    getProfiler().setEnabled(true);
+    console.log("Performance profiling enabled");
+  }
+
   await initializeMainI18nLanguage();
   try {
     const storedTheme = store.get(THEME_PREFERENCE_KEY, "system");
@@ -392,6 +397,33 @@ void app.whenReady().then(async () => {
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("will-quit", async (event) => {
+  // Save profiling data if profiling was enabled
+  const profiler = getProfiler();
+  if (profiler.isEnabled()) {
+    event.preventDefault(); // Prevent quitting until we save the report
+
+    try {
+      const timestamp = new Date().toISOString().replace(/:/g, "-");
+      const reportPath = path.join(
+        app.getPath("userData"),
+        `profile-report-${timestamp}.json`
+      );
+
+      await profiler.saveReport(reportPath);
+      console.log(`Profiling report saved to: ${reportPath}`);
+
+      // Log the report to the console as well
+      profiler.logReport();
+    } catch (error) {
+      console.error("Failed to save profiling report:", error);
+    } finally {
+      // Continue with app quit
+      app.quit();
+    }
+  }
 });
 app.on("web-contents-created", (_event, contents) => {
   contents.on("will-navigate", (event, navigationUrl) => {
