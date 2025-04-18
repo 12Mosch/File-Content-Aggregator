@@ -1,0 +1,117 @@
+{
+  "totalFiles": 75,
+  "totalLines": 16949,
+  "totalBlankLines": 1620,
+  "totalCommentLines": 2434,
+  "totalCodeLines": 12895,
+  "byExtension": {
+    ".tsx": {
+      "files": 34,
+      "lines": 7716,
+      "blankLines": 578,
+      "commentLines": 433,
+      "codeLines": 6705
+    },
+    ".ts": {
+      "files": 40,
+      "lines": 9079,
+      "blankLines": 1033,
+      "commentLines": 1997,
+      "codeLines": 6049
+    },
+    ".css": {
+      "files": 1,
+      "lines": 154,
+      "blankLines": 9,
+      "commentLines": 4,
+      "codeLines": 141
+    }
+  },
+  "byDirectory": {
+    "ui": {
+      "files": 22,
+      "lines": 6995,
+      "blankLines": 506,
+      "commentLines": 610,
+      "codeLines": 5879
+    },
+    "electron\\services": {
+      "files": 9,
+      "lines": 2889,
+      "blankLines": 383,
+      "commentLines": 544,
+      "codeLines": 1962
+    },
+    "components\\ui": {
+      "files": 18,
+      "lines": 1547,
+      "blankLines": 147,
+      "commentLines": 21,
+      "codeLines": 1379
+    },
+    "electron": {
+      "files": 5,
+      "lines": 1719,
+      "blankLines": 109,
+      "commentLines": 234,
+      "codeLines": 1376
+    },
+    "lib\\utils": {
+      "files": 5,
+      "lines": 1018,
+      "blankLines": 121,
+      "commentLines": 328,
+      "codeLines": 569
+    },
+    "lib": {
+      "files": 4,
+      "lines": 695,
+      "blankLines": 94,
+      "commentLines": 243,
+      "codeLines": 358
+    },
+    "ui\\services": {
+      "files": 2,
+      "lines": 577,
+      "blankLines": 83,
+      "commentLines": 147,
+      "codeLines": 347
+    },
+    "ui\\components": {
+      "files": 2,
+      "lines": 419,
+      "blankLines": 53,
+      "commentLines": 29,
+      "codeLines": 337
+    },
+    "electron\\utils": {
+      "files": 3,
+      "lines": 428,
+      "blankLines": 38,
+      "commentLines": 88,
+      "codeLines": 302
+    },
+    "lib\\services": {
+      "files": 3,
+      "lines": 414,
+      "blankLines": 50,
+      "commentLines": 144,
+      "codeLines": 220
+    },
+    "ui\\workers": {
+      "files": 1,
+      "lines": 197,
+      "blankLines": 27,
+      "commentLines": 34,
+      "codeLines": 136
+    },
+    "ui\\hooks": {
+      "files": 1,
+      "lines": 51,
+      "blankLines": 9,
+      "commentLines": 12,
+      "codeLines": 30
+    }
+  },
+  "timestamp": "2025-04-18T13:29:37.380Z"
+}
