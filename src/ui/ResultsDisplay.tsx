@@ -246,6 +246,7 @@ const TreeRow = React.memo(
     index,
     style,
     data,
+    isScrolling,
   }: ListChildComponentProps<TreeRowData>) {
     const {
       items,
@@ -531,8 +532,12 @@ const TreeRow = React.memo(
         {/* Content Area */}
         {isExpanded && (
           <div className="pl-[2.1rem] pr-2 py-1 bg-background text-left box-border">
-            {/* Handle initial read error */}
-            {item.readError ? (
+            {/* Skip complex content rendering during scrolling for better performance */}
+            {isScrolling ? (
+              <div className="font-mono text-xs text-muted-foreground italic py-2">
+                {t("results:scrollingPlaceholder")}
+              </div>
+            ) : item.readError ? (
               <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
                 {/* Highlight error message if filter term matches */}
                 <HighlightMatches
@@ -681,25 +686,62 @@ const TreeRow = React.memo(
     )
       return false;
 
-    // Check if content cache changed
+    // Check if content cache changed - compare content and status
     const prevContent = prevProps.data.contentCache.get(prevItem.filePath);
     const nextContent = nextProps.data.contentCache.get(nextItem.filePath);
-    if (prevContent?.status !== nextContent?.status) return false;
+    if (
+      prevContent?.status !== nextContent?.status ||
+      (prevContent?.status === "loaded" &&
+        nextContent?.status === "loaded" &&
+        prevContent?.content !== nextContent?.content)
+    )
+      return false;
 
-    // Check if highlight cache changed
+    // Check if highlight cache changed - compare HTML and status
     const prevHighlight = prevProps.data.highlightCache.get(prevItem.filePath);
     const nextHighlight = nextProps.data.highlightCache.get(nextItem.filePath);
-    if (prevHighlight?.status !== nextHighlight?.status) return false;
+    if (
+      prevHighlight?.status !== nextHighlight?.status ||
+      (prevHighlight?.status === "done" &&
+        nextHighlight?.status === "done" &&
+        prevHighlight?.html !== nextHighlight?.html)
+    )
+      return false;
 
     // Check if selection state changed
     const prevSelected = prevProps.data.selectedFiles.has(prevItem.filePath);
     const nextSelected = nextProps.data.selectedFiles.has(nextItem.filePath);
     if (prevSelected !== nextSelected) return false;
 
-    // Check if highlight terms changed
+    // Check if highlight terms changed - deep compare
     if (
       prevProps.data.contentHighlightTerms.length !==
       nextProps.data.contentHighlightTerms.length
+    )
+      return false;
+
+    // Compare each highlight term
+    for (let i = 0; i < prevProps.data.contentHighlightTerms.length; i++) {
+      const prevTerm = prevProps.data.contentHighlightTerms[i];
+      const nextTerm = nextProps.data.contentHighlightTerms[i];
+
+      if (prevTerm instanceof RegExp && nextTerm instanceof RegExp) {
+        if (prevTerm.toString() !== nextTerm.toString()) return false;
+      } else if (prevTerm !== nextTerm) {
+        return false;
+      }
+    }
+
+    // Check if path filter term changed
+    if (prevProps.data.pathFilterTerm !== nextProps.data.pathFilterTerm)
+      return false;
+
+    // Check if case sensitivity changed
+    if (
+      prevProps.data.pathFilterCaseSensitive !==
+        nextProps.data.pathFilterCaseSensitive ||
+      prevProps.data.contentHighlightCaseSensitive !==
+        nextProps.data.contentHighlightCaseSensitive
     )
       return false;
 
@@ -1401,19 +1443,44 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   itemSize={getTreeItemSize}
                   width={width}
                   itemData={treeItemData}
-                  overscanCount={5}
+                  overscanCount={10} // Increased overscan for smoother scrolling
                   estimatedItemSize={
-                    TREE_ITEM_HEADER_HEIGHT + TREE_ITEM_CONTENT_LINE_HEIGHT * 5
+                    TREE_ITEM_HEADER_HEIGHT + TREE_ITEM_CONTENT_LINE_HEIGHT * 10 // Increased estimated size for better initial rendering
                   }
-                  // Update itemKey to depend on content/highlight/sort updates too
-                  itemKey={(index, data) =>
-                    `${data.items[index]?.filePath ?? index}-${itemDisplayVersion}-${highlightUpdateCounter}-${contentUpdateCounter}-${sortKey}-${sortDirection}`
-                  }
+                  // Optimized itemKey function to reduce string concatenation
+                  itemKey={(index, data) => {
+                    const item = data.items[index];
+                    return item
+                      ? `${item.filePath}-${itemDisplayVersion}-${highlightUpdateCounter}-${contentUpdateCounter}-${sortKey}-${sortDirection}`
+                      : `index-${index}`;
+                  }}
+                  // Add useIsScrolling to optimize rendering during scrolling
+                  useIsScrolling
                 >
                   {TreeRow}
                 </VariableSizeList>
+              ) : structuredItems === null ? (
+                // Loading skeleton when results are being fetched
+                <div className="h-full w-full p-4 space-y-4">
+                  {/* Skeleton items */}
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-8 bg-muted/50 rounded-md mb-2 flex items-center">
+                        <div className="w-4 h-4 ml-2 bg-muted rounded-sm"></div>
+                        <div className="h-4 bg-muted rounded-md ml-4 w-3/4"></div>
+                      </div>
+                      {i % 3 === 0 && (
+                        <div className="pl-10 space-y-2">
+                          <div className="h-3 bg-muted/30 rounded-md w-full"></div>
+                          <div className="h-3 bg-muted/30 rounded-md w-5/6"></div>
+                          <div className="h-3 bg-muted/30 rounded-md w-4/6"></div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               ) : (
-                // Optional: Display a message when no results match filters
+                // Display a message when no results match filters
                 <div className="flex items-center justify-center h-full text-muted-foreground italic">
                   {/* Check if initial search yielded results before filtering */}
                   {structuredItems && structuredItems.length > 0

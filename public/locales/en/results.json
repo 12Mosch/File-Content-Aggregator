@@ -68,5 +68,6 @@
   "exportSelectedNoSelection": "No files selected",
   "selectedFilesCount": "{{count}} files selected",
   "selectFile": "Select file",
-  "deselectFile": "Deselect file"
+  "deselectFile": "Deselect file",
+  "scrollingPlaceholder": "Scrolling... Content will load when scrolling stops."
 }
