@@ -62,8 +62,8 @@ function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Mock the fileSearchService module
-jest.mock("../../../src/electron/fileSearchService", () => {
+// Create a utility module for testing
+jest.mock("../../../src/electron/utils/searchUtils", () => {
   return {
     findTermIndices,
   };

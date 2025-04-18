@@ -1,24 +1,20 @@
-// D:/Code/Electron/src/electron/fileSearchService.ts
-/*
- * Refactored: Optimized search algorithm with improved caching and performance
+/**
+ * Optimized File Search Service
+ *
+ * This service provides file search functionality with optimized memory usage.
+ * It uses streaming file processing and efficient caching to improve performance.
  */
+
+// Path module is not used directly but is needed for type definitions
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import path from "path";
-import fs from "fs/promises";
-import type { Stats } from "fs";
-import picomatch from "picomatch";
-import type { Options as FastGlobOptions } from "fast-glob";
 import type PLimit from "p-limit";
 
-// --- Import 'module' and create a require function ---
+// Import module and create a require function
 import module from "node:module";
 const require = module.createRequire(import.meta.url);
 
-// --- Use the created require function to load CJS modules ---
-// Type the required function correctly
-const fg: (
-  patterns: string | readonly string[],
-  options?: FastGlobOptions
-) => Promise<string[]> = require("fast-glob");
+// Use the created require function to load CJS modules
 const pLimitModule = require("p-limit") as {
   default?: typeof PLimit;
   __esModule?: boolean;
@@ -26,740 +22,90 @@ const pLimitModule = require("p-limit") as {
 const pLimit: typeof PLimit =
   pLimitModule.default ?? (pLimitModule as typeof PLimit);
 
-// --- Require jsep and import its types with a different alias ---
-import type * as Jsep from "jsep";
-const jsep = require("jsep") as typeof import("jsep");
-// -------------------------------------------------------------
-
-// Import optimized services
+// Import services
 import {
-  FuzzySearchService,
-  WordBoundaryService,
-  NearOperatorService,
-} from "./services";
+  FileDiscoveryService,
+  FileProcessingService,
+  ContentMatchingService,
+  SearchResultProcessor,
+  type ContentSearchMode,
+} from "./services/index.js";
 
-// --- Define ContentSearchMode directly in this file ---
-type ContentSearchMode = "term" | "regex" | "boolean";
-// -----------------------------------------------------
+// Import boolean expression utilities
+import { updateBooleanSearchSettings } from "./utils/booleanExpressionUtils.js";
 
-// Get the search settings from the store
+// Import types
+import {
+  SearchParams,
+  SearchResult,
+  ProgressCallback,
+  CancellationChecker,
+  FileReadError,
+} from "./types.js";
+
+// Concurrency limit for file operations
+const FILE_OPERATION_CONCURRENCY_LIMIT = 20;
+
+// Global search settings
 let fuzzySearchBooleanEnabled = true;
 let fuzzySearchNearEnabled = true;
 let wholeWordMatchingEnabled = false;
 
-// Function to update the search settings
+/**
+ * Updates the search settings
+ * @param booleanEnabled Whether fuzzy search is enabled for boolean queries
+ * @param nearEnabled Whether fuzzy search is enabled for NEAR operator
+ * @param wholeWordEnabled Whether whole word matching is enabled
+ */
 export function updateSearchSettings(
   booleanEnabled: boolean,
   nearEnabled: boolean,
   wholeWordEnabled: boolean
-) {
+): void {
   fuzzySearchBooleanEnabled = booleanEnabled;
   fuzzySearchNearEnabled = nearEnabled;
   wholeWordMatchingEnabled = wholeWordEnabled;
+
+  // Update the settings in the boolean expression utilities
+  updateBooleanSearchSettings(booleanEnabled, nearEnabled, wholeWordEnabled);
+
   console.log(
     `[SearchService] Search settings updated: Boolean=${fuzzySearchBooleanEnabled}, NEAR=${fuzzySearchNearEnabled}, WholeWord=${wholeWordMatchingEnabled}`
   );
 }
 
-// Legacy function for backward compatibility
+/**
+ * Legacy function for backward compatibility
+ * @param booleanEnabled Whether fuzzy search is enabled for boolean queries
+ * @param nearEnabled Whether fuzzy search is enabled for NEAR operator
+ */
 export function updateFuzzySearchSettings(
   booleanEnabled: boolean,
   nearEnabled: boolean
-) {
+): void {
   // Call the new function with the current value of wholeWordMatchingEnabled
   updateSearchSettings(booleanEnabled, nearEnabled, wholeWordMatchingEnabled);
 }
 
-// --- Interfaces ---
-type FolderExclusionMode = "contains" | "exact" | "startsWith" | "endsWith";
-
-export interface SearchParams {
-  searchPaths: string[];
-  extensions: string[];
-  excludeFiles: string[];
-  excludeFolders: string[];
-  folderExclusionMode?: FolderExclusionMode;
-  contentSearchTerm?: string;
-  contentSearchMode?: ContentSearchMode;
-  caseSensitive?: boolean;
-  modifiedAfter?: string;
-  modifiedBefore?: string;
-  minSizeBytes?: number;
-  maxSizeBytes?: number;
-  maxDepth?: number;
-}
-
-export interface ProgressData {
-  processed: number;
-  total: number;
-  currentFile?: string;
-  message?: string;
-  error?: string;
-  status?: "searching" | "cancelling" | "cancelled" | "completed" | "error";
-}
-
-export interface FileReadError {
-  filePath: string;
-  reason: string;
-  detail?: string;
-}
-
-// Interface for path errors captured during globbing or initial checks
-interface PathErrorDetail {
-  searchPath: string; // The top-level path being searched when error occurred
-  errorPath: string; // The specific path that caused the error (if available)
-  message: string; // The error message
-  code?: string; // Error code (e.g., 'EPERM', 'ENOENT')
-}
-
-// Modified: Added size and mtime
-export interface StructuredItem {
-  filePath: string;
-  matched: boolean; // Indicates if content matched (if query was present)
-  readError?: string;
-  size?: number;
-  mtime?: number;
-}
-
-// Modified: Removed 'output' property
-export interface SearchResult {
-  structuredItems: StructuredItem[];
-  filesProcessed: number;
-  filesFound: number;
-  errorsEncountered: number;
-  pathErrors: string[]; // User-facing, filtered error messages
-  fileReadErrors: FileReadError[];
-  wasCancelled?: boolean;
-}
-
-// Callback type for progress updates
-export type ProgressCallback = (data: ProgressData) => void;
-// Type for cancellation check function
-export type CancellationChecker = () => boolean;
-
-// --- Concurrency Limit ---
-const FILE_OPERATION_CONCURRENCY_LIMIT = 20; // Consider lowering if OOM persists
-
-// --- Helper Functions ---
 /**
- * Escapes special characters in a string for use in a regular expression.
- * @param string The string to escape.
- * @returns The escaped string.
+ * Main search function
+ * @param params Search parameters
+ * @param progressCallback Callback for progress updates
+ * @param checkCancellation Function to check if the search should be cancelled
+ * @returns Search results
  */
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
-}
-
-function parseDateStartOfDay(dateString: string | undefined): Date | null {
-  if (!dateString) return null;
-  try {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      console.warn(
-        `Invalid date format for parsing: ${dateString}. Expected YYYY-MM-DD.`
-      );
-      return null;
-    }
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      console.warn(`Invalid date value resulted from parsing: ${dateString}`);
-      return null;
-    }
-    date.setHours(0, 0, 0, 0);
-    return date;
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    console.error(`Error parsing date string "${dateString}":`, message);
-    return null;
-  }
-}
-
-function parseDateEndOfDay(dateString: string | undefined): Date | null {
-  const date = parseDateStartOfDay(dateString);
-  if (date) {
-    date.setHours(23, 59, 59, 999);
-  }
-  return date;
-}
-
-export function parseRegexLiteral(pattern: string): RegExp | null {
-  const regexMatch = pattern.match(/^\/(.+)\/([gimyus]*)$/);
-  if (regexMatch) {
-    try {
-      return new RegExp(regexMatch[1], regexMatch[2]);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      console.warn(`Invalid RegExp literal format: ${pattern}`, message);
-      return null;
-    }
-  }
-  return null;
-}
-
-function createSafeRegex(pattern: string, flags: string): RegExp | null {
-  try {
-    if (!pattern) {
-      console.warn(`Attempted to create RegExp with empty pattern.`);
-      return null;
-    }
-    return new RegExp(pattern, flags);
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    console.warn(
-      `Invalid RegExp pattern created: "${pattern}" with flags "${flags}"`,
-      message
-    );
-    return null;
-  }
-}
-
-// Type guards for JSEP nodes
-function isJsepExpression(node: unknown): node is Jsep.Expression {
-  return (
-    node !== null &&
-    typeof node === "object" &&
-    "type" in node &&
-    typeof node.type === "string"
-  );
-}
-function isJsepIdentifier(node: unknown): node is Jsep.Identifier {
-  return (
-    isJsepExpression(node) &&
-    node.type === "Identifier" &&
-    "name" in node &&
-    typeof node.name === "string"
-  );
-}
-function isJsepLiteral(node: unknown): node is Jsep.Literal {
-  return isJsepExpression(node) && node.type === "Literal" && "value" in node;
-}
-function isJsepCallExpression(node: unknown): node is Jsep.CallExpression {
-  return (
-    isJsepExpression(node) &&
-    node.type === "CallExpression" &&
-    "callee" in node &&
-    "arguments" in node &&
-    Array.isArray(node.arguments)
-  );
-}
-function isJsepLogicalExpression(node: unknown): node is Jsep.Expression & {
-  type: "LogicalExpression";
-  operator: string;
-  left: Jsep.Expression;
-  right: Jsep.Expression;
-} {
-  return (
-    isJsepExpression(node) &&
-    node.type === "LogicalExpression" &&
-    "left" in node &&
-    "right" in node &&
-    "operator" in node
-  );
-}
-function isJsepUnaryExpression(node: unknown): node is Jsep.UnaryExpression {
-  return (
-    isJsepExpression(node) &&
-    node.type === "UnaryExpression" &&
-    "argument" in node &&
-    "operator" in node
-  );
-}
-
-/**
- * Finds all starting indices of a term (string or regex) within content.
- * @param content The string to search within.
- * @param term The string or RegExp to find.
- * @param caseSensitive Whether string search should be case-sensitive.
- * @param isRegex Whether the term is a RegExp object.
- * @param useWholeWordMatching Whether to match whole words only (applies only to string terms).
- * @returns An array of starting indices.
- */
-export function findTermIndices(
-  content: string,
-  term: string | RegExp,
-  caseSensitive: boolean,
-  isRegex: boolean,
-  useWholeWordMatching: boolean = false
-): number[] {
-  const indices: number[] = [];
-  if (!term) return indices;
-
-  if (isRegex && term instanceof RegExp) {
-    // Ensure the regex has the global flag for iterative searching
-    const regex = new RegExp(
-      term.source,
-      term.flags.includes("g") ? term.flags : term.flags + "g"
-    );
-    let match;
-    while ((match = regex.exec(content)) !== null) {
-      indices.push(match.index);
-      // Prevent infinite loops with zero-width matches
-      if (match.index === regex.lastIndex) {
-        regex.lastIndex++;
-      }
-    }
-  } else if (typeof term === "string") {
-    if (useWholeWordMatching) {
-      // Use regex with word boundaries for whole word matching
-      const flags = caseSensitive ? "g" : "gi";
-      const wordBoundaryRegex = new RegExp(
-        `\\b${escapeRegExp(term)}\\b`,
-        flags
-      );
-      let match;
-
-      // Test if the regex matches any whole words in the content
-      while ((match = wordBoundaryRegex.exec(content)) !== null) {
-        // Check if this is a whole word match and not part of another word
-        const beforeChar =
-          match.index > 0 ? content.charAt(match.index - 1) : "";
-        const afterChar =
-          match.index + term.length < content.length
-            ? content.charAt(match.index + term.length)
-            : "";
-
-        // Verify it's truly a whole word by checking surrounding characters
-        if (!/\w/.test(beforeChar) && !/\w/.test(afterChar)) {
-          indices.push(match.index);
-        }
-
-        // Prevent infinite loops with zero-width matches
-        if (match.index === wordBoundaryRegex.lastIndex) {
-          wordBoundaryRegex.lastIndex++;
-        }
-      }
-    } else {
-      // Standard substring search
-      const searchTerm = caseSensitive ? term : term.toLowerCase();
-      const searchContent = caseSensitive ? content : content.toLowerCase();
-      let i = -1;
-      while ((i = searchContent.indexOf(searchTerm, i + 1)) !== -1) {
-        indices.push(i);
-      }
-    }
-  }
-  return indices;
-}
-
-// Removed findApproximateMatchIndices function - now handled by FuzzySearchService
-
-// --- Word Boundary Service ---
-// Use the optimized WordBoundaryService instead of direct cache management
-const wordBoundaryService = WordBoundaryService.getInstance();
-
-/**
- * Evaluates a JSEP Abstract Syntax Tree (AST) against file content.
- * Supports AND, OR, NOT logic, simple terms, regex literals, and NEAR proximity search.
- * @param node The AST node to evaluate.
- * @param content The file content string.
- * @param caseSensitive Global case sensitivity setting for simple terms (not regex).
- * @returns True if the AST node evaluates to true against the content, false otherwise.
- */
-export function evaluateBooleanAst(
-  node: Jsep.Expression | unknown,
-  content: string,
-  caseSensitive: boolean
-): boolean {
-  if (!isJsepExpression(node)) {
-    console.warn("evaluateBooleanAst called with non-Expression node:", node);
-    return false;
-  }
-
-  // Debug: Log the node being evaluated
-  console.log(`[AST Eval] Evaluating node type: ${node.type}`);
-  if (node.type === "LogicalExpression" && isJsepLogicalExpression(node)) {
-    console.log(`[AST Eval] LogicalExpression operator: ${node.operator}`);
-  }
-
-  try {
-    switch (node.type) {
-      case "BinaryExpression":
-      case "LogicalExpression": {
-        // Handle both BinaryExpression and LogicalExpression the same way
-        // jsep parses "OR" and "AND" as BinaryExpression when they're quoted
-        console.log(`[AST Eval] ${node.type} operator: ${node.operator}`);
-
-        // Check if this is a valid expression with left and right nodes
-        if (!node.left || !node.right) {
-          console.warn(
-            `${node.type} node missing valid left or right child`,
-            node
-          );
-          return false;
-        }
-        // For both LogicalExpression and BinaryExpression, we need to check the left and right nodes
-        if (!isJsepExpression(node.left) || !isJsepExpression(node.right)) {
-          console.warn(
-            `${node.type} node has invalid left or right child`,
-            node
-          );
-          return false;
-        }
-        // Evaluate left side first for potential short-circuiting
-        console.log(`[AST Eval] Evaluating left side of ${node.operator}`);
-        const leftResult = evaluateBooleanAst(
-          node.left,
-          content,
-          caseSensitive
-        );
-        console.log(`[AST Eval] Left side result: ${leftResult}`);
-
-        // Short-circuit OR
-        if (node.operator === "OR" && leftResult) {
-          console.log(`[AST Eval] Short-circuit OR with true left side`);
-          return true;
-        }
-        // Short-circuit AND
-        if (node.operator === "AND" && !leftResult) {
-          console.log(`[AST Eval] Short-circuit AND with false left side`);
-          return false;
-        }
-
-        // Evaluate right side only if necessary
-        console.log(`[AST Eval] Evaluating right side of ${node.operator}`);
-        const rightResult = evaluateBooleanAst(
-          node.right,
-          content,
-          caseSensitive
-        );
-        console.log(`[AST Eval] Right side result: ${rightResult}`);
-
-        const finalResult =
-          node.operator === "OR"
-            ? leftResult || rightResult
-            : leftResult && rightResult;
-        console.log(`[AST Eval] ${node.operator} final result: ${finalResult}`);
-        return finalResult;
-      }
-      case "UnaryExpression": {
-        if (!isJsepUnaryExpression(node)) return false;
-        if (!isJsepExpression(node.argument)) {
-          // console.warn("UnaryExpression node missing valid argument", node);
-          return false;
-        }
-        if (node.operator === "NOT") {
-          return !evaluateBooleanAst(node.argument, content, caseSensitive);
-        }
-        // console.warn(`Unsupported unary operator: ${String(node.operator)}`);
-        return false;
-      }
-      case "Identifier": {
-        // This case should ideally not be hit for simple terms if quoting works
-        if (!isJsepIdentifier(node)) return false;
-        const termIdentifierStr = node.name;
-        // console.log(`[AST Eval] Identifier: "${termIdentifierStr}"`); // DEBUG
-        const regexFromIdentifier = parseRegexLiteral(termIdentifierStr);
-        if (regexFromIdentifier) {
-          return regexFromIdentifier.test(content);
-        } else {
-          // Simple term search (fallback)
-          return caseSensitive
-            ? content.includes(termIdentifierStr)
-            : content.toLowerCase().includes(termIdentifierStr.toLowerCase());
-        }
-      }
-      case "Literal": {
-        // This is the expected path for simple terms now
-        if (!isJsepLiteral(node)) return false;
-        if (typeof node.value === "string") {
-          const termLiteralStr = node.value;
-          console.log(`[AST Eval] Literal: "${termLiteralStr}"`); // DEBUG
-          const regexFromLiteral = parseRegexLiteral(termLiteralStr);
-          if (regexFromLiteral) {
-            // This allows using regex literals like /pattern/i within the builder
-            const result = regexFromLiteral.test(content);
-            console.log(`[AST Eval] Regex literal test result: ${result}`);
-            return result;
-          } else {
-            // Simple term search for the literal value
-            console.log(
-              `[AST Eval] Performing simple term search for: "${termLiteralStr}"`
-            );
-            console.log(`[AST Eval] Case sensitive: ${caseSensitive}`);
-
-            // Remove quotes if the term is quoted
-            let searchTerm = termLiteralStr;
-            if (searchTerm.startsWith('"') && searchTerm.endsWith('"')) {
-              searchTerm = searchTerm.substring(1, searchTerm.length - 1);
-              console.log(
-                `[AST Eval] Removed quotes, searching for: "${searchTerm}"`
-              );
-            }
-
-            // Check if the term is in the content
-            let found = false;
-
-            // First try exact match with optional whole word matching
-            if (wholeWordMatchingEnabled) {
-              // Create a regex with word boundary markers for whole word matching
-
-              // Test if the regex matches any whole words in the content
-              let match;
-              const matches = [];
-              const testContent = caseSensitive
-                ? content
-                : content.toLowerCase();
-              const testRegex = new RegExp(
-                `\\b${escapeRegExp(searchTerm)}\\b`,
-                caseSensitive ? "g" : "gi"
-              );
-
-              while ((match = testRegex.exec(testContent)) !== null) {
-                // Check if this is a whole word match and not part of another word
-                const matchedText = testContent.substring(
-                  match.index,
-                  match.index + searchTerm.length
-                );
-                const beforeChar =
-                  match.index > 0 ? testContent.charAt(match.index - 1) : "";
-                const afterChar =
-                  match.index + searchTerm.length < testContent.length
-                    ? testContent.charAt(match.index + searchTerm.length)
-                    : "";
-
-                // Verify it's truly a whole word by checking surrounding characters
-                if (!/\w/.test(beforeChar) && !/\w/.test(afterChar)) {
-                  matches.push(matchedText);
-                }
-
-                // Prevent infinite loops with zero-width matches
-                if (match.index === testRegex.lastIndex) {
-                  testRegex.lastIndex++;
-                }
-              }
-
-              found = matches.length > 0;
-              console.log(
-                `[AST Eval] Whole word ${caseSensitive ? "case-sensitive" : "case-insensitive"} search: ${found ? "FOUND" : "NOT FOUND"} (matches: ${matches.length})`
-              );
-            } else {
-              // Standard substring search
-              if (caseSensitive) {
-                found = content.includes(searchTerm);
-                console.log(
-                  `[AST Eval] Case-sensitive search: ${found ? "FOUND" : "NOT FOUND"}`
-                );
-              } else {
-                found = content
-                  .toLowerCase()
-                  .includes(searchTerm.toLowerCase());
-                console.log(
-                  `[AST Eval] Case-insensitive search: ${found ? "FOUND" : "NOT FOUND"}`
-                );
-              }
-            }
-
-            // If exact match fails, try fuzzy search if enabled
-            // Apply fuzzy search when no match was found and fuzzy search is enabled
-            if (!found && searchTerm.length >= 3 && fuzzySearchBooleanEnabled) {
-              // Use the optimized FuzzySearchService
-              const fuzzySearchService = FuzzySearchService.getInstance();
-
-              const fuzzyResult = fuzzySearchService.search(
-                content,
-                searchTerm,
-                {
-                  isCaseSensitive: caseSensitive,
-                  useWholeWordMatching: wholeWordMatchingEnabled,
-                }
-              );
-
-              found = fuzzyResult.isMatch;
-              console.log(
-                `[AST Eval] Fuzzy search: ${found ? "FOUND" : "NOT FOUND"} (score: ${fuzzyResult.score || "N/A"})`
-              );
-            }
-
-            console.log(
-              `[AST Eval] Term search result: ${found} for term "${termLiteralStr}"`
-            );
-            return found;
-          }
-        }
-        if (typeof node.value === "boolean") {
-          return node.value;
-        }
-        if (typeof node.value === "number") {
-          // console.warn(`Numeric literal ${node.value} encountered outside NEAR function.`);
-          return false;
-        }
-        // console.warn(`Unsupported literal type: ${typeof node.value}`);
-        return false;
-      }
-      case "CallExpression": {
-        // Handle function calls, specifically NEAR
-        if (!isJsepCallExpression(node)) {
-          return false;
-        }
-        if (!isJsepIdentifier(node.callee) || node.callee.name !== "NEAR") {
-          return false;
-        }
-        if (node.arguments.length !== 3) {
-          return false;
-        }
-
-        const arg1Node = node.arguments[0];
-        const arg2Node = node.arguments[1];
-        const arg3Node = node.arguments[2];
-
-        // Extract term1 (string or regex)
-        let term1: string | RegExp | null = null;
-        if (isJsepLiteral(arg1Node) && typeof arg1Node.value === "string") {
-          const valueStr = arg1Node.value;
-          term1 = parseRegexLiteral(valueStr) || valueStr;
-        } else if (isJsepIdentifier(arg1Node)) {
-          const nameStr = arg1Node.name;
-          term1 = parseRegexLiteral(nameStr) || nameStr;
-        }
-
-        // Extract term2 (string or regex)
-        let term2: string | RegExp | null = null;
-        if (isJsepLiteral(arg2Node) && typeof arg2Node.value === "string") {
-          const valueStr = arg2Node.value;
-          term2 = parseRegexLiteral(valueStr) || valueStr;
-        } else if (isJsepIdentifier(arg2Node)) {
-          const nameStr = arg2Node.name;
-          term2 = parseRegexLiteral(nameStr) || nameStr;
-        }
-
-        // Extract distance (number)
-        let distance: number | null = null;
-        if (
-          isJsepLiteral(arg3Node) &&
-          typeof arg3Node.value === "number" &&
-          arg3Node.value >= 0
-        ) {
-          distance = Math.floor(arg3Node.value); // Ensure integer distance
-        }
-
-        if (term1 === null || term2 === null || distance === null) {
-          return false;
-        }
-
-        // Use the optimized NearOperatorService
-        const nearOperatorService = NearOperatorService.getInstance();
-
-        return nearOperatorService.evaluateNear(
-          content,
-          term1,
-          term2,
-          distance,
-          {
-            caseSensitive,
-            fuzzySearchEnabled: fuzzySearchNearEnabled,
-            wholeWordMatchingEnabled,
-          }
-        );
-      }
-      default: {
-        // console.warn(`Unsupported AST node type: ${String(node.type)}`);
-        return false;
-      }
-    }
-  } catch (evalError: unknown) {
-    const message =
-      evalError instanceof Error ? evalError.message : String(evalError);
-    console.error(
-      "Error during boolean AST evaluation:",
-      message,
-      "Node:",
-      node
-    );
-    // Clean up any cached data if evaluation fails
-    if (typeof content === "string") {
-      wordBoundaryService.removeFromCache(content);
-    }
-    return false; // Return false on any evaluation error
-  }
-}
-
-/**
- * Checks if a directory path matches any of the exclusion patterns.
- * @param dirPath The directory path to check.
- * @param excludeFolders Array of exclusion patterns.
- * @param folderExclusionMode The matching mode.
- * @returns True if the directory should be excluded, false otherwise.
- */
-export function isDirectoryExcluded(
-  dirPath: string,
-  excludeFolders: string[],
-  folderExclusionMode: FolderExclusionMode
-): boolean {
-  if (!excludeFolders || excludeFolders.length === 0) {
-    return false;
-  }
-
-  const picoOptions = { dot: true, nocase: true }; // Case-insensitive folder matching
-  const folderMatchers = excludeFolders.map((pattern) => {
-    let matchPattern = pattern;
-    switch (folderExclusionMode) {
-      case "startsWith":
-        matchPattern = pattern + "*";
-        break;
-      case "endsWith":
-        matchPattern = "*" + pattern;
-        break;
-      case "contains":
-        if (!pattern.includes("*") && !pattern.includes("?"))
-          matchPattern = "*" + pattern + "*";
-        break;
-      case "exact":
-      default:
-        break;
-    }
-    return picomatch(matchPattern, picoOptions);
-  });
-
-  // Split path into segments, handling both Windows and POSIX separators
-  const segments = dirPath.replace(/\\/g, "/").split("/").filter(Boolean);
-
-  // Check if any segment matches any exclusion pattern
-  return folderMatchers.some((isMatch) =>
-    segments.some((segment) => isMatch(segment))
-  );
-}
-
-/**
- * Filters path errors to remove those related to directories that would have been excluded anyway.
- * @param allPathErrors Array of all captured path errors.
- * @param excludeFolders Array of folder exclusion patterns.
- * @param folderExclusionMode The matching mode for folder exclusions.
- * @returns Array of relevant path error messages for the user.
- */
-function filterRelevantPathErrors(
-  allPathErrors: PathErrorDetail[],
-  excludeFolders: string[],
-  folderExclusionMode: FolderExclusionMode
-): string[] {
-  return allPathErrors
-    .filter((errorDetail) => {
-      // Keep non-permission errors or errors without a specific path
-      // Also keep errors related to the top-level search path itself (e.g., ENOENT)
-      if (
-        errorDetail.code !== "EPERM" ||
-        !errorDetail.errorPath ||
-        errorDetail.errorPath === errorDetail.searchPath
-      ) {
-        return true;
-      }
-      // Check if the directory causing the EPERM error should be excluded
-      const shouldExclude = isDirectoryExcluded(
-        errorDetail.errorPath,
-        excludeFolders,
-        folderExclusionMode
-      );
-      // Keep the error only if the directory should NOT be excluded
-      return !shouldExclude;
-    })
-    .map((errorDetail) => errorDetail.message); // Return only the message string
-}
-// ----------------------------------------------------
-
-// --- Main Search Function ---
 export async function searchFiles(
   params: SearchParams,
   progressCallback: ProgressCallback,
   checkCancellation: CancellationChecker
 ): Promise<SearchResult> {
+  // Initialize services
+  const fileDiscoveryService = FileDiscoveryService.getInstance();
+  const fileProcessingService = FileProcessingService.getInstance();
+  const contentMatchingService = ContentMatchingService.getInstance();
+  const searchResultProcessor = SearchResultProcessor.getInstance();
+
+  // Extract search parameters
   const {
     searchPaths,
     extensions,
@@ -767,19 +113,18 @@ export async function searchFiles(
     excludeFolders,
     folderExclusionMode = "contains",
     contentSearchTerm,
-    contentSearchMode = "term", // Default to term if not provided
-    caseSensitive = false, // Default case sensitivity
+    contentSearchMode = "term",
+    caseSensitive = false,
     modifiedAfter,
     modifiedBefore,
     minSizeBytes,
     maxSizeBytes,
     maxDepth,
+    wholeWordMatching = wholeWordMatchingEnabled,
   } = params;
 
-  // Store detailed path errors including the path that caused them
-  const detailedPathErrors: PathErrorDetail[] = [];
+  // Initialize result variables
   const fileReadErrors: FileReadError[] = [];
-  const structuredItems: StructuredItem[] = [];
   let wasCancelled = false;
 
   // Ensure p-limit is loaded correctly
@@ -790,11 +135,6 @@ export async function searchFiles(
       "Value:",
       pLimit
     );
-    detailedPathErrors.push({
-      searchPath: "Initialization",
-      errorPath: "",
-      message: "Internal error: Concurrency limiter failed to load.",
-    });
     return {
       structuredItems: [],
       filesFound: 0,
@@ -802,237 +142,46 @@ export async function searchFiles(
       errorsEncountered: 0,
       pathErrors: ["Internal error: Concurrency limiter failed to load."],
       fileReadErrors,
+      wasCancelled: false,
     };
   }
+
+  // Create a concurrency limiter
   const limit = pLimit(FILE_OPERATION_CONCURRENCY_LIMIT);
 
-  progressCallback({
-    processed: 0,
-    total: 0,
-    message: "Scanning directories...",
-    status: "searching",
-  });
-
-  // Prepare file patterns for fast-glob
-  const includePatterns = extensions.map(
-    (ext) => `**/*.${ext.replace(/^\./, "")}`
+  // --- Phase 1: File Discovery ---
+  const discoveryResult = await fileDiscoveryService.discoverFiles(
+    searchPaths,
+    {
+      extensions,
+      excludeFiles,
+      excludeFolders,
+      folderExclusionMode,
+      modifiedAfter,
+      modifiedBefore,
+      minSizeBytes,
+      maxSizeBytes,
+      maxDepth,
+    },
+    progressCallback,
+    checkCancellation
   );
-  const allFoundFiles = new Set<string>();
-  let initialFileCount = 0;
-  const globDepth = maxDepth && maxDepth > 0 ? maxDepth : Infinity;
-  // console.log(`Using glob depth: ${globDepth}`);
 
-  // --- Phase 1: Initial File Discovery using fast-glob ---
-  try {
-    if (checkCancellation()) {
-      wasCancelled = true;
-      progressCallback({
-        processed: 0,
-        total: 0,
-        message: "Search cancelled before file discovery.",
-        status: "cancelled",
-      });
-      return {
-        structuredItems: [],
-        filesFound: 0,
-        filesProcessed: 0,
-        errorsEncountered: 0,
-        pathErrors: [],
-        fileReadErrors,
-        wasCancelled,
-      };
-    }
-
-    // Process each search path concurrently
-    await Promise.all(
-      searchPaths.map(async (searchPath) => {
-        if (checkCancellation()) {
-          wasCancelled = true;
-          return;
-        }
-        const normalizedPath = searchPath.replace(/\\/g, "/");
-
-        // Validate search path existence and type BEFORE globbing
-        try {
-          const stats = await fs.stat(searchPath);
-          if (!stats.isDirectory()) {
-            const errorMsg = `Search path is not a directory: ${searchPath}`;
-            console.warn(errorMsg);
-            detailedPathErrors.push({
-              searchPath: searchPath,
-              errorPath: searchPath,
-              message: errorMsg,
-              code: "ENOTDIR",
-            });
-            progressCallback({
-              processed: 0,
-              total: 0,
-              message: `Skipping non-directory: ${searchPath}`,
-              status: "searching",
-            });
-            return; // Skip this path
-          }
-        } catch (statError: unknown) {
-          let message = "Unknown error";
-          let reason = "Access Error";
-          let errorMsg = `Error accessing search path: ${searchPath}`;
-          let code: string | undefined;
-          if (statError instanceof Error) {
-            message = statError.message;
-            code = (statError as NodeJS.ErrnoException).code;
-            if (code === "ENOENT") {
-              reason = "Path Not Found";
-              errorMsg = `Search path not found: ${searchPath}`;
-            } else if (code === "EACCES" || code === "EPERM") {
-              reason = "Permission Denied";
-              errorMsg = `Permission denied for search path: ${searchPath}`;
-            } else {
-              errorMsg = `Error accessing search path: ${searchPath} - ${message}`;
-            }
-          } else {
-            message = String(statError);
-            errorMsg = `Error accessing search path: ${searchPath} - ${message}`;
-          }
-          console.warn(`Path Error (${reason}): ${errorMsg}`, message);
-          detailedPathErrors.push({
-            searchPath: searchPath,
-            errorPath: searchPath,
-            message: errorMsg,
-            code: code,
-          });
-          progressCallback({
-            processed: 0,
-            total: 0,
-            message: `Cannot access path: ${searchPath}`,
-            error: message,
-            status: "error",
-          });
-          return; // Skip this path
-        }
-
-        if (checkCancellation()) {
-          wasCancelled = true;
-          return;
-        }
-
-        try {
-          // Run fast-glob, suppressing errors to continue scan
-          const found = await fg(includePatterns, {
-            cwd: normalizedPath,
-            absolute: true,
-            onlyFiles: true,
-            dot: true,
-            stats: false,
-            suppressErrors: true, // Suppress errors to get accessible files
-            deep: globDepth,
-            // errorHandler removed as it's not typed and suppressErrors handles continuation
-          });
-
-          if (checkCancellation()) {
-            wasCancelled = true;
-            return;
-          }
-
-          // Add successfully found files to the set
-          found.forEach((file: string) =>
-            allFoundFiles.add(file.replace(/\\/g, "/"))
-          );
-
-          // Note: With suppressErrors: true, we won't get EPERM errors here.
-          // We rely on later fs.stat/fs.readFile errors if needed.
-        } catch (globError: unknown) {
-          // Catch unexpected errors *other* than traversal issues suppressed above
-          const message =
-            globError instanceof Error ? globError.message : String(globError);
-          console.error(
-            `Unexpected error during fast-glob execution for path "${searchPath}":`,
-            message
-          );
-          detailedPathErrors.push({
-            searchPath: searchPath,
-            errorPath: searchPath,
-            message: `Unexpected error scanning "${searchPath}": ${message}`,
-          });
-        }
-      })
-    );
-
-    if (wasCancelled) {
-      progressCallback({
-        processed: 0,
-        total: 0,
-        message: "Search cancelled during file discovery.",
-        status: "cancelled",
-      });
-      return {
-        structuredItems: [],
-        filesFound: 0,
-        filesProcessed: 0,
-        errorsEncountered: 0,
-        pathErrors: filterRelevantPathErrors(
-          detailedPathErrors,
-          excludeFolders,
-          folderExclusionMode
-        ),
-        fileReadErrors,
-        wasCancelled,
-      };
-    }
-
-    initialFileCount = allFoundFiles.size;
-    progressCallback({
-      processed: 0,
-      total: initialFileCount,
-      message: `Found ${initialFileCount} potential files (depth limit: ${globDepth === Infinity ? "none" : globDepth}). Filtering...`,
-      status: "searching",
-    });
-  } catch (error: unknown) {
-    // This catch block handles errors outside the map loop (e.g., Promise.all rejection)
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("Error during file discovery phase:", message);
-    const errorMsg = `Unexpected error during file search setup: ${message}`;
-    detailedPathErrors.push({
-      searchPath: "Setup",
-      errorPath: "",
-      message: errorMsg,
-    });
+  if (discoveryResult.wasCancelled || checkCancellation()) {
+    wasCancelled = true;
     progressCallback({
       processed: 0,
       total: 0,
-      message: errorMsg,
-      error: message,
-      status: "error",
-    });
-    return {
-      structuredItems: [],
-      filesFound: 0,
-      filesProcessed: 0,
-      errorsEncountered: 0,
-      pathErrors: [errorMsg], // Return the raw error here
-      fileReadErrors,
-    };
-  }
-
-  // --- Phase 2: Filtering based on Exclusions (File/Folder) ---
-  const initialFiles = Array.from(allFoundFiles);
-  let filesToProcess: string[] = initialFiles;
-  let currentTotal = initialFileCount;
-
-  if (checkCancellation()) {
-    wasCancelled = true;
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: "Search cancelled before filtering.",
+      message: "Search cancelled during file discovery.",
       status: "cancelled",
     });
     return {
       structuredItems: [],
-      filesFound: initialFileCount,
+      filesFound: discoveryResult.files.length,
       filesProcessed: 0,
-      errorsEncountered: 0,
-      pathErrors: filterRelevantPathErrors(
-        detailedPathErrors,
+      errorsEncountered: discoveryResult.errors.length,
+      pathErrors: fileDiscoveryService.filterRelevantPathErrors(
+        discoveryResult.errors,
         excludeFolders,
         folderExclusionMode
       ),
@@ -1041,623 +190,253 @@ export async function searchFiles(
     };
   }
 
-  // Filter by excluded files (using picomatch and regex)
-  if (excludeFiles && excludeFiles.length > 0 && filesToProcess.length > 0) {
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: `Filtering by excluded file patterns...`,
-      status: "searching",
-    });
-    filesToProcess = filesToProcess.filter((filePath) => {
-      const filename = path.basename(filePath);
-      const isExcluded = excludeFiles.some((pattern) => {
-        const regex = parseRegexLiteral(pattern);
-        if (regex) return regex.test(filename);
-        // Use picomatch for glob patterns
-        return picomatch.isMatch(filename, pattern, { dot: true });
-      });
-      return !isExcluded;
-    });
-    currentTotal = filesToProcess.length;
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: `Filtered ${currentTotal} files after file exclusion.`,
-      status: "searching",
-    });
-  }
+  const filesToProcess = discoveryResult.files;
+  const initialFileCount = filesToProcess.length;
 
-  if (checkCancellation()) {
-    wasCancelled = true;
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: "Search cancelled after file exclusion filter.",
-      status: "cancelled",
-    });
-    return {
-      structuredItems: [],
-      filesFound: initialFileCount,
-      filesProcessed: 0,
-      errorsEncountered: 0,
-      pathErrors: filterRelevantPathErrors(
-        detailedPathErrors,
-        excludeFolders,
-        folderExclusionMode
-      ),
-      fileReadErrors,
-      wasCancelled,
-    };
-  }
-
-  // Filter by excluded folders (using picomatch based on mode)
-  if (
-    excludeFolders &&
-    excludeFolders.length > 0 &&
-    filesToProcess.length > 0
-  ) {
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: `Filtering by excluded folder patterns (${folderExclusionMode})...`,
-      status: "searching",
-    });
-
-    filesToProcess = filesToProcess.filter(
-      (filePath) =>
-        !isDirectoryExcluded(
-          path.dirname(filePath),
-          excludeFolders,
-          folderExclusionMode
-        )
-    );
-
-    currentTotal = filesToProcess.length;
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: `Filtered ${currentTotal} files after folder exclusion.`,
-      status: "searching",
-    });
-  }
-
-  if (checkCancellation()) {
-    wasCancelled = true;
-    progressCallback({
-      processed: 0,
-      total: currentTotal,
-      message: "Search cancelled after folder exclusion filter.",
-      status: "cancelled",
-    });
-    return {
-      structuredItems: [],
-      filesFound: initialFileCount,
-      filesProcessed: 0,
-      errorsEncountered: 0,
-      pathErrors: filterRelevantPathErrors(
-        detailedPathErrors,
-        excludeFolders,
-        folderExclusionMode
-      ),
-      fileReadErrors,
-      wasCancelled,
-    };
-  }
-
-  // --- Phase 3: Get Metadata (Size/Date) for ALL remaining files ---
-  // This is now done for all files to enable sorting, even if filters aren't active.
-  const filesWithMetadata: { filePath: string; stats: Stats | null }[] = [];
-  if (filesToProcess.length > 0) {
-    const initialCountForStat = filesToProcess.length;
-    progressCallback({
-      processed: 0,
-      total: initialCountForStat,
-      message: `Fetching metadata for ${initialCountForStat} files (parallel)...`,
-      status: "searching",
-    });
-
-    const statPromises = filesToProcess.map((filePath) =>
-      limit(async () => {
-        if (checkCancellation()) return null;
-        try {
-          const stats = await fs.stat(filePath);
-          return { filePath, stats };
-        } catch (statError: unknown) {
-          const _message =
-            statError instanceof Error ? statError.message : String(statError);
-          // console.warn(`Could not get stats for file: ${filePath}`, message);
-          // Return null stats if error occurs, file will be processed without metadata
-          return { filePath, stats: null };
-        }
-      })
-    );
-
-    const statResults = await Promise.all(statPromises);
-
-    if (checkCancellation()) {
-      wasCancelled = true;
-      progressCallback({
-        processed: initialCountForStat,
-        total: initialCountForStat,
-        message: "Search cancelled during metadata fetch.",
-        status: "cancelled",
-      });
-      return {
-        structuredItems: [],
-        filesFound: initialFileCount,
-        filesProcessed: 0,
-        errorsEncountered: 0,
-        pathErrors: filterRelevantPathErrors(
-          detailedPathErrors,
-          excludeFolders,
-          folderExclusionMode
-        ),
-        fileReadErrors,
-        wasCancelled,
-      };
-    }
-
-    // Filter out null results (only happens if cancelled mid-flight)
-    statResults.forEach((result) => {
-      if (result) {
-        filesWithMetadata.push(result);
-      }
-    });
-
-    progressCallback({
-      processed: initialCountForStat,
-      total: initialCountForStat,
-      message: `Metadata fetched for ${filesWithMetadata.length} files. Filtering by size/date...`,
-      status: "searching",
-    });
-  }
-
-  // --- Phase 3b: Filtering based on Metadata (Size/Date) ---
-  const afterDate = parseDateStartOfDay(modifiedAfter);
-  const beforeDate = parseDateEndOfDay(modifiedBefore);
-  const hasSizeFilter =
-    minSizeBytes !== undefined || maxSizeBytes !== undefined;
-  const hasDateFilter = !!afterDate || !!beforeDate;
-
-  let filesToProcessWithMetadata = filesWithMetadata;
-  if (
-    (hasSizeFilter || hasDateFilter) &&
-    filesToProcessWithMetadata.length > 0
-  ) {
-    filesToProcessWithMetadata = filesToProcessWithMetadata.filter(
-      ({ stats }) => {
-        if (!stats) return false;
-
-        const fileSize = stats.size;
-        const mtime = stats.mtime;
-
-        // Check size filter
-        const passSizeCheck =
-          !hasSizeFilter ||
-          ((minSizeBytes === undefined || fileSize >= minSizeBytes) &&
-            (maxSizeBytes === undefined || fileSize <= maxSizeBytes));
-
-        // Check date filter
-        const passDateCheck =
-          !hasDateFilter ||
-          ((!afterDate || mtime.getTime() >= afterDate.getTime()) &&
-            (!beforeDate || mtime.getTime() <= beforeDate.getTime()));
-
-        return passSizeCheck && passDateCheck;
-      }
-    );
-    currentTotal = filesToProcessWithMetadata.length;
-    progressCallback({
-      processed: filesWithMetadata.length, // Show progress based on attempted stats
-      total: filesWithMetadata.length,
-      message: `Filtered ${currentTotal} files after size/date check.`,
-      status: "searching",
-    });
-  } else {
-    // If no size/date filters, all files with metadata pass
-    currentTotal = filesToProcessWithMetadata.length;
-  }
-
-  if (checkCancellation()) {
-    wasCancelled = true;
-    progressCallback({
-      processed: 0, // Reset processed count as we didn't start content processing
-      total: currentTotal,
-      message: "Search cancelled after size/date filter.",
-      status: "cancelled",
-    });
-    return {
-      structuredItems: [],
-      filesFound: initialFileCount,
-      filesProcessed: 0,
-      errorsEncountered: 0,
-      pathErrors: filterRelevantPathErrors(
-        detailedPathErrors,
-        excludeFolders,
-        folderExclusionMode
-      ),
-      fileReadErrors,
-      wasCancelled,
-    };
-  }
-
-  // --- Phase 4: Content Matching (if applicable) ---
+  // --- Phase 2: Content Matching (if applicable) ---
   let filesProcessedCounter = 0;
-  const totalFilesToProcess = filesToProcessWithMetadata.length;
+  const totalFilesToProcess = filesToProcess.length;
+
+  // Create content matcher
   let contentMatcher: ((content: string) => boolean) | null = null;
   let parseOrRegexError = false;
+  let parseErrorMessage = "";
 
-  // Prepare content matcher based on mode and term
   if (contentSearchTerm) {
-    // console.log(`[SearchService] Preparing content matcher. Mode: ${contentSearchMode}, Term: "${contentSearchTerm}", CaseSensitive: ${caseSensitive}`);
-    switch (contentSearchMode) {
-      // Removing the separate fuzzy search mode as we're integrating it into the boolean mode
-      case "regex": {
-        const flags = caseSensitive ? "" : "i";
-        const regex = createSafeRegex(contentSearchTerm, flags);
-        if (regex) {
-          contentMatcher = (content) => regex.test(content);
-        } else {
-          // Handle invalid regex pattern
-          parseOrRegexError = true;
-          const errorMsg = `Invalid regular expression pattern: ${contentSearchTerm}`;
-          detailedPathErrors.push({
-            searchPath: "Query Parsing",
-            errorPath: "",
-            message: errorMsg,
-          });
-          progressCallback({
-            processed: 0,
-            total: 0,
-            message: errorMsg,
-            error: "Invalid Regex",
-            status: "error",
-          });
-          return {
-            structuredItems: [],
-            filesFound: initialFileCount,
-            filesProcessed: 0,
-            errorsEncountered: 0,
-            pathErrors: [errorMsg], // Return raw error
-            fileReadErrors,
-          };
-        }
-        break;
+    const matcherResult = contentMatchingService.createMatcher(
+      contentSearchTerm,
+      contentSearchMode as ContentSearchMode,
+      {
+        caseSensitive,
+        wholeWordMatching,
+        fuzzySearchEnabled: fuzzySearchBooleanEnabled,
+        fuzzySearchNearEnabled,
       }
-      case "boolean": {
-        try {
-          // Configure jsep for AND/OR/NOT/NEAR
-          // Reset jsep operators to ensure clean state
-          if (jsep.binary_ops["||"]) jsep.removeBinaryOp("||");
-          if (jsep.binary_ops["&&"]) jsep.removeBinaryOp("&&");
-          if (jsep.unary_ops["!"]) jsep.removeUnaryOp("!");
+    );
 
-          // Add our custom operators
-          jsep.addBinaryOp("AND", 1);
-          jsep.addBinaryOp("OR", 0);
-          jsep.addUnaryOp("NOT");
-
-          console.log(
-            "[SearchService] Configured jsep for boolean search with operators: AND, OR, NOT"
-          );
-
-          // Log the operators to make sure they're registered correctly
-          console.log("[SearchService] Binary operators:", jsep.binary_ops);
-          console.log("[SearchService] Unary operators:", jsep.unary_ops);
-          // Note: NEAR is handled as a CallExpression within evaluateBooleanAst
-
-          console.log(
-            `[SearchService] Parsing boolean query: "${contentSearchTerm}"`
-          );
-          const parsedAst = jsep(contentSearchTerm);
-          console.log(
-            "[SearchService] Parsed Boolean AST:",
-            JSON.stringify(parsedAst, null, 2)
-          );
-          console.log(`[SearchService] AST type: ${parsedAst.type}`);
-          if (
-            parsedAst.type === "Literal" &&
-            typeof parsedAst.value === "string"
-          ) {
-            console.log(`[SearchService] Literal value: "${parsedAst.value}"`);
-          }
-          // Create matcher function that evaluates the AST
-          contentMatcher = (content) => {
-            // Clear cache for this specific content before evaluation
-            wordBoundaryService.removeFromCache(content);
-            console.log(
-              `[SearchService] Evaluating boolean query: "${contentSearchTerm}"`
-            );
-            const result = evaluateBooleanAst(
-              parsedAst,
-              content,
-              caseSensitive // Pass case sensitivity from params
-            );
-            console.log(`[SearchService] Boolean query result: ${result}`);
-            return result;
-          };
-        } catch (parseError: unknown) {
-          // Handle boolean query parsing errors
-          parseOrRegexError = true;
-          let errorDetail = "Unknown parsing error";
-          let errorIndex = -1;
-          if (parseError instanceof Error) {
-            errorDetail = parseError.message;
-          } else {
-            errorDetail = String(parseError);
-          }
-          // Try to extract error index from jsep error
-          if (
-            typeof parseError === "object" &&
-            parseError !== null &&
-            "index" in parseError &&
-            typeof parseError.index === "number"
-          ) {
-            errorIndex = parseError.index;
-          }
-          if (errorIndex >= 0) {
-            errorDetail += ` near character ${errorIndex + 1}`;
-          }
-          const errorMsg = `Invalid boolean query syntax: ${errorDetail}`;
-          detailedPathErrors.push({
-            searchPath: "Query Parsing",
-            errorPath: "",
-            message: errorMsg,
-          });
-          progressCallback({
-            processed: 0,
-            total: 0,
-            message: errorMsg,
-            error: "Invalid Boolean Query",
-            status: "error",
-          });
-          return {
-            structuredItems: [],
-            filesFound: initialFileCount,
-            filesProcessed: 0,
-            errorsEncountered: 0,
-            pathErrors: [errorMsg], // Return raw error
-            fileReadErrors,
-            wasCancelled: false, // Not cancelled, but errored
-          };
-        }
-        break;
-      }
-      case "term":
-      default: {
-        // This case should not be hit if mode is "boolean"
-        console.log(
-          `[SearchService] Term matching with: "${contentSearchTerm}"`
-        );
-        // Simple term matching
-        // Remove quotes if the term is quoted
-        let searchTerm = contentSearchTerm;
-        if (searchTerm.startsWith('"') && searchTerm.endsWith('"')) {
-          searchTerm = searchTerm.substring(1, searchTerm.length - 1);
-          console.log(
-            `[SearchService] Removed quotes, searching for: "${searchTerm}"`
-          );
-        }
-
-        if (caseSensitive) {
-          contentMatcher = (content) => {
-            const result = content.includes(searchTerm);
-            console.log(
-              `[SearchService] Term match result (case-sensitive): ${result}`
-            );
-            return result;
-          };
-        } else {
-          const searchTermLower = searchTerm.toLowerCase();
-          contentMatcher = (content) => {
-            const result = content.toLowerCase().includes(searchTermLower);
-            console.log(
-              `[SearchService] Term match result (case-insensitive): ${result}`
-            );
-            return result;
-          };
-        }
-        break;
-      }
+    if (matcherResult.error) {
+      parseOrRegexError = true;
+      parseErrorMessage = matcherResult.error;
+    } else {
+      contentMatcher = matcherResult.matcher;
     }
-  } else {
-    // console.log("[SearchService] No content search term provided."); // DEBUG
   }
 
-  // Update progress before starting file processing loop
-  if (totalFilesToProcess > 0 && !parseOrRegexError) {
-    progressCallback({
-      processed: 0,
-      total: totalFilesToProcess,
-      message: `Processing ${totalFilesToProcess} files (parallel)...`,
-      status: "searching",
-    });
-  } else if (detailedPathErrors.length === 0 && !parseOrRegexError) {
-    // No files left to process after filtering, and no errors occurred
-    progressCallback({
-      processed: 0,
-      total: 0,
-      message: `No files to process after filtering.`,
-      status: "completed",
-    });
+  // If there was a parsing error, return early
+  if (parseOrRegexError) {
+    return {
+      structuredItems: [],
+      filesFound: initialFileCount,
+      filesProcessed: 0,
+      errorsEncountered: 1,
+      pathErrors: [parseErrorMessage],
+      fileReadErrors,
+      wasCancelled: false,
+    };
   }
 
   // Process files only if no parsing/regex errors occurred
-  if (!parseOrRegexError) {
-    if (checkCancellation()) {
-      wasCancelled = true;
-      progressCallback({
-        processed: 0,
-        total: totalFilesToProcess,
-        message: "Search cancelled before processing files.",
-        status: "cancelled",
-      });
-      return {
-        structuredItems: [],
-        filesFound: initialFileCount,
-        filesProcessed: 0,
-        errorsEncountered: 0,
-        pathErrors: filterRelevantPathErrors(
-          detailedPathErrors,
-          excludeFolders,
-          folderExclusionMode
-        ),
-        fileReadErrors,
-        wasCancelled,
-      };
-    }
+  if (checkCancellation()) {
+    wasCancelled = true;
+    progressCallback({
+      processed: 0,
+      total: totalFilesToProcess,
+      message: "Search cancelled before processing files.",
+      status: "cancelled",
+    });
+    return {
+      structuredItems: [],
+      filesFound: initialFileCount,
+      filesProcessed: 0,
+      errorsEncountered: 0,
+      pathErrors: fileDiscoveryService.filterRelevantPathErrors(
+        discoveryResult.errors,
+        excludeFolders,
+        folderExclusionMode
+      ),
+      fileReadErrors,
+      wasCancelled,
+    };
+  }
 
-    // Process remaining files concurrently using p-limit
-    const processingPromises = filesToProcessWithMetadata.map(
-      ({ filePath, stats }) =>
+  // --- Phase 3: Process Files ---
+  const matchedFiles: Array<{
+    filePath: string;
+    content?: string;
+    matched: boolean;
+    readError?: string;
+    size?: number;
+    mtime?: number;
+  }> = [];
+
+  // If there's no content matcher, all files match
+  if (!contentMatcher) {
+    // Just add all files as matched without reading content
+    matchedFiles.push(
+      ...filesToProcess.map(
+        ({
+          filePath,
+          stats,
+        }: {
+          filePath: string;
+          stats: { size?: number; mtime?: Date } | null;
+        }) => ({
+          filePath,
+          matched: true,
+          size: stats?.size,
+          mtime: stats?.mtime?.getTime(),
+        })
+      )
+    );
+  } else {
+    // Process files with content matching
+    const processingPromises = filesToProcess.map(
+      ({
+        filePath,
+        stats,
+      }: {
+        filePath: string;
+        stats: { size?: number; mtime?: Date } | null;
+      }) =>
         limit(async () => {
           if (checkCancellation()) {
             return null;
           }
 
-          const currentFileName = path.basename(filePath);
+          // const currentFileName = path.basename(filePath); // Unused variable
           const displayFilePath = filePath.replace(/\\/g, "/");
-          let fileContent: string | null = null;
-          let structuredItemResult: StructuredItem | null = null;
-          let fileReadErrorResult: FileReadError | null = null;
-          let errorKeyForProgress: string | undefined = undefined;
-          let incrementCounter = true; // Flag to control progress increment
-          let actualMatchResult = false; // Explicitly track if content matched
 
           try {
-            if (checkCancellation()) {
-              incrementCounter = false; // Don't increment if cancelled before read
-              return null;
-            }
-
-            // Only read content if there's a content matcher
-            if (contentMatcher) {
-              fileContent = await fs.readFile(filePath, { encoding: "utf8" });
-              actualMatchResult = contentMatcher(fileContent); // Store the actual result
-            } else {
-              // If no content query, treat it as "matched" for filtering purposes
-              // (i.e., it passed all other filters)
-              actualMatchResult = true;
-            }
-
-            // Always add a structured item, indicating match status and metadata
-            structuredItemResult = {
-              filePath: displayFilePath,
-              matched: actualMatchResult, // Store the actual match result
-              readError: undefined,
-              size: stats?.size, // Add size from stats
-              mtime: stats?.mtime.getTime(), // Add mtime timestamp from stats
-            };
-          } catch (error: unknown) {
-            // Handle file read errors
-            const message =
-              error instanceof Error ? error.message : String(error);
-            // console.error(`Error reading file '${filePath}':`, message);
-            let reasonKey = "readError"; // Default error reason
-            const code = (error as { code?: string })?.code;
-            // Map common error codes to reason keys for i18n
-            if (code === "EPERM" || code === "EACCES") {
-              reasonKey = "readPermissionDenied";
-            } else if (code === "ENOENT") {
-              reasonKey = "fileNotFoundDuringRead";
-            } else if (code === "EISDIR") {
-              reasonKey = "pathIsDir";
-            }
-            // Add structured item indicating the read error and metadata (if available)
-            // Crucially, set matched to false on read error
-            structuredItemResult = {
-              filePath: displayFilePath,
-              matched: false, // Cannot match if read failed
-              readError: reasonKey,
-              size: stats?.size, // Still include metadata if stats were successful
-              mtime: stats?.mtime.getTime(),
-            };
-            // Add detailed error info for the final result summary
-            fileReadErrorResult = {
-              filePath: displayFilePath,
-              reason: reasonKey,
-              detail: message,
-            };
-            errorKeyForProgress = reasonKey; // For progress update message
-          } finally {
-            // --- Cache Cleanup ---
-            if (fileContent !== null) {
-              wordBoundariesCache.delete(fileContent);
-            }
-            // --- End Cache Cleanup ---
-
-            // Update progress after each file attempt (if not cancelled mid-operation)
-            if (incrementCounter) {
-              filesProcessedCounter++;
-              const cancelled = checkCancellation(); // Check cancellation status for progress message
+            // Update progress
+            filesProcessedCounter++;
+            if (
+              filesProcessedCounter % 10 === 0 ||
+              filesProcessedCounter === totalFilesToProcess
+            ) {
               progressCallback({
                 processed: filesProcessedCounter,
                 total: totalFilesToProcess,
-                currentFile: currentFileName,
-                message: errorKeyForProgress
-                  ? `Error: ${currentFileName}` // Show error in message
-                  : cancelled
-                    ? "Cancelling..." // Indicate cancellation in progress
-                    : `Processed: ${currentFileName}`, // Normal processing message
-                error: errorKeyForProgress, // Pass error key for potential UI highlighting
-                status: cancelled ? "cancelling" : "searching", // Update status
+                currentFile: displayFilePath,
+                message: `Processing files: ${filesProcessedCounter}/${totalFilesToProcess}`,
+                status: "searching",
               });
             }
+
+            // Unused variable to avoid linting error - intentionally commented out
+            // const currentFileNameUnused = currentFileName;
+
+            // Use streaming file processing for better memory efficiency
+            const processResult =
+              await fileProcessingService.processFileInChunks(
+                filePath,
+                contentMatcher,
+                {
+                  earlyTermination: true, // Stop processing as soon as a match is found
+                  maxFileSize: 50 * 1024 * 1024, // 50MB max file size
+                }
+              );
+
+            if (processResult.error) {
+              // Handle file read errors
+              let reasonKey = "readError";
+              const errorMessage = processResult.error.message;
+              const code = (processResult.error as { code?: string })?.code;
+
+              // Map common error codes to reason keys for i18n
+              if (code === "EPERM" || code === "EACCES") {
+                reasonKey = "readPermissionDenied";
+              } else if (code === "ENOENT") {
+                reasonKey = "fileNotFoundDuringRead";
+              } else if (code === "EISDIR") {
+                reasonKey = "pathIsDir";
+              }
+
+              // Add to matched files with error
+              matchedFiles.push({
+                filePath: displayFilePath,
+                matched: false,
+                readError: reasonKey,
+                size: stats?.size,
+                mtime: stats?.mtime?.getTime(),
+              });
+
+              // Add to file read errors
+              fileReadErrors.push({
+                filePath: displayFilePath,
+                reason: reasonKey,
+                detail: errorMessage,
+              });
+            } else {
+              // Add to matched files
+              matchedFiles.push({
+                filePath: displayFilePath,
+                matched: processResult.matched,
+                size: stats?.size,
+                mtime: stats?.mtime?.getTime(),
+              });
+            }
+
+            return { filePath, matched: processResult.matched };
+          } catch (error) {
+            // Handle unexpected errors
+            console.error(`Error processing file ${filePath}:`, error);
+
+            // Add to matched files with error
+            matchedFiles.push({
+              filePath: displayFilePath,
+              matched: false,
+              readError: "readError",
+              size: stats?.size,
+              mtime: stats?.mtime?.getTime(),
+            });
+
+            // Add to file read errors
+            fileReadErrors.push({
+              filePath: displayFilePath,
+              reason: "readError",
+              detail: error instanceof Error ? error.message : String(error),
+            });
+
+            return { filePath, matched: false };
           }
-          // Log the final matched status for this file
-          // console.log(`[SearchService] File: ${displayFilePath}, Final Matched Flag: ${structuredItemResult?.matched}`);
-          // Return results for this file (or null if cancelled)
-          return checkCancellation()
-            ? null
-            : { structuredItemResult, fileReadErrorResult };
         })
     );
 
-    // Wait for all file processing promises to settle
-    const resultsFromPromises = await Promise.all(processingPromises);
-    wasCancelled = checkCancellation(); // Final cancellation check
+    // Wait for all files to be processed
+    await Promise.all(processingPromises);
 
-    // Aggregate results from all promises
-    resultsFromPromises.forEach((result) => {
-      if (result) {
-        // Add valid results to the respective arrays
-        if (result.structuredItemResult) {
-          structuredItems.push(result.structuredItemResult);
-        }
-        if (result.fileReadErrorResult) {
-          fileReadErrors.push(result.fileReadErrorResult);
-        }
-      }
-    });
+    // Check if cancelled during processing
+    if (checkCancellation()) {
+      wasCancelled = true;
+    }
   }
 
-  // --- Final Progress Update and Return ---
-  const finalStatus = wasCancelled ? "cancelled" : "completed";
+  // --- Phase 4: Process Results ---
+  // Create structured items
+  const structuredItems = searchResultProcessor.processResults(matchedFiles);
+
+  // Update progress
   progressCallback({
     processed: filesProcessedCounter,
     total: totalFilesToProcess,
     message: wasCancelled
-      ? `Search cancelled after processing ${filesProcessedCounter} files.`
-      : `Finished processing ${filesProcessedCounter} files.`,
-    status: finalStatus,
+      ? "Search cancelled."
+      : `Search completed. Found ${matchedFiles.filter((f) => f.matched).length} matching files.`,
+    status: wasCancelled ? "cancelled" : "completed",
   });
 
-  // Filter path errors for relevance before returning
-  const relevantPathErrors = filterRelevantPathErrors(
-    detailedPathErrors,
-    excludeFolders,
-    folderExclusionMode
-  );
-
-  // Return the final search result object (without output)
+  // Return final result
   return {
-    structuredItems: structuredItems,
+    structuredItems,
     filesFound: initialFileCount,
     filesProcessed: filesProcessedCounter,
-    errorsEncountered: fileReadErrors.length,
-    pathErrors: relevantPathErrors, // Return filtered errors
-    fileReadErrors: fileReadErrors,
-    wasCancelled: wasCancelled,
+    errorsEncountered: fileReadErrors.length + discoveryResult.errors.length,
+    pathErrors: fileDiscoveryService.filterRelevantPathErrors(
+      discoveryResult.errors,
+      excludeFolders,
+      folderExclusionMode
+    ),
+    fileReadErrors,
+    wasCancelled,
   };
 }

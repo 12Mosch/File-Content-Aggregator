@@ -1,0 +1,58 @@
+{
+  "platform": "win32",
+  "release": "10.0.26100",
+  "cpus": [
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    },
+    {
+      "model": "AMD Ryzen 5 3600 6-Core Processor              ",
+      "speed": "4200 MHz"
+    }
+  ],
+  "totalMemory": "15.93 GB",
+  "freeMemory": "6.44 GB",
+  "nodeVersion": "v22.14.0",
+  "timestamp": "2025-04-18T09:26:57.281Z"
+}

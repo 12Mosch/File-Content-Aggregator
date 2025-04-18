@@ -5,49 +5,44 @@
  * for fuzzy search functionality in different search contexts.
  */
 
-// Mock the fileSearchService module
-jest.mock("../../../src/electron/fileSearchService", () => {
-  // Track the current settings
-  let fuzzySearchBooleanEnabled = true;
-  let fuzzySearchNearEnabled = true;
+// Import the mock for testing
+import * as booleanExpressionUtilsMock from "../../mocks/electron/booleanExpressionUtils.mock";
 
+// Mock the booleanExpressionUtils module
+jest.mock("../../../src/electron/utils/booleanExpressionUtils", () => {
+  return booleanExpressionUtilsMock;
+});
+
+// Mock the optimizedFileSearchService module
+jest.mock("../../../src/electron/optimizedFileSearchService", () => {
   return {
-    // Mock the updateFuzzySearchSettings function
+    updateSearchSettings: jest.fn(
+      (booleanEnabled, nearEnabled, wholeWordEnabled) => {
+        // Call the mocked booleanExpressionUtils function
+        booleanExpressionUtilsMock.updateBooleanSearchSettings(
+          booleanEnabled,
+          nearEnabled,
+          wholeWordEnabled
+        );
+      }
+    ),
     updateFuzzySearchSettings: jest.fn((booleanEnabled, nearEnabled) => {
-      fuzzySearchBooleanEnabled = booleanEnabled;
-      fuzzySearchNearEnabled = nearEnabled;
-      console.log(
-        `[SearchService] Fuzzy search settings updated: Boolean=${fuzzySearchBooleanEnabled}, NEAR=${fuzzySearchNearEnabled}`
+      // Call the mocked booleanExpressionUtils function
+      booleanExpressionUtilsMock.updateBooleanSearchSettings(
+        booleanEnabled,
+        nearEnabled,
+        false
       );
     }),
-
-    // Mock the evaluateBooleanAst function to use our tracked settings
-    evaluateBooleanAst: jest.fn((ast, _content, _caseSensitive) => {
-      // Simple implementation for testing
-      if (ast.type === "CallExpression" && ast.callee.name === "NEAR") {
-        // This is a NEAR expression
-        return fuzzySearchNearEnabled;
-      } else if (ast.type === "Literal") {
-        // This is a term search
-        return fuzzySearchBooleanEnabled;
-      }
-      return false;
-    }),
-
-    // Expose the current settings for testing
-    getFuzzySearchSettings: jest.fn(() => ({
-      fuzzySearchBooleanEnabled,
-      fuzzySearchNearEnabled,
-    })),
   };
 });
 
 // Import after mocking
+import { updateFuzzySearchSettings } from "../../../src/electron/optimizedFileSearchService";
 import {
-  updateFuzzySearchSettings,
   evaluateBooleanAst,
-  getFuzzySearchSettings,
-} from "../../../src/electron/fileSearchService";
+  getBooleanSearchSettings as getFuzzySearchSettings,
+} from "../../../src/electron/utils/booleanExpressionUtils";
 
 // Mock console.log to avoid cluttering test output
 jest.spyOn(console, "log").mockImplementation(() => {});

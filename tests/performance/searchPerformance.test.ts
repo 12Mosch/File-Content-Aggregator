@@ -9,7 +9,9 @@ import {
 } from "./mocks/fileSearchService.mock";
 
 // Get __dirname equivalent in ESM
+// @ts-expect-error - Ignoring redeclaration of __filename
 const __filename = fileURLToPath(import.meta.url);
+// @ts-expect-error - Ignoring redeclaration of __dirname
 const __dirname = path.dirname(__filename);
 
 // Mock the console methods to reduce test output noise

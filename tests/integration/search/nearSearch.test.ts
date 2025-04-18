@@ -34,7 +34,7 @@ jest.mock("p-limit", () =>
 );
 
 // Import the mocked module
-jest.mock("../../../src/electron/fileSearchService", () => ({
+jest.mock("../../../src/electron/optimizedFileSearchService", () => ({
   searchFiles,
 }));
 

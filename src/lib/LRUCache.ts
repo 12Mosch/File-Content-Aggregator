@@ -15,7 +15,7 @@ export class LRUCache<K, V> {
   private cache = new Map<K, V>();
   private maxSize: number;
   private stats = { hits: 0, misses: 0, evictions: 0 };
-  
+
   /**
    * Creates a new LRU cache with the specified maximum size
    * @param maxSize Maximum number of items to store in the cache (default: 100)
@@ -23,7 +23,7 @@ export class LRUCache<K, V> {
   constructor(maxSize = 100) {
     this.maxSize = maxSize;
   }
-  
+
   /**
    * Gets a value from the cache
    * @param key The key to look up
@@ -41,7 +41,7 @@ export class LRUCache<K, V> {
     this.stats.misses++;
     return undefined;
   }
-  
+
   /**
    * Sets a value in the cache
    * @param key The key to store
@@ -54,12 +54,14 @@ export class LRUCache<K, V> {
     } else if (this.cache.size >= this.maxSize) {
       // Evict least recently used (first item)
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-      this.stats.evictions++;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+        this.stats.evictions++;
+      }
     }
     this.cache.set(key, value);
   }
-  
+
   /**
    * Checks if a key exists in the cache
    * @param key The key to check
@@ -68,7 +70,7 @@ export class LRUCache<K, V> {
   has(key: K): boolean {
     return this.cache.has(key);
   }
-  
+
   /**
    * Deletes a key from the cache
    * @param key The key to delete
@@ -77,7 +79,7 @@ export class LRUCache<K, V> {
   delete(key: K): boolean {
     return this.cache.delete(key);
   }
-  
+
   /**
    * Clears all items from the cache
    */
@@ -85,7 +87,7 @@ export class LRUCache<K, V> {
     this.cache.clear();
     this.resetStats();
   }
-  
+
   /**
    * Gets the current size of the cache
    * @returns The number of items in the cache
@@ -93,7 +95,7 @@ export class LRUCache<K, V> {
   size(): number {
     return this.cache.size;
   }
-  
+
   /**
    * Gets the maximum size of the cache
    * @returns The maximum number of items the cache can hold
@@ -101,7 +103,7 @@ export class LRUCache<K, V> {
   capacity(): number {
     return this.maxSize;
   }
-  
+
   /**
    * Gets the cache statistics
    * @returns An object with hit, miss, and eviction counts
@@ -110,17 +112,17 @@ export class LRUCache<K, V> {
     return {
       ...this.stats,
       size: this.cache.size,
-      capacity: this.maxSize
+      capacity: this.maxSize,
     };
   }
-  
+
   /**
    * Resets the cache statistics
    */
   resetStats(): void {
     this.stats = { hits: 0, misses: 0, evictions: 0 };
   }
-  
+
   /**
    * Gets all keys in the cache
    * @returns An array of all keys in the cache
@@ -128,7 +130,7 @@ export class LRUCache<K, V> {
   keys(): K[] {
     return Array.from(this.cache.keys());
   }
-  
+
   /**
    * Gets all values in the cache
    * @returns An array of all values in the cache
@@ -136,7 +138,7 @@ export class LRUCache<K, V> {
   values(): V[] {
     return Array.from(this.cache.values());
   }
-  
+
   /**
    * Gets all entries in the cache
    * @returns An array of [key, value] pairs

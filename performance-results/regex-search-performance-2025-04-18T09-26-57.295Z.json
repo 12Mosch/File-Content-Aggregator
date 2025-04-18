@@ -1,0 +1,20 @@
+[
+  {
+    "contentSize": "0.07 MB",
+    "executionTime": "0.47 ms",
+    "memoryUsed": "0.39 MB",
+    "matchesFound": 2000
+  },
+  {
+    "contentSize": "0.37 MB",
+    "executionTime": "1.99 ms",
+    "memoryUsed": "-0.71 MB",
+    "matchesFound": 10000
+  },
+  {
+    "contentSize": "0.74 MB",
+    "executionTime": "2.42 ms",
+    "memoryUsed": "2.00 MB",
+    "matchesFound": 20000
+  }
+]

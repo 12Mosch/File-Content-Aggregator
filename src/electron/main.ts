@@ -19,15 +19,20 @@ import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
 import type PLimit from "p-limit";
 
+// Import from optimized file search service
 import {
   searchFiles,
+  updateSearchSettings,
+} from "./FileSearchService.js";
+
+// Import types from types.ts
+import {
   SearchParams as FileSearchParams,
   ProgressData,
   SearchResult,
   CancellationChecker,
   StructuredItem,
-  updateSearchSettings,
-} from "./fileSearchService.js";
+} from "./types.js";
 import type {
   ExportFormat,
   SearchParams as UISearchParams,
