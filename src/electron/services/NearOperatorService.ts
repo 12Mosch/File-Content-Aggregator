@@ -15,6 +15,8 @@ import { Logger } from "../../lib/services/Logger.js";
 import { CacheManager } from "../../lib/CacheManager.js";
 import { LRUCache } from "../../lib/LRUCache.js";
 import { getProfiler } from "../../lib/utils/Profiler.js";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 export interface NearOperatorOptions {
   caseSensitive?: boolean;
@@ -46,6 +48,45 @@ export class NearOperatorService {
     averageEvaluationTime: 0,
     totalEvaluationTime: 0,
     earlyTerminations: 0,
+    // Detailed metrics for algorithm phases
+    phaseMetrics: {
+      termIndicesCalculation: {
+        totalTime: 0,
+        count: 0,
+        averageTime: 0,
+      },
+      fuzzySearch: {
+        totalTime: 0,
+        count: 0,
+        averageTime: 0,
+        successCount: 0,
+      },
+      proximityCheck: {
+        totalTime: 0,
+        count: 0,
+        averageTime: 0,
+      },
+      wordBoundaryCalculation: {
+        totalTime: 0,
+        count: 0,
+        averageTime: 0,
+      },
+    },
+    // Memory usage metrics
+    memoryMetrics: {
+      peakMemoryUsage: 0,
+      averageMemoryDelta: 0,
+      totalMemoryDelta: 0,
+      measurementCount: 0,
+    },
+    // Content size metrics
+    contentSizeMetrics: {
+      totalContentSize: 0,
+      maxContentSize: 0,
+      minContentSize: Number.MAX_VALUE,
+      contentCount: 0,
+      averageContentSize: 0,
+    },
   };
 
   // Private constructor for singleton pattern
@@ -106,10 +147,19 @@ export class NearOperatorService {
     options: NearOperatorOptions = {}
   ): boolean {
     const profiler = getProfiler();
-    const profileId = profiler.start("NearOperatorService.evaluateNear");
+    const profileId = profiler.start("NearOperatorService.evaluateNear", {
+      contentLength: content.length,
+      term1: term1 instanceof RegExp ? term1.toString() : term1,
+      term2: term2 instanceof RegExp ? term2.toString() : term2,
+      distance,
+      options,
+    });
 
     const startTime = performance.now();
     this.metrics.totalEvaluations++;
+
+    // Track content size metrics
+    this.updateContentSizeMetrics(content.length);
 
     const {
       caseSensitive = false,
@@ -147,6 +197,7 @@ export class NearOperatorService {
     this.metrics.cacheMisses++;
 
     // Find indices of both terms with caching
+    const termIndicesStart = performance.now();
     let indices1 = this.getCachedTermIndices(
       content,
       term1,
@@ -162,8 +213,16 @@ export class NearOperatorService {
       term2 instanceof RegExp,
       wholeWordMatchingEnabled
     );
+    const termIndicesEnd = performance.now();
+    this.updatePhaseMetrics(
+      "termIndicesCalculation",
+      termIndicesEnd - termIndicesStart
+    );
 
     // If exact match fails for either term, try fuzzy search for string terms
+    const fuzzySearchStart = performance.now();
+    let fuzzySearchUsed = false;
+
     if (
       indices1.length === 0 &&
       !(term1 instanceof RegExp) &&
@@ -171,6 +230,9 @@ export class NearOperatorService {
       term1.length >= 3 &&
       fuzzySearchEnabled
     ) {
+      fuzzySearchUsed = true;
+      this.metrics.phaseMetrics.fuzzySearch.count++;
+
       const fuzzyOptions: FuzzySearchOptions = {
         isCaseSensitive: caseSensitive,
         useWholeWordMatching: wholeWordMatchingEnabled,
@@ -188,6 +250,7 @@ export class NearOperatorService {
         fuzzyResult.matchPositions.length > 0
       ) {
         indices1 = fuzzyResult.matchPositions;
+        this.metrics.phaseMetrics.fuzzySearch.successCount++;
       }
     }
 
@@ -198,6 +261,9 @@ export class NearOperatorService {
       term2.length >= 3 &&
       fuzzySearchEnabled
     ) {
+      fuzzySearchUsed = true;
+      this.metrics.phaseMetrics.fuzzySearch.count++;
+
       const fuzzyOptions: FuzzySearchOptions = {
         isCaseSensitive: caseSensitive,
         useWholeWordMatching: wholeWordMatchingEnabled,
@@ -215,7 +281,13 @@ export class NearOperatorService {
         fuzzyResult.matchPositions.length > 0
       ) {
         indices2 = fuzzyResult.matchPositions;
+        this.metrics.phaseMetrics.fuzzySearch.successCount++;
       }
+    }
+
+    const fuzzySearchEnd = performance.now();
+    if (fuzzySearchUsed) {
+      this.updatePhaseMetrics("fuzzySearch", fuzzySearchEnd - fuzzySearchStart);
     }
 
     // Early termination if either term is not found
@@ -239,21 +311,59 @@ export class NearOperatorService {
     }
 
     // Check word distance between occurrences using a more efficient algorithm
+    const proximityCheckStart = performance.now();
     const result = this.checkProximityOptimized(
       indices1,
       indices2,
       distance,
       content
     );
+    const proximityCheckEnd = performance.now();
+    this.updatePhaseMetrics(
+      "proximityCheck",
+      proximityCheckEnd - proximityCheckStart
+    );
 
     // Cache the result
     this.proximityCache.set(proximityKey, result);
 
     const endTime = performance.now();
-    this.updateMetrics(endTime - startTime);
+    const totalTime = endTime - startTime;
+    this.updateMetrics(totalTime);
 
-    // End profiling
-    profiler.end(profileId);
+    // Track memory usage if available
+    if (typeof process !== "undefined" && process.memoryUsage) {
+      try {
+        const memoryUsage = process.memoryUsage().heapUsed / (1024 * 1024); // MB
+        this.updateMemoryMetrics(memoryUsage);
+
+        // Add memory usage to profiler metadata
+        profiler.end(profileId, {
+          executionTime: totalTime,
+          memoryUsage,
+          indices1Count: indices1.length,
+          indices2Count: indices2.length,
+          result,
+          contentLength: content.length,
+          fuzzySearchUsed,
+          cacheHit: cachedResult !== undefined,
+        });
+      } catch (error) {
+        // Fallback if memory tracking fails
+        profiler.end(profileId, {
+          executionTime: totalTime,
+          result,
+          contentLength: content.length,
+        });
+      }
+    } else {
+      // End profiling without memory metrics
+      profiler.end(profileId, {
+        executionTime: totalTime,
+        result,
+        contentLength: content.length,
+      });
+    }
 
     return result;
   }
@@ -397,7 +507,13 @@ export class NearOperatorService {
   ): boolean {
     const profiler = getProfiler();
     const profileId = profiler.start(
-      "NearOperatorService.checkProximityOptimized"
+      "NearOperatorService.checkProximityOptimized",
+      {
+        indices1Count: indices1.length,
+        indices2Count: indices2.length,
+        maxDistance,
+        contentLength: content.length,
+      }
     );
     // Early termination optimization:
     // If we have many indices, first check if any character indices are close enough
@@ -426,10 +542,17 @@ export class NearOperatorService {
 
     // For each index in the first set
     for (const index1 of sampledIndices1) {
+      const wordBoundaryStart = performance.now();
       const wordIndex1 = this.wordBoundaryService.getWordIndexFromCharIndex(
         index1,
         content
       );
+      const wordBoundaryEnd = performance.now();
+      this.updatePhaseMetrics(
+        "wordBoundaryCalculation",
+        wordBoundaryEnd - wordBoundaryStart
+      );
+
       if (wordIndex1 === -1) continue;
 
       // Binary search optimization for the second set
@@ -443,22 +566,36 @@ export class NearOperatorService {
       );
 
       for (const index2 of closestIndices) {
+        const wordBoundaryStart = performance.now();
         const wordIndex2 = this.wordBoundaryService.getWordIndexFromCharIndex(
           index2,
           content
         );
+        const wordBoundaryEnd = performance.now();
+        this.updatePhaseMetrics(
+          "wordBoundaryCalculation",
+          wordBoundaryEnd - wordBoundaryStart
+        );
+
         if (wordIndex2 === -1) continue;
 
         // Check if the word distance is within the limit
         const wordDist = Math.abs(wordIndex1 - wordIndex2);
         if (wordDist <= maxDistance) {
-          profiler.end(profileId);
+          profiler.end(profileId, {
+            result: true,
+            wordDistance: wordDist,
+            index1,
+            index2,
+            wordIndex1,
+            wordIndex2,
+          });
           return true;
         }
       }
     }
 
-    profiler.end(profileId);
+    profiler.end(profileId, { result: false });
     return false;
   }
 
@@ -762,15 +899,72 @@ export class NearOperatorService {
   }
 
   /**
+   * Updates phase-specific metrics
+   * @param phase The algorithm phase to update metrics for
+   * @param processingTime Processing time in milliseconds
+   */
+  private updatePhaseMetrics(
+    phase: keyof typeof this.metrics.phaseMetrics,
+    processingTime: number
+  ): void {
+    const phaseMetric = this.metrics.phaseMetrics[phase];
+    phaseMetric.totalTime += processingTime;
+    phaseMetric.count++;
+    phaseMetric.averageTime = phaseMetric.totalTime / phaseMetric.count;
+  }
+
+  /**
+   * Updates memory usage metrics
+   * @param currentMemoryUsage Current memory usage in MB
+   */
+  private updateMemoryMetrics(currentMemoryUsage: number): void {
+    // Update peak memory usage
+    if (currentMemoryUsage > this.metrics.memoryMetrics.peakMemoryUsage) {
+      this.metrics.memoryMetrics.peakMemoryUsage = currentMemoryUsage;
+    }
+
+    // Calculate memory delta if we have previous measurements
+    if (this.metrics.memoryMetrics.measurementCount > 0) {
+      const memoryDelta =
+        currentMemoryUsage - this.metrics.memoryMetrics.peakMemoryUsage;
+      this.metrics.memoryMetrics.totalMemoryDelta += memoryDelta;
+      this.metrics.memoryMetrics.averageMemoryDelta =
+        this.metrics.memoryMetrics.totalMemoryDelta /
+        this.metrics.memoryMetrics.measurementCount;
+    }
+
+    this.metrics.memoryMetrics.measurementCount++;
+  }
+
+  /**
+   * Updates content size metrics
+   * @param contentSize Size of the content in characters
+   */
+  private updateContentSizeMetrics(contentSize: number): void {
+    this.metrics.contentSizeMetrics.totalContentSize += contentSize;
+    this.metrics.contentSizeMetrics.contentCount++;
+
+    if (contentSize > this.metrics.contentSizeMetrics.maxContentSize) {
+      this.metrics.contentSizeMetrics.maxContentSize = contentSize;
+    }
+
+    if (contentSize < this.metrics.contentSizeMetrics.minContentSize) {
+      this.metrics.contentSizeMetrics.minContentSize = contentSize;
+    }
+
+    this.metrics.contentSizeMetrics.averageContentSize =
+      this.metrics.contentSizeMetrics.totalContentSize /
+      this.metrics.contentSizeMetrics.contentCount;
+  }
+
+  /**
    * Save profiling data to a file for analysis
    */
-  private saveProfilingData(): void {
+  private async saveProfilingData(): Promise<void> {
     try {
       const profiler = getProfiler();
       if (profiler.isEnabled()) {
         const timestamp = new Date().toISOString().replace(/:/g, "-");
-        const path = require("path");
-        const fs = require("fs");
         const reportPath = path.resolve(
           process.cwd(),
           "performance-results",
@@ -779,24 +973,43 @@ export class NearOperatorService {
 
         // Ensure directory exists
         const dirPath = path.dirname(reportPath);
-        if (!fs.existsSync(dirPath)) {
-          fs.mkdirSync(dirPath, { recursive: true });
+        try {
+          await fs.mkdir(dirPath, { recursive: true });
+        } catch (err) {
+          // Directory might already exist, ignore error
         }
 
-        // Save the report
-        profiler
-          .saveReport(reportPath)
-          .then(() => {
-            this.logger.debug(
-              `NearOperatorService profile saved to ${reportPath}`
-            );
-          })
-          .catch((err) => {
-            this.logger.error(
-              "Failed to save NearOperatorService profile",
-              err
-            );
-          });
+        // Save detailed metrics alongside the profiler report
+        const detailedMetricsPath = path.resolve(
+          process.cwd(),
+          "performance-results",
+          `near-operator-metrics-${timestamp}.json`
+        );
+
+        // Save detailed metrics
+        await fs.writeFile(
+          detailedMetricsPath,
+          JSON.stringify(
+            {
+              timestamp: new Date().toISOString(),
+              metrics: this.metrics,
+              cacheStats: {
+                termIndicesCache: this.termIndicesCache.getStats(),
+                proximityCache: this.proximityCache.getStats(),
+              },
+            },
+            null,
+            2
+          ),
+          "utf8"
+        );
+
+        // Save the profiler report with metrics history
+        await profiler.saveReport(reportPath, true);
+
+        this.logger.debug(
+          `NearOperatorService profile saved to ${reportPath} and metrics to ${detailedMetricsPath}`
+        );
       }
     } catch (error) {
       this.logger.error("Error saving profiling data", error);

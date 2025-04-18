@@ -218,6 +218,32 @@ const electronAPI = {
   setWholeWordMatchingEnabled: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke("set-whole-word-matching-enabled", enabled),
 
+  // --- Performance Profiling Methods ---
+  /** Gets the profiling enabled preference. */
+  getProfilingEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-profiling-enabled"),
+  /** Sets the profiling enabled preference. */
+  setProfilingEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke("set-profiling-enabled", enabled),
+  /** Gets the detailed memory tracking enabled preference. */
+  getDetailedMemoryTrackingEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-detailed-memory-tracking-enabled"),
+  /** Sets the detailed memory tracking enabled preference. */
+  setDetailedMemoryTrackingEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke("set-detailed-memory-tracking-enabled", enabled),
+  /** Gets the performance summary data. */
+  getPerformanceSummary: (): Promise<any> =>
+    ipcRenderer.invoke("get-performance-summary"),
+  /** Gets the performance metrics history. */
+  getPerformanceMetricsHistory: (): Promise<any[]> =>
+    ipcRenderer.invoke("get-performance-metrics-history"),
+  /** Saves the performance report to a file. */
+  savePerformanceReport: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("save-performance-report"),
+  /** Clears all performance data. */
+  clearPerformanceData: (): Promise<boolean> =>
+    ipcRenderer.invoke("clear-performance-data"),
+
   // --- File System Operations ---
   /**
    * Opens the specified file with the default system application.

@@ -9,6 +9,7 @@
   "generalSettings": "General",
   "searchSettings": "Search",
   "cacheSettings": "Cache",
+  "performanceSettings": "Performance",
   "themeLabel": "Theme:",
   "themeLight": "Light",
   "themeDark": "Dark",

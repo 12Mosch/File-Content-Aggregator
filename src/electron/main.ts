@@ -78,6 +78,10 @@ interface ExportItem {
   details: string | null;
 }
 
+// Define constants for new settings keys
+const PROFILING_ENABLED_KEY = "profilingEnabled";
+const DETAILED_MEMORY_TRACKING_ENABLED_KEY = "detailedMemoryTrackingEnabled";
+
 const schema = {
   userLanguage: { type: "string", enum: supportedLngsMain },
   [HISTORY_STORE_KEY]: {
@@ -121,6 +125,16 @@ const schema = {
     type: "boolean",
     default: false,
   },
+  // Setting for performance profiling
+  [PROFILING_ENABLED_KEY]: {
+    type: "boolean",
+    default: false,
+  },
+  // Setting for detailed memory tracking
+  [DETAILED_MEMORY_TRACKING_ENABLED_KEY]: {
+    type: "boolean",
+    default: false,
+  },
 };
 const store = new Store<{
   userLanguage?: string;
@@ -130,6 +144,8 @@ const store = new Store<{
   fuzzySearchBooleanEnabled: boolean;
   fuzzySearchNearEnabled: boolean;
   wholeWordMatchingEnabled: boolean;
+  profilingEnabled: boolean;
+  detailedMemoryTrackingEnabled: boolean;
 }>({ schema });
 
 const i18nMain = i18next.createInstance();
@@ -1346,6 +1362,229 @@ ipcMain.handle("get-default-export-format", (event): Promise<ExportFormat> => {
         error instanceof Error ? error.message : error
       );
       resolve("txt"); // Default fallback on error
+    }
+  });
+});
+
+/**
+ * Gets the profiling enabled preference.
+ */
+ipcMain.handle("get-profiling-enabled", (event): Promise<boolean> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve(false); // Default fallback
+  return new Promise((resolve) => {
+    try {
+      const enabled = store.get(PROFILING_ENABLED_KEY, false);
+      resolve(enabled);
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting profiling enabled:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(false); // Default fallback on error
+    }
+  });
+});
+
+/**
+ * Sets the profiling enabled preference.
+ */
+ipcMain.handle(
+  "set-profiling-enabled",
+  (event, enabled: boolean): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        store.set(PROFILING_ENABLED_KEY, enabled);
+        console.log(`IPC: Profiling ${enabled ? "enabled" : "disabled"}`);
+
+        // Update the profiler
+        const detailedMemoryTracking = store.get(
+          DETAILED_MEMORY_TRACKING_ENABLED_KEY,
+          false
+        );
+        getProfiler().setEnabled(enabled, { detailedMemoryTracking });
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error setting profiling enabled:",
+          error instanceof Error ? error.message : error
+        );
+      }
+      resolve();
+    });
+  }
+);
+
+/**
+ * Gets the detailed memory tracking enabled preference.
+ */
+ipcMain.handle(
+  "get-detailed-memory-tracking-enabled",
+  (event): Promise<boolean> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve(false); // Default fallback
+    return new Promise((resolve) => {
+      try {
+        const enabled = store.get(DETAILED_MEMORY_TRACKING_ENABLED_KEY, false);
+        resolve(enabled);
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error getting detailed memory tracking enabled:",
+          error instanceof Error ? error.message : error
+        );
+        resolve(false); // Default fallback on error
+      }
+    });
+  }
+);
+
+/**
+ * Sets the detailed memory tracking enabled preference.
+ */
+ipcMain.handle(
+  "set-detailed-memory-tracking-enabled",
+  (event, enabled: boolean): Promise<void> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        store.set(DETAILED_MEMORY_TRACKING_ENABLED_KEY, enabled);
+        console.log(
+          `IPC: Detailed memory tracking ${enabled ? "enabled" : "disabled"}`
+        );
+
+        // Update the profiler if it's enabled
+        const profilingEnabled = store.get(PROFILING_ENABLED_KEY, false);
+        if (profilingEnabled) {
+          getProfiler().setEnabled(true, { detailedMemoryTracking: enabled });
+        }
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error setting detailed memory tracking enabled:",
+          error instanceof Error ? error.message : error
+        );
+      }
+      resolve();
+    });
+  }
+);
+
+/**
+ * Gets the performance summary data.
+ */
+ipcMain.handle("get-performance-summary", (event): Promise<any> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const profiler = getProfiler();
+      if (profiler.isEnabled()) {
+        const summary = profiler.generateSummary();
+        resolve(summary);
+      } else {
+        resolve(null);
+      }
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting performance summary:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(null);
+    }
+  });
+});
+
+/**
+ * Gets the performance metrics history.
+ */
+ipcMain.handle("get-performance-metrics-history", (event): Promise<any[]> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve([]);
+  return new Promise((resolve) => {
+    try {
+      const profiler = getProfiler();
+      if (profiler.isEnabled()) {
+        const history = profiler.getMetricsHistory();
+        resolve(history);
+      } else {
+        resolve([]);
+      }
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error getting performance metrics history:",
+        error instanceof Error ? error.message : error
+      );
+      resolve([]);
+    }
+  });
+});
+
+/**
+ * Saves the performance report to a file.
+ */
+ipcMain.handle(
+  "save-performance-report",
+  async (event): Promise<{ success: boolean; error?: string }> => {
+    if (!validateSender(event.senderFrame) || !mainWindow) {
+      return { success: false, error: "Invalid sender or main window." };
+    }
+
+    try {
+      const profiler = getProfiler();
+      if (!profiler.isEnabled()) {
+        return { success: false, error: "Profiling is not enabled." };
+      }
+
+      // Show save dialog
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: "Save Performance Report",
+        buttonLabel: "Save",
+        defaultPath: `performance-report-${new Date().toISOString().replace(/:/g, "-")}.json`,
+        filters: [
+          { name: "JSON Files", extensions: ["json"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+      });
+
+      if (canceled || !filePath) {
+        console.log("Performance report save cancelled by user.");
+        return { success: false, error: "Save cancelled." };
+      }
+
+      // Save the report
+      await profiler.saveReport(filePath, true);
+      console.log(`Performance report saved to ${filePath}`);
+      return { success: true };
+    } catch (error: unknown) {
+      const errorMsg = `Error saving performance report: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+);
+
+/**
+ * Clears all performance data.
+ */
+ipcMain.handle("clear-performance-data", (event): Promise<boolean> => {
+  if (!validateSender(event.senderFrame)) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    try {
+      // Reset the profiler by disabling and re-enabling it
+      const profiler = getProfiler();
+      const wasEnabled = profiler.isEnabled();
+      const detailedMemoryTracking = profiler.isDetailedMemoryTrackingEnabled();
+
+      if (wasEnabled) {
+        profiler.setEnabled(false);
+        profiler.setEnabled(true, { detailedMemoryTracking });
+        console.log("Performance data cleared.");
+        resolve(true);
+      } else {
+        console.log("Profiling is not enabled, nothing to clear.");
+        resolve(false);
+      }
+    } catch (error: unknown) {
+      console.error(
+        "IPC: Error clearing performance data:",
+        error instanceof Error ? error.message : error
+      );
+      resolve(false);
     }
   });
 });

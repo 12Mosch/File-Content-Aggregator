@@ -1,8 +1,9 @@
 /**
- * Performance Profiler
+ * Enhanced Performance Profiler
  *
- * A utility for measuring and analyzing code performance.
- * Provides methods for timing operations and generating performance reports.
+ * A utility for measuring and analyzing code performance with detailed metrics.
+ * Provides methods for timing operations, tracking memory usage, and generating
+ * comprehensive performance reports with visualization capabilities.
  */
 
 import { Logger } from "../services/Logger.js";
@@ -14,13 +15,46 @@ interface ProfileEntry {
   duration?: number;
   parent?: string;
   children: string[];
+  callCount?: number;
+  memoryBefore?: number;
+  memoryAfter?: number;
+  memoryDelta?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProfileReport {
   name: string;
   duration: number;
   percentage: number;
+  callCount?: number;
+  averageDuration?: number;
+  memoryDelta?: number;
+  metadata?: Record<string, unknown>;
   children: ProfileReport[];
+}
+
+export interface ProfileSummary {
+  totalOperations: number;
+  totalDuration: number;
+  topOperations: Array<{
+    name: string;
+    duration: number;
+    callCount: number;
+    averageDuration: number;
+    percentage: number;
+  }>;
+  memoryUsage: {
+    total: number;
+    byOperation: Record<string, number>;
+  };
+}
+
+export interface PerformanceMetrics {
+  timestamp: number;
+  operationName: string;
+  duration: number;
+  memoryDelta?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export class Profiler {
@@ -29,6 +63,18 @@ export class Profiler {
   private activeStack: string[] = [];
   private logger: Logger;
   private enabled: boolean = false;
+  private detailedMemoryTracking: boolean = false;
+  private operationStats: Map<
+    string,
+    {
+      callCount: number;
+      totalDuration: number;
+      maxDuration: number;
+      minDuration: number;
+    }
+  > = new Map();
+  private metricsHistory: PerformanceMetrics[] = [];
+  private historyLimit: number = 1000; // Limit the number of historical metrics to prevent memory issues
 
   /**
    * Get the singleton instance
@@ -49,10 +95,24 @@ export class Profiler {
 
   /**
    * Enable or disable profiling
+   * @param enabled Whether profiling should be enabled
+   * @param options Additional profiling options
    */
-  public setEnabled(enabled: boolean): void {
+  public setEnabled(
+    enabled: boolean,
+    options?: { detailedMemoryTracking?: boolean }
+  ): void {
     this.enabled = enabled;
-    this.logger.debug(`Profiling ${enabled ? "enabled" : "disabled"}`);
+    if (options) {
+      this.detailedMemoryTracking =
+        options.detailedMemoryTracking ?? this.detailedMemoryTracking;
+    }
+    this.logger.debug(
+      `Profiling ${enabled ? "enabled" : "disabled"} with options:`,
+      {
+        detailedMemoryTracking: this.detailedMemoryTracking,
+      }
+    );
   }
 
   /**
@@ -63,11 +123,31 @@ export class Profiler {
   }
 
   /**
+   * Check if detailed memory tracking is enabled
+   */
+  public isDetailedMemoryTrackingEnabled(): boolean {
+    return this.detailedMemoryTracking;
+  }
+
+  /**
+   * Get memory usage in MB
+   * @returns Current memory usage in MB
+   */
+  private getMemoryUsage(): number {
+    if (typeof process !== "undefined" && process.memoryUsage) {
+      const { heapUsed } = process.memoryUsage();
+      return heapUsed / (1024 * 1024); // Convert to MB
+    }
+    return 0;
+  }
+
+  /**
    * Start timing an operation
    * @param name Name of the operation
+   * @param metadata Optional metadata to associate with this operation
    * @returns A unique ID for the operation
    */
-  public start(name: string): string {
+  public start(name: string, metadata?: Record<string, unknown>): string {
     if (!this.enabled) return "";
 
     const id = `${name}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -76,11 +156,18 @@ export class Profiler {
         ? this.activeStack[this.activeStack.length - 1]
         : undefined;
 
+    // Track memory usage if detailed tracking is enabled
+    const memoryBefore = this.detailedMemoryTracking
+      ? this.getMemoryUsage()
+      : undefined;
+
     this.entries.set(id, {
       name,
       startTime: performance.now(),
       parent,
       children: [],
+      memoryBefore,
+      metadata,
     });
 
     // Add this entry as a child of its parent
@@ -98,9 +185,10 @@ export class Profiler {
   /**
    * End timing an operation
    * @param id The ID returned from start()
+   * @param additionalMetadata Optional additional metadata to associate with this operation
    * @returns The duration in milliseconds
    */
-  public end(id: string): number {
+  public end(id: string, additionalMetadata?: Record<string, unknown>): number {
     if (!this.enabled || !id) return 0;
 
     const entry = this.entries.get(id);
@@ -108,6 +196,29 @@ export class Profiler {
 
     entry.endTime = performance.now();
     entry.duration = entry.endTime - entry.startTime;
+
+    // Track memory usage if detailed tracking is enabled
+    if (this.detailedMemoryTracking && entry.memoryBefore !== undefined) {
+      entry.memoryAfter = this.getMemoryUsage();
+      entry.memoryDelta = entry.memoryAfter - entry.memoryBefore;
+    }
+
+    // Update operation statistics
+    this.updateOperationStats(entry.name, entry.duration);
+
+    // Add additional metadata if provided
+    if (additionalMetadata) {
+      entry.metadata = { ...entry.metadata, ...additionalMetadata };
+    }
+
+    // Add to metrics history
+    this.addToMetricsHistory({
+      timestamp: Date.now(),
+      operationName: entry.name,
+      duration: entry.duration,
+      memoryDelta: entry.memoryDelta,
+      metadata: entry.metadata,
+    });
 
     // Remove from active stack
     const index = this.activeStack.lastIndexOf(id);
@@ -119,13 +230,52 @@ export class Profiler {
   }
 
   /**
+   * Update operation statistics
+   * @param operationName Name of the operation
+   * @param duration Duration of the operation in milliseconds
+   */
+  private updateOperationStats(operationName: string, duration: number): void {
+    const stats = this.operationStats.get(operationName) || {
+      callCount: 0,
+      totalDuration: 0,
+      maxDuration: 0,
+      minDuration: Number.MAX_VALUE,
+    };
+
+    stats.callCount++;
+    stats.totalDuration += duration;
+    stats.maxDuration = Math.max(stats.maxDuration, duration);
+    stats.minDuration = Math.min(stats.minDuration, duration);
+
+    this.operationStats.set(operationName, stats);
+  }
+
+  /**
+   * Add a metrics entry to the history
+   * @param metrics The metrics to add
+   */
+  private addToMetricsHistory(metrics: PerformanceMetrics): void {
+    this.metricsHistory.push(metrics);
+
+    // Trim history if it exceeds the limit
+    if (this.metricsHistory.length > this.historyLimit) {
+      this.metricsHistory = this.metricsHistory.slice(-this.historyLimit);
+    }
+  }
+
+  /**
    * Measure the execution time of a function
    * @param name Name of the operation
    * @param fn Function to measure
+   * @param metadata Optional metadata to associate with this operation
    * @returns The result of the function
    */
-  public measure<T>(name: string, fn: () => T): T {
-    const id = this.start(name);
+  public measure<T>(
+    name: string,
+    fn: () => T,
+    metadata?: Record<string, unknown>
+  ): T {
+    const id = this.start(name, metadata);
     try {
       return fn();
     } finally {
@@ -189,6 +339,86 @@ export class Profiler {
   }
 
   /**
+   * Generate a summary of profiling data
+   * @param limit Maximum number of top operations to include
+   * @returns A summary of profiling data
+   */
+  public generateSummary(limit: number = 10): ProfileSummary {
+    if (!this.enabled) {
+      return {
+        totalOperations: 0,
+        totalDuration: 0,
+        topOperations: [],
+        memoryUsage: { total: 0, byOperation: {} },
+      };
+    }
+
+    // Calculate total duration across all operations
+    let totalDuration = 0;
+    const operationDurations: Record<
+      string,
+      { duration: number; callCount: number; averageDuration: number }
+    > = {};
+    const memoryByOperation: Record<string, number> = {};
+    let totalMemoryDelta = 0;
+
+    // Process all completed entries
+    for (const [_, entry] of this.entries.entries()) {
+      if (entry.duration !== undefined) {
+        // Track duration by operation name
+        if (!operationDurations[entry.name]) {
+          operationDurations[entry.name] = {
+            duration: 0,
+            callCount: 0,
+            averageDuration: 0,
+          };
+        }
+        operationDurations[entry.name].duration += entry.duration;
+        operationDurations[entry.name].callCount++;
+
+        // Track memory usage by operation name
+        if (entry.memoryDelta !== undefined) {
+          if (!memoryByOperation[entry.name]) {
+            memoryByOperation[entry.name] = 0;
+          }
+          memoryByOperation[entry.name] += entry.memoryDelta;
+          totalMemoryDelta += entry.memoryDelta;
+        }
+      }
+    }
+
+    // Calculate total duration and average durations
+    for (const opName in operationDurations) {
+      const opData = operationDurations[opName];
+      totalDuration += opData.duration;
+      opData.averageDuration = opData.duration / opData.callCount;
+    }
+
+    // Sort operations by total duration and get top N
+    const topOperations = Object.entries(operationDurations)
+      .map(([name, data]) => ({
+        name,
+        duration: data.duration,
+        callCount: data.callCount,
+        averageDuration: data.averageDuration,
+        percentage:
+          totalDuration > 0 ? (data.duration / totalDuration) * 100 : 0,
+      }))
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, limit);
+
+    return {
+      totalOperations: this.entries.size,
+      totalDuration,
+      topOperations,
+      memoryUsage: {
+        total: totalMemoryDelta,
+        byOperation: memoryByOperation,
+      },
+    };
+  }
+
+  /**
    * Generate a report for a specific entry and its children
    * @param id The entry ID
    * @returns A hierarchical report
@@ -216,10 +446,19 @@ export class Profiler {
         ? (entry.duration / parentEntry.duration) * 100
         : 100;
 
+    // Get operation stats
+    const stats = this.operationStats.get(entry.name);
+
     return {
       name: entry.name,
       duration: entry.duration,
       percentage,
+      callCount: stats?.callCount,
+      averageDuration: stats
+        ? stats.totalDuration / stats.callCount
+        : undefined,
+      memoryDelta: entry.memoryDelta,
+      metadata: entry.metadata,
       children: childReports,
     };
   }
@@ -266,12 +505,32 @@ export class Profiler {
   /**
    * Save the profiling data to a file
    * @param filePath Path to save the file
+   * @param includeMetricsHistory Whether to include the metrics history in the report
    */
-  public async saveReport(filePath: string): Promise<void> {
+  public async saveReport(
+    filePath: string,
+    includeMetricsHistory: boolean = false
+  ): Promise<void> {
     if (!this.enabled) return;
 
     const report = this.generateReport();
-    const reportJson = JSON.stringify(report, null, 2);
+    const summary = this.generateSummary();
+
+    const fullReport = {
+      timestamp: new Date().toISOString(),
+      report,
+      summary,
+      metricsHistory: includeMetricsHistory ? this.metricsHistory : undefined,
+      operationStats: Array.from(this.operationStats.entries()).reduce(
+        (acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        },
+        {} as Record<string, unknown>
+      ),
+    };
+
+    const reportJson = JSON.stringify(fullReport, null, 2);
 
     try {
       // Use Node.js fs module to write the file
@@ -281,6 +540,30 @@ export class Profiler {
     } catch (error) {
       this.logger.error("Failed to save profile report", error);
     }
+  }
+
+  /**
+   * Get the metrics history
+   * @returns Array of performance metrics
+   */
+  public getMetricsHistory(): PerformanceMetrics[] {
+    return [...this.metricsHistory];
+  }
+
+  /**
+   * Get operation statistics
+   * @returns Map of operation statistics
+   */
+  public getOperationStats(): Map<
+    string,
+    {
+      callCount: number;
+      totalDuration: number;
+      maxDuration: number;
+      minDuration: number;
+    }
+  > {
+    return new Map(this.operationStats);
   }
 }
 

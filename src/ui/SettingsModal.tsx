@@ -25,6 +25,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ThemePreference, ExportFormat } from "./vite-env.d";
 import { applyTheme } from "./main";
 import { CacheSettings } from "./components/CacheSettings";
+import PerformanceDashboard from "./components/PerformanceDashboard";
+import { ProfileSummary, PerformanceMetrics } from "@/lib/utils/Profiler";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,7 +34,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { t, i18n } = useTranslation(["common", "results"]);
+  const { t, i18n } = useTranslation(["common", "results", "settings"]);
   const [currentTheme, setCurrentTheme] = useState<ThemePreference>("system");
   const [defaultExportFormat, setDefaultExportFormat] =
     useState<ExportFormat>("txt");
@@ -42,6 +44,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     useState<boolean>(true);
   const [wholeWordMatchingEnabled, setWholeWordMatchingEnabled] =
     useState<boolean>(false);
+
+  // Performance profiling settings
+  const [isProfilingEnabled, setIsProfilingEnabled] = useState<boolean>(false);
+  const [isDetailedMemoryTrackingEnabled, setIsDetailedMemoryTrackingEnabled] =
+    useState<boolean>(false);
+  const [performanceSummary, setPerformanceSummary] =
+    useState<ProfileSummary | null>(null);
+  const [metricsHistory, setMetricsHistory] = useState<PerformanceMetrics[]>(
+    []
+  );
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Fetch initial theme and export format preferences when modal opens
   useEffect(() => {
@@ -86,8 +99,63 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             console.error("Error fetching whole word matching setting:", err)
           );
       }
+
+      // Fetch profiling settings
+      if (window.electronAPI?.getProfilingEnabled) {
+        void window.electronAPI
+          .getProfilingEnabled()
+          .then((enabled) => setIsProfilingEnabled(enabled))
+          .catch((err) =>
+            console.error("Error fetching profiling setting:", err)
+          );
+      }
+
+      if (window.electronAPI?.getDetailedMemoryTrackingEnabled) {
+        void window.electronAPI
+          .getDetailedMemoryTrackingEnabled()
+          .then((enabled) => setIsDetailedMemoryTrackingEnabled(enabled))
+          .catch((err) =>
+            console.error(
+              "Error fetching detailed memory tracking setting:",
+              err
+            )
+          );
+      }
+
+      // Fetch performance data if profiling is enabled
+      fetchPerformanceData();
     }
   }, [isOpen]);
+
+  // Fetch performance data from the main process
+  const fetchPerformanceData = () => {
+    if (window.electronAPI?.getPerformanceSummary) {
+      void window.electronAPI
+        .getPerformanceSummary()
+        .then((summary) => {
+          if (summary) {
+            setPerformanceSummary(summary);
+            setLastUpdated(new Date());
+          }
+        })
+        .catch((err) =>
+          console.error("Error fetching performance summary:", err)
+        );
+    }
+
+    if (window.electronAPI?.getPerformanceMetricsHistory) {
+      void window.electronAPI
+        .getPerformanceMetricsHistory()
+        .then((history) => {
+          if (history) {
+            setMetricsHistory(history);
+          }
+        })
+        .catch((err) =>
+          console.error("Error fetching performance metrics history:", err)
+        );
+    }
+  };
 
   const handleLanguageChange = (newLang: string) => {
     if (supportedLngs.includes(newLang) && newLang !== i18n.language) {
@@ -214,6 +282,81 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handler for toggling profiling
+  const handleToggleProfiling = (enabled: boolean) => {
+    setIsProfilingEnabled(enabled);
+    if (window.electronAPI?.setProfilingEnabled) {
+      const setProfilingPref = async () => {
+        try {
+          await window.electronAPI.setProfilingEnabled(enabled);
+          // If enabling profiling, also fetch the latest data
+          if (enabled) {
+            fetchPerformanceData();
+          }
+        } catch (error) {
+          console.error("Error setting profiling preference:", error);
+        }
+      };
+      void setProfilingPref();
+    } else {
+      console.warn("setProfilingEnabled API not available.");
+    }
+  };
+
+  // Handler for toggling detailed memory tracking
+  const handleToggleMemoryTracking = (enabled: boolean) => {
+    setIsDetailedMemoryTrackingEnabled(enabled);
+    if (window.electronAPI?.setDetailedMemoryTrackingEnabled) {
+      const setMemoryTrackingPref = async () => {
+        try {
+          await window.electronAPI.setDetailedMemoryTrackingEnabled(enabled);
+        } catch (error) {
+          console.error(
+            "Error setting detailed memory tracking preference:",
+            error
+          );
+        }
+      };
+      void setMemoryTrackingPref();
+    } else {
+      console.warn("setDetailedMemoryTrackingEnabled API not available.");
+    }
+  };
+
+  // Handler for saving performance report
+  const handleSavePerformanceReport = () => {
+    if (window.electronAPI?.savePerformanceReport) {
+      const saveReport = async () => {
+        try {
+          await window.electronAPI.savePerformanceReport();
+        } catch (error) {
+          console.error("Error saving performance report:", error);
+        }
+      };
+      void saveReport();
+    } else {
+      console.warn("savePerformanceReport API not available.");
+    }
+  };
+
+  // Handler for clearing performance data
+  const handleClearPerformanceData = () => {
+    if (window.electronAPI?.clearPerformanceData) {
+      const clearData = async () => {
+        try {
+          await window.electronAPI.clearPerformanceData();
+          setPerformanceSummary(null);
+          setMetricsHistory([]);
+        } catch (error) {
+          console.error("Error clearing performance data:", error);
+        }
+      };
+      void clearData();
+    } else {
+      console.warn("clearPerformanceData API not available.");
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
@@ -225,7 +368,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         </DialogHeader>
 
         <Tabs defaultValue="general" className="py-4">
-          <TabsList className="grid grid-cols-3 mb-4">
+          <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="general">
               {t("common:generalSettings")}
             </TabsTrigger>
@@ -233,6 +376,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               {t("common:searchSettings")}
             </TabsTrigger>
             <TabsTrigger value="cache">{t("common:cacheSettings")}</TabsTrigger>
+            <TabsTrigger value="performance">
+              {t("common:performanceSettings")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
@@ -402,6 +548,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
           <TabsContent value="cache">
             <CacheSettings />
+          </TabsContent>
+
+          <TabsContent value="performance">
+            <PerformanceDashboard
+              isProfilingEnabled={isProfilingEnabled}
+              isDetailedMemoryTrackingEnabled={isDetailedMemoryTrackingEnabled}
+              onToggleProfiling={handleToggleProfiling}
+              onToggleMemoryTracking={handleToggleMemoryTracking}
+              onSaveReport={handleSavePerformanceReport}
+              onClearData={handleClearPerformanceData}
+              performanceSummary={performanceSummary}
+              metricsHistory={metricsHistory}
+              lastUpdated={lastUpdated}
+            />
           </TabsContent>
         </Tabs>
 
