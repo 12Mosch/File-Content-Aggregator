@@ -1,0 +1,68 @@
+{
+  "totalFiles": 42,
+  "totalLines": 11603,
+  "totalBlankLines": 855,
+  "totalCommentLines": 1040,
+  "totalCodeLines": 9708,
+  "byExtension": {
+    ".tsx": {
+      "files": 28,
+      "lines": 6858,
+      "blankLines": 481,
+      "commentLines": 378,
+      "codeLines": 5999
+    },
+    ".ts": {
+      "files": 13,
+      "lines": 4591,
+      "blankLines": 365,
+      "commentLines": 658,
+      "codeLines": 3568
+    },
+    ".css": {
+      "files": 1,
+      "lines": 154,
+      "blankLines": 9,
+      "commentLines": 4,
+      "codeLines": 141
+    }
+  },
+  "byDirectory": {
+    "ui": {
+      "files": 22,
+      "lines": 6768,
+      "blankLines": 482,
+      "commentLines": 575,
+      "codeLines": 5711
+    },
+    "electron": {
+      "files": 4,
+      "lines": 3502,
+      "blankLines": 244,
+      "commentLines": 435,
+      "codeLines": 2823
+    },
+    "components\\ui": {
+      "files": 14,
+      "lines": 1297,
+      "blankLines": 121,
+      "commentLines": 21,
+      "codeLines": 1155
+    },
+    "ui\\hooks": {
+      "files": 1,
+      "lines": 29,
+      "blankLines": 6,
+      "commentLines": 9,
+      "codeLines": 14
+    },
+    "lib": {
+      "files": 1,
+      "lines": 7,
+      "blankLines": 2,
+      "commentLines": 0,
+      "codeLines": 5
+    }
+  },
+  "timestamp": "2025-04-18T08:58:07.627Z"
+}
