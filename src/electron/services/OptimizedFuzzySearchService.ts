@@ -14,7 +14,8 @@ import Fuse from "fuse.js";
 // Constants for optimization
 const MIN_TERM_LENGTH = 3;
 const MATCH_THRESHOLD = 0.4;
-const CACHE_SIZE = 1000;
+const RESULT_CACHE_SIZE = 2000; // Increased cache size for better hit rates
+const NORMALIZED_STRING_CACHE_SIZE = 1000;
 const MAX_CONTENT_LENGTH_FOR_FUSE = 10000; // Limit for using Fuse.js
 
 // Define interfaces for the service
@@ -56,7 +57,9 @@ export class OptimizedFuzzySearchService {
   private readonly fuseInstances: Map<string, Fuse<string>>;
 
   constructor() {
-    this.resultCache = new LRUCache<string, FuzzySearchResult>(CACHE_SIZE);
+    this.resultCache = new LRUCache<string, FuzzySearchResult>(
+      RESULT_CACHE_SIZE
+    );
     this.fuseInstances = new Map();
     this.logger = Logger.getInstance();
     this.metrics = {
@@ -322,16 +325,18 @@ export class OptimizedFuzzySearchService {
 
   /**
    * Normalizes a string based on case sensitivity
-   * Uses caching for better performance
+   * Uses simple caching for better performance
    */
   private normalizeString(str: string, isCaseSensitive: boolean): string {
     if (isCaseSensitive) return str;
 
-    // For short strings, don't use cache
-    if (str.length < 50) return str.toLowerCase();
+    // For very short strings, just convert directly
+    if (str.length < 10) return str.toLowerCase();
 
-    // For longer strings, use cache
-    const cacheKey = str.substring(0, 50) + str.length.toString();
+    // Use a simple cache key
+    const cacheKey = str.length < 100 ? str : str.substring(0, 50) + str.length;
+
+    // Check cache
     if (this.normalizedStringCache.has(cacheKey)) {
       return this.normalizedStringCache.get(cacheKey)!;
     }
@@ -341,11 +346,11 @@ export class OptimizedFuzzySearchService {
     // Cache the result
     this.normalizedStringCache.set(cacheKey, normalized);
 
-    // Manage cache size
-    if (this.normalizedStringCache.size > this.MAX_CACHE_SIZE) {
-      // Clear 25% of the cache when it gets too large
+    // Manage cache size with a simple approach
+    if (this.normalizedStringCache.size > NORMALIZED_STRING_CACHE_SIZE) {
+      // Clear half the cache when it gets too large
       const keys = Array.from(this.normalizedStringCache.keys());
-      for (let i = 0; i < keys.length / 4; i++) {
+      for (let i = 0; i < keys.length / 2; i++) {
         this.normalizedStringCache.delete(keys[i]);
       }
     }
@@ -870,20 +875,12 @@ export class OptimizedFuzzySearchService {
   }
 
   // Caches for performance optimization
-  private levenshteinCache = new Map<string, number>();
   private normalizedStringCache = new Map<string, string>();
-  private regexCache = new Map<string, RegExp>();
-  private readonly MAX_CACHE_SIZE = 2000;
 
-  /**
-   * Calculates Levenshtein distance between two strings
-   * This is a highly optimized implementation for better performance
-   */
   private levenshteinDistance(a: string, b: string): number {
-    // Use cache for repeated calculations
-    const cacheKey = `${a}|${b}`;
-    if (this.levenshteinCache.has(cacheKey)) {
-      return this.levenshteinCache.get(cacheKey)!;
+    // Ensure a is the shorter string for consistent behavior
+    if (a.length > b.length) {
+      [a, b] = [b, a];
     }
 
     // Early return for empty strings
@@ -916,9 +913,7 @@ export class OptimizedFuzzySearchService {
 
     // If we've matched everything, return the length difference
     if (i + j === Math.min(a.length, b.length)) {
-      const result = lengthDiff;
-      this.levenshteinCache.set(cacheKey, result);
-      return result;
+      return lengthDiff;
     }
 
     // If the strings are very short after removing common parts, use a simpler approach
@@ -935,7 +930,6 @@ export class OptimizedFuzzySearchService {
       }
       diff += Math.abs(a.length - i - j - (b.length - i - j));
 
-      this.levenshteinCache.set(cacheKey, diff);
       return diff;
     }
 
@@ -968,34 +962,19 @@ export class OptimizedFuzzySearchService {
       row[bMiddle.length] = prev;
     }
 
-    const result = row[bMiddle.length];
-
-    // Cache the result if the strings are long enough to be worth caching
-    if (a.length + b.length > 10) {
-      this.levenshteinCache.set(cacheKey, result);
-
-      // Limit cache size to prevent memory leaks
-      if (this.levenshteinCache.size > 1000) {
-        // Clear half of the cache when it gets too large
-        const keys = Array.from(this.levenshteinCache.keys());
-        for (let i = 0; i < keys.length / 2; i++) {
-          this.levenshteinCache.delete(keys[i]);
-        }
-      }
-    }
-
-    return result;
+    return row[bMiddle.length];
   }
 
   /**
    * Generates a cache key for the search
+   * Uses a simple approach for better performance
    */
   private generateCacheKey(
     content: string,
     term: string,
     options: FuzzySearchOptions
   ): string {
-    // Use a hash of the content instead of the full content
+    // Use a simple hash-based approach
     const contentHash = this.hashString(content);
 
     // Include term and options in the key
@@ -1031,35 +1010,10 @@ export class OptimizedFuzzySearchService {
   }
 
   /**
-   * Gets or creates a RegExp object with caching
+   * Gets or creates a RegExp object
    */
   private getRegExp(pattern: string, flags: string): RegExp {
-    const cacheKey = `${pattern}|${flags}`;
-
-    if (this.regexCache.has(cacheKey)) {
-      const cachedRegex = this.regexCache.get(cacheKey)!;
-      // Reset lastIndex to ensure consistent behavior
-      cachedRegex.lastIndex = 0;
-      return cachedRegex;
-    }
-
-    const regex = new RegExp(pattern, flags);
-
-    // Only cache if the pattern is not too complex
-    if (pattern.length < 100) {
-      this.regexCache.set(cacheKey, regex);
-
-      // Manage cache size
-      if (this.regexCache.size > this.MAX_CACHE_SIZE / 2) {
-        // Clear 25% of the cache when it gets too large
-        const keys = Array.from(this.regexCache.keys());
-        for (let i = 0; i < keys.length / 4; i++) {
-          this.regexCache.delete(keys[i]);
-        }
-      }
-    }
-
-    return regex;
+    return new RegExp(pattern, flags);
   }
 
   /**
@@ -1102,9 +1056,30 @@ export class OptimizedFuzzySearchService {
   }
 
   /**
-   * Clears the caches
+   * Clears all caches
    */
   public clearCaches(): void {
     this.resultCache.clear();
+    this.normalizedStringCache.clear();
+    this.fuseInstances.clear();
+
+    this.logger.debug("All caches cleared");
+  }
+
+  /**
+   * Gets cache statistics
+   */
+  public getCacheStats(): any {
+    return {
+      resultCache: {
+        size: this.resultCache.size(),
+      },
+      normalizedStringCache: {
+        size: this.normalizedStringCache.size,
+      },
+      fuseInstances: {
+        size: this.fuseInstances.size,
+      },
+    };
   }
 }
