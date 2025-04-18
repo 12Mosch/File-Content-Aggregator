@@ -21,7 +21,8 @@ export interface StructuredItem {
  */
 export interface FileReadError {
   filePath: string;
-  reason: string;
+  error: string;
+  reason?: string;
   detail?: string;
 }
 
@@ -46,9 +47,9 @@ export interface SearchParams {
   extensions: string[];
   excludeFiles: string[];
   excludeFolders: string[];
-  folderExclusionMode?: 'contains' | 'exact' | 'startsWith' | 'endsWith';
+  folderExclusionMode?: "contains" | "exact" | "startsWith" | "endsWith";
   contentSearchTerm?: string;
-  contentSearchMode?: 'term' | 'regex' | 'boolean';
+  contentSearchMode?: "term" | "regex" | "boolean";
   caseSensitive?: boolean;
   modifiedAfter?: string;
   modifiedBefore?: string;
@@ -67,7 +68,7 @@ export interface ProgressData {
   currentFile?: string;
   message?: string;
   error?: string;
-  status?: 'searching' | 'cancelling' | 'cancelled' | 'completed' | 'error';
+  status?: "searching" | "cancelling" | "cancelled" | "completed" | "error";
 }
 
 /**

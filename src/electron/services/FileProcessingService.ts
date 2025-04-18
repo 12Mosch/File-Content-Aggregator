@@ -33,6 +33,7 @@ export interface FileReadResult {
 export interface StreamProcessResult {
   matched: boolean;
   error: Error | null;
+  content?: string;
   matchedChunks?: string[];
   matchPositions?: number[];
 }

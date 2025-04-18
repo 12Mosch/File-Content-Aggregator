@@ -12,6 +12,10 @@ export interface SearchResultOptions {
   includeContent?: boolean;
   maxContentLength?: number;
   maxResults?: number;
+  contentSearchTerm?: string;
+  contentSearchMode?: string;
+  caseSensitive?: boolean;
+  wholeWordMatching?: boolean;
 }
 
 export interface ProcessedResult {
@@ -90,7 +94,6 @@ export class SearchResultProcessor {
             : file.content;
       }
 
-       
       return structuredItem;
     });
   }

@@ -1,0 +1,52 @@
+{
+  "fileSize": {
+    "bytes": "{{size}} Bytes",
+    "kb": "{{size}} KB",
+    "mb": "{{size}} MB",
+    "gb": "{{size}} GB",
+    "tb": "{{size}} TB"
+  },
+  "duration": {
+    "ms": "{{value}}ms",
+    "seconds": "{{value}}s",
+    "minutes": "{{value}}m {{seconds}}s",
+    "hours": "{{value}}h {{minutes}}m {{seconds}}s"
+  },
+  "date": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{days}} days ago",
+    "weeksAgo": "{{weeks}} weeks ago",
+    "monthsAgo": "{{months}} months ago",
+    "yearsAgo": "{{years}} years ago"
+  },
+  "logging": {
+    "debug": "DEBUG",
+    "info": "INFO",
+    "warn": "WARNING",
+    "error": "ERROR"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "loading": "Loading...",
+    "processing": "Processing...",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information",
+    "unknown": "Unknown"
+  }
+}

@@ -25,5 +25,18 @@
   "historyUpdateFailed": "Failed to update history entry.",
   "historyApiNA": "History feature is currently unavailable.",
   "themeInitFailed": "Failed to load initial theme preference. Using system default.",
-  "pathTraversalError": "Traversal error in \"{{path}}\": Some files/folders might have been skipped due to access issues ({{detail}})."
+  "pathTraversalError": "Traversal error in \"{{path}}\": Some files/folders might have been skipped due to access issues ({{detail}}).",
+
+  "appError": {
+    "fileNotFound": "File not found: {{path}}",
+    "fileAccessError": "Cannot access file: {{path}}",
+    "searchError": "Search error: {{message}}",
+    "regexError": "Invalid regex pattern: {{pattern}}",
+    "parsingError": "Failed to parse expression: {{expression}}",
+    "configError": "Configuration error: {{message}}",
+    "timeoutError": "Operation timed out: {{operation}} ({{timeoutMs}}ms)",
+    "cancellationError": "Operation cancelled: {{operation}}",
+    "validationError": "Validation error: {{message}}",
+    "unknownError": "An unknown error occurred"
+  }
 }
