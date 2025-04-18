@@ -21,8 +21,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ThemePreference, ExportFormat } from "./vite-env.d";
 import { applyTheme } from "./main";
+import { CacheSettings } from "./components/CacheSettings";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -214,7 +216,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("common:settingsTitle")}</DialogTitle>
           <DialogDescription>
@@ -222,163 +224,186 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Language Setting */}
-          <div className="space-y-2">
-            <Label htmlFor="language-select">{t("common:languageLabel")}</Label>
-            <Select value={i18n.language} onValueChange={handleLanguageChange}>
-              <SelectTrigger id="language-select" className="w-full">
-                <SelectValue placeholder={t("common:languageLabel")} />
-              </SelectTrigger>
-              <SelectContent>
-                {supportedLngs.map((lng) => (
-                  <SelectItem key={lng} value={lng}>
-                    {t(`common:lang_${lng}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <Tabs defaultValue="general" className="py-4">
+          <TabsList className="grid grid-cols-3 mb-4">
+            <TabsTrigger value="general">
+              {t("common:generalSettings")}
+            </TabsTrigger>
+            <TabsTrigger value="search">
+              {t("common:searchSettings")}
+            </TabsTrigger>
+            <TabsTrigger value="cache">{t("common:cacheSettings")}</TabsTrigger>
+          </TabsList>
 
-          {/* Theme Setting */}
-          <div className="space-y-2">
-            <Label>{t("common:themeLabel")}</Label>
-            <RadioGroup
-              value={currentTheme}
-              onValueChange={handleThemeChange}
-              className="space-y-2 pt-1"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="light" id="theme-light" />
-                <Label
-                  htmlFor="theme-light"
-                  className="cursor-pointer font-normal"
-                >
-                  {t("common:themeLight")}
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="dark" id="theme-dark" />
-                <Label
-                  htmlFor="theme-dark"
-                  className="cursor-pointer font-normal"
-                >
-                  {t("common:themeDark")}
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="system" id="theme-system" />
-                <Label
-                  htmlFor="theme-system"
-                  className="cursor-pointer font-normal"
-                >
-                  {t("common:themeSystem")}
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Default Export Format Setting */}
-          <div className="space-y-2">
-            <Label htmlFor="default-export-format-select">
-              {t("common:defaultExportFormatLabel")}
-            </Label>
-            <Select
-              value={defaultExportFormat}
-              onValueChange={handleExportFormatChange}
-            >
-              <SelectTrigger
-                id="default-export-format-select"
-                className="w-full"
+          <TabsContent value="general" className="space-y-6">
+            {/* Language Setting */}
+            <div className="space-y-2">
+              <Label htmlFor="language-select">
+                {t("common:languageLabel")}
+              </Label>
+              <Select
+                value={i18n.language}
+                onValueChange={handleLanguageChange}
               >
-                <SelectValue
-                  placeholder={t("common:defaultExportFormatLabel")}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="txt">
-                  {t("results:exportFormatTXT")}
-                </SelectItem>
-                <SelectItem value="csv">
-                  {t("results:exportFormatCSV")}
-                </SelectItem>
-                <SelectItem value="json">
-                  {t("results:exportFormatJSON")}
-                </SelectItem>
-                <SelectItem value="md">
-                  {t("results:exportFormatMD")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Fuzzy Search Settings */}
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="text-sm font-medium">
-              {t("common:fuzzySearchSettingsTitle")}
-            </h3>
-
-            {/* Fuzzy Search in Boolean Queries Setting */}
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fuzzy-search-boolean-enabled"
-                  checked={fuzzySearchBooleanEnabled}
-                  onCheckedChange={handleFuzzySearchBooleanChange}
-                />
-                <Label
-                  htmlFor="fuzzy-search-boolean-enabled"
-                  className="cursor-pointer font-normal"
-                >
-                  {t("common:fuzzySearchBooleanEnabledLabel")}
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground pl-6">
-                {t("common:fuzzySearchBooleanDescription")}
-              </p>
+                <SelectTrigger id="language-select" className="w-full">
+                  <SelectValue placeholder={t("common:languageLabel")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {supportedLngs.map((lng) => (
+                    <SelectItem key={lng} value={lng}>
+                      {t(`common:lang_${lng}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Fuzzy Search in NEAR Function Setting */}
+            {/* Theme Setting */}
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fuzzy-search-near-enabled"
-                  checked={fuzzySearchNearEnabled}
-                  onCheckedChange={handleFuzzySearchNearChange}
-                />
-                <Label
-                  htmlFor="fuzzy-search-near-enabled"
-                  className="cursor-pointer font-normal"
-                >
-                  {t("common:fuzzySearchNearEnabledLabel")}
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground pl-6">
-                {t("common:fuzzySearchNearDescription")}
-              </p>
+              <Label>{t("common:themeLabel")}</Label>
+              <RadioGroup
+                value={currentTheme}
+                onValueChange={handleThemeChange}
+                className="space-y-2 pt-1"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="light" id="theme-light" />
+                  <Label
+                    htmlFor="theme-light"
+                    className="cursor-pointer font-normal"
+                  >
+                    {t("common:themeLight")}
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="dark" id="theme-dark" />
+                  <Label
+                    htmlFor="theme-dark"
+                    className="cursor-pointer font-normal"
+                  >
+                    {t("common:themeDark")}
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="system" id="theme-system" />
+                  <Label
+                    htmlFor="theme-system"
+                    className="cursor-pointer font-normal"
+                  >
+                    {t("common:themeSystem")}
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
 
-            {/* Whole Word Matching Setting */}
+            {/* Default Export Format Setting */}
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="whole-word-matching-enabled"
-                  checked={wholeWordMatchingEnabled}
-                  onCheckedChange={handleWholeWordMatchingChange}
-                />
-                <Label
-                  htmlFor="whole-word-matching-enabled"
-                  className="cursor-pointer font-normal"
+              <Label htmlFor="default-export-format-select">
+                {t("common:defaultExportFormatLabel")}
+              </Label>
+              <Select
+                value={defaultExportFormat}
+                onValueChange={handleExportFormatChange}
+              >
+                <SelectTrigger
+                  id="default-export-format-select"
+                  className="w-full"
                 >
-                  {t("common:wholeWordMatchingEnabledLabel")}
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground pl-6">
-                {t("common:wholeWordMatchingDescription")}
-              </p>
+                  <SelectValue
+                    placeholder={t("common:defaultExportFormatLabel")}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="txt">
+                    {t("results:exportFormatTXT")}
+                  </SelectItem>
+                  <SelectItem value="csv">
+                    {t("results:exportFormatCSV")}
+                  </SelectItem>
+                  <SelectItem value="json">
+                    {t("results:exportFormatJSON")}
+                  </SelectItem>
+                  <SelectItem value="md">
+                    {t("results:exportFormatMD")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="search" className="space-y-6">
+            {/* Fuzzy Search Settings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">
+                {t("common:fuzzySearchSettingsTitle")}
+              </h3>
+
+              {/* Fuzzy Search in Boolean Queries Setting */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="fuzzy-search-boolean-enabled"
+                    checked={fuzzySearchBooleanEnabled}
+                    onCheckedChange={handleFuzzySearchBooleanChange}
+                  />
+                  <Label
+                    htmlFor="fuzzy-search-boolean-enabled"
+                    className="cursor-pointer font-normal"
+                  >
+                    {t("common:fuzzySearchBooleanEnabledLabel")}
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground pl-6">
+                  {t("common:fuzzySearchBooleanDescription")}
+                </p>
+              </div>
+
+              {/* Fuzzy Search in NEAR Function Setting */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="fuzzy-search-near-enabled"
+                    checked={fuzzySearchNearEnabled}
+                    onCheckedChange={handleFuzzySearchNearChange}
+                  />
+                  <Label
+                    htmlFor="fuzzy-search-near-enabled"
+                    className="cursor-pointer font-normal"
+                  >
+                    {t("common:fuzzySearchNearEnabledLabel")}
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground pl-6">
+                  {t("common:fuzzySearchNearDescription")}
+                </p>
+              </div>
+
+              {/* Whole Word Matching Setting */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="whole-word-matching-enabled"
+                    checked={wholeWordMatchingEnabled}
+                    onCheckedChange={handleWholeWordMatchingChange}
+                  />
+                  <Label
+                    htmlFor="whole-word-matching-enabled"
+                    className="cursor-pointer font-normal"
+                  >
+                    {t("common:wholeWordMatchingEnabledLabel")}
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground pl-6">
+                  {t("common:wholeWordMatchingDescription")}
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cache">
+            <CacheSettings />
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <DialogClose asChild>
