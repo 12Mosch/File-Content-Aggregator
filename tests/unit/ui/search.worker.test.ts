@@ -5,10 +5,10 @@
  */
 
 // Mock the worker environment
-class MockWorker {
+class _MockWorker {
   onmessage: ((event: MessageEvent) => void) | null = null;
 
-  postMessage(data: any): void {
+  postMessage(data: unknown): void {
     if (this.onmessage) {
       this.onmessage(new MessageEvent("message", { data }));
     }
@@ -18,7 +18,7 @@ class MockWorker {
 // Mock the self global
 const mockSelf = {
   onmessage: null as ((event: MessageEvent) => void) | null,
-  postMessage: jest.fn((data: any) => {}),
+  postMessage: jest.fn((_data: unknown) => {}),
 };
 
 // Instead of mocking the worker file, we'll directly test the onmessage handler
@@ -50,7 +50,7 @@ jest.mock("../../../src/electron/utils/regexUtils.js", () => ({
 jest.mock("../../../src/ui/workers/search.worker.ts", () => {
   // Create a mock implementation of the worker
   const activeSearches = new Map<string, boolean>();
-  const searchCache = new Map<string, any>();
+  const _searchCache = new Map<string, unknown>();
 
   // Mock the worker's onmessage handler
   self.onmessage = (event) => {
@@ -60,7 +60,9 @@ jest.mock("../../../src/ui/workers/search.worker.ts", () => {
       case "search":
         activeSearches.set(id, true);
         try {
-          const { content, term, options } = payload;
+          const _content = payload.content;
+          const _term = payload.term;
+          const _options = payload.options;
           const result = {
             matches: [0, 10],
             matchCount: 2,
@@ -110,12 +112,12 @@ describe("Search Worker", () => {
     mockSelf.postMessage.mockClear();
 
     // Set up the global self object
-    global.self = mockSelf as any;
+    global.self = mockSelf as unknown as typeof self;
   });
 
   test("should handle search requests and return results", () => {
     // Mock the postMessage function to return a successful response
-    mockSelf.postMessage.mockImplementation((data) => {
+    mockSelf.postMessage.mockImplementation((_data) => {
       // This will be called by the worker
       return;
     });
@@ -160,11 +162,13 @@ describe("Search Worker", () => {
     mockSelf.postMessage.mockClear();
 
     // Mock findTermIndices to throw an error
-    require("../../../src/electron/utils/searchUtils.js").findTermIndices.mockImplementationOnce(
-      () => {
-        throw new Error("Test error");
-      }
+    // Get the mock from the jest.mock call above
+    const { findTermIndices } = jest.requireMock(
+      "../../../src/electron/utils/searchUtils.js"
     );
+    findTermIndices.mockImplementationOnce(() => {
+      throw new Error("Test error");
+    });
 
     // Trigger the search
     mockSelf.onmessage?.(

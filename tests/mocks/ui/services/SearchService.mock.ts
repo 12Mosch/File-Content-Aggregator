@@ -29,7 +29,7 @@ export class SearchService extends EventEmitter {
     return SearchService.instance;
   }
 
-  public async search(params: any): Promise<any> {
+  public async search(_params: unknown): Promise<Record<string, unknown>> {
     this.isSearching = true;
     this.cancellationToken = { cancelled: false };
 

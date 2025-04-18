@@ -92,7 +92,7 @@ export function evaluateSearchExpression(
           const flags = caseSensitive ? "" : "i";
           const regex = new RegExp(searchTerm, flags);
           return regex.test(content);
-        } catch (error) {
+        } catch (_error) {
           return false;
         }
       } else {

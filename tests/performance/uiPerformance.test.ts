@@ -60,13 +60,13 @@ class MockWorker {
     }, 10);
   }
 
-  postMessage(data: any) {
+  postMessage(_data: unknown) {
     // Mock implementation
   }
 }
 
 // Set global Worker
-global.Worker = MockWorker as any;
+global.Worker = MockWorker as unknown as typeof Worker;
 
 // Helper function to generate mock structured items
 function generateMockItems(count: number): StructuredItem[] {
@@ -88,7 +88,10 @@ function generateMockItems(count: number): StructuredItem[] {
 }
 
 // Helper function to save test results
-async function saveTestResults(testName: string, results: any): Promise<void> {
+async function saveTestResults(
+  testName: string,
+  results: unknown
+): Promise<void> {
   const resultsDir = path.join(__dirname, "../../performance-results");
 
   try {

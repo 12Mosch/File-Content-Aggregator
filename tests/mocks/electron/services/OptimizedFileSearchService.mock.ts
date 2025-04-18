@@ -10,7 +10,7 @@ import {
 // Mock implementation of the OptimizedFileSearchService
 export class OptimizedFileSearchService {
   // Mock search method
-  static async search(params: SearchParams): Promise<SearchResult> {
+  static async search(_params: SearchParams): Promise<SearchResult> {
     return {
       matches: [],
       totalFiles: 0,
@@ -20,7 +20,7 @@ export class OptimizedFileSearchService {
   }
 
   // Mock update settings method
-  static updateSettings(settings: any): void {
+  static updateSettings(_settings: unknown): void {
     // Do nothing in the mock
   }
 }

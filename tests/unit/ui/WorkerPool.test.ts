@@ -24,7 +24,7 @@ class MockWorker {
     }, 10);
   }
 
-  postMessage(data: any): void {
+  postMessage(data: unknown): void {
     // Simulate worker response
     setTimeout(() => {
       if (this.onmessage) {
@@ -72,7 +72,7 @@ class MockWorker {
 }
 
 // Mock global Worker
-global.Worker = MockWorker as any;
+global.Worker = MockWorker as unknown as typeof Worker;
 
 describe("WorkerPool", () => {
   let workerPool: WorkerPool;
@@ -121,12 +121,12 @@ describe("WorkerPool", () => {
     };
 
     // Replace the internal workers with our mock
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     workerPool.workers = [mockWorker];
 
     // Mock the execute method to return a rejecting promise
     const originalExecute = workerPool.execute;
-    workerPool.execute = jest.fn().mockImplementation((action, payload) => {
+    workerPool.execute = jest.fn().mockImplementation((_action, _payload) => {
       return Promise.reject(new Error("Worker pool terminated"));
     });
 

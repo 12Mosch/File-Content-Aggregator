@@ -11,14 +11,14 @@ interface ResultsDisplayProps {
     errorsEncountered: number;
   };
   viewMode: string;
-  itemDisplayStates: Record<string, any>;
+  itemDisplayStates: Record<string, unknown>;
   itemDisplayVersion: number;
   onToggleExpand: (filePath: string) => void;
   onShowFullContent: (filePath: string) => void;
   isFilterActive: boolean;
   filterTerm: string;
   filterCaseSensitive: boolean;
-  searchQueryStructure: any;
+  searchQueryStructure: unknown;
   searchQueryCaseSensitive: boolean;
 }
 

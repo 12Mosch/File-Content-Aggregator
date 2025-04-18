@@ -12,7 +12,7 @@ export interface CacheConfig {
 
 export class CacheManager {
   private static instance: CacheManager;
-  private caches: Map<string, LRUCache<any, any>> = new Map();
+  private caches: Map<string, LRUCache<unknown, unknown>> = new Map();
 
   /**
    * Get the singleton instance

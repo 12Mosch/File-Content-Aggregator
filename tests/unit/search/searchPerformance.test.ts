@@ -37,10 +37,10 @@ const evaluateSearchExpression = jest.fn<
     content,
     expression,
     mode,
-    isRegex,
-    fuzzyBooleanEnabled,
-    fuzzyNearEnabled,
-    caseSensitive
+    _isRegex,
+    _fuzzyBooleanEnabled,
+    _fuzzyNearEnabled,
+    _caseSensitive
   ) => {
     // Simple implementation for testing
     if (mode === "term") {

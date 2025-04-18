@@ -23,28 +23,28 @@ export class Logger {
   /**
    * Log a debug message
    */
-  public debug(message: string, metadata?: any): void {
+  public debug(_message: string, _metadata?: unknown): void {
     // No-op in tests
   }
 
   /**
    * Log an info message
    */
-  public info(message: string, metadata?: any): void {
+  public info(_message: string, _metadata?: unknown): void {
     // No-op in tests
   }
 
   /**
    * Log a warning message
    */
-  public warn(message: string, metadata?: any): void {
+  public warn(_message: string, _metadata?: unknown): void {
     // No-op in tests
   }
 
   /**
    * Log an error message
    */
-  public error(message: string, metadata?: any): void {
+  public error(_message: string, _metadata?: unknown): void {
     // No-op in tests
   }
 }

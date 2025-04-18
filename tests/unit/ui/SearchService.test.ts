@@ -14,7 +14,7 @@ jest.mock("../../../src/ui/services/WorkerPool", () => {
   return {
     WorkerPool: jest.fn().mockImplementation(() => {
       return {
-        execute: jest.fn().mockImplementation((action, payload) => {
+        execute: jest.fn().mockImplementation((action, _payload) => {
           if (action === "search") {
             return Promise.resolve({
               id: "test-id",

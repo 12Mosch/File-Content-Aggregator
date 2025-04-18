@@ -45,7 +45,7 @@ const { getBooleanSearchSettings: getFuzzySearchSettings } =
   booleanExpressionUtilsMock;
 
 // Create a mock for evaluateBooleanAst
-const evaluateBooleanAst = jest.fn((node, content, caseSensitive) => {
+const evaluateBooleanAst = jest.fn((node, _content, _caseSensitive) => {
   // Return true when fuzzy search is enabled, false otherwise
   if (node.type === "Literal") {
     return booleanExpressionUtilsMock.getBooleanSearchSettings()

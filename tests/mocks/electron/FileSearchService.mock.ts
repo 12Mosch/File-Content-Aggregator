@@ -2,14 +2,14 @@
  * Mock implementation of FileSearchService
  */
 
-import { SearchParams, SearchResult } from "../../../src/electron/types/search";
+import { SearchParams } from "../../../src/electron/types/search";
 
 // Mock search files function
 export async function searchFiles(
   params: SearchParams,
-  progressCallback?: (progress: any) => void,
+  progressCallback?: (progress: unknown) => void,
   checkCancellation?: () => boolean
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   // Check if the search should be cancelled
   if (checkCancellation && checkCancellation()) {
     if (progressCallback) {
@@ -65,7 +65,7 @@ export function updateSearchSettings(
 }
 
 // Mock update fuzzy search settings function
-export function updateFuzzySearchSettings(settings: any): void {
+export function updateFuzzySearchSettings(_settings: unknown): void {
   // Do nothing in the mock
 }
 

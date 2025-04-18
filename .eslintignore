@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist-*/
+release/
+build/
+.tmp/
+
+# Coverage reports
+coverage/
+
+# Scripts directory (contains utility scripts with console.log statements)
+scripts/
+
+# Test setup
+tests/setup.js

@@ -1,4 +1,4 @@
-import { performance } from "perf_hooks";
+import { performance as _performance } from "perf_hooks";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -25,7 +25,10 @@ function generateLargeContent(size: number): string {
 }
 
 // Helper function to save test results
-async function saveTestResults(testName: string, results: any): Promise<void> {
+async function saveTestResults(
+  testName: string,
+  results: unknown
+): Promise<void> {
   const resultsDir = path.join(__dirname, "../../performance-results");
 
   try {

@@ -34,7 +34,7 @@ export class MemoryMonitor {
    * Start monitoring memory usage
    * @param intervalMs Interval in milliseconds between checks (default: 30000 - 30 seconds)
    */
-  public startMonitoring(intervalMs = 30000): void {
+  public startMonitoring(_intervalMs = 30000): void {
     this.monitoringEnabled = true;
   }
 
@@ -99,11 +99,11 @@ export class MemoryMonitor {
    * @returns True if garbage collection was triggered, false otherwise
    */
   public forceGarbageCollection(): boolean {
-    if (typeof global !== "undefined" && (global as any).gc) {
+    if (typeof global !== "undefined" && (global as unknown).gc) {
       try {
-        (global as any).gc();
+        (global as unknown).gc();
         return true;
-      } catch (error) {
+      } catch (_error) {
         // Ignore errors
       }
     }

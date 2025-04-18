@@ -5,7 +5,7 @@ import os from "os";
 import { fileURLToPath } from "url";
 import {
   evaluateSearchExpression,
-  findTermIndices,
+  findTermIndices as _findTermIndices,
 } from "./mocks/fileSearchService.mock";
 
 // Get __dirname equivalent in ESM
@@ -38,7 +38,10 @@ function generateLargeContent(size: number): string {
 }
 
 // Helper function to save test results
-async function saveTestResults(testName: string, results: any): Promise<void> {
+async function saveTestResults(
+  testName: string,
+  results: unknown
+): Promise<void> {
   const resultsDir = path.join(__dirname, "../../performance-results");
 
   try {

@@ -11,22 +11,22 @@ import path from "path";
 // Mock the dependencies
 
 jest.mock("../../src/lib/services/Logger.js", () =>
-  require("../mocks/Logger.mock")
+  jest.requireActual("../mocks/Logger.mock")
 );
 
 jest.mock("../../src/lib/services/MemoryMonitor.js", () =>
-  require("../mocks/MemoryMonitor.mock")
+  jest.requireActual("../mocks/MemoryMonitor.mock")
 );
 
 jest.mock("../../src/lib/CacheManager.js", () =>
-  require("../mocks/CacheManager.mock")
+  jest.requireActual("../mocks/CacheManager.mock")
 );
 
 // Import after mocking
 import { FileProcessingService } from "../../src/electron/services/FileProcessingService";
 
 // Define test directory path directly
-const TEST_DIR = path.join(process.cwd(), "tests");
+const _TEST_DIR = path.join(process.cwd(), "tests");
 const TEMP_DIR = path.join(process.cwd(), "temp");
 
 // No need for __dirname equivalent since we're using process.cwd()

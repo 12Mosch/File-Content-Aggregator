@@ -17,8 +17,9 @@ import {
 const optimizedService = OptimizedFileSearchService.getInstance();
 
 // Global search settings for backward compatibility
-let fuzzySearchBooleanEnabled = true;
-let fuzzySearchNearEnabled = true;
+// These variables are used in updateSearchSettings but not directly referenced elsewhere
+let _fuzzySearchBooleanEnabled = true;
+let _fuzzySearchNearEnabled = true;
 let wholeWordMatchingEnabled = false;
 
 /**
@@ -33,8 +34,8 @@ export function updateSearchSettings(
   wholeWordEnabled: boolean
 ): void {
   // Update local variables for backward compatibility
-  fuzzySearchBooleanEnabled = booleanEnabled;
-  fuzzySearchNearEnabled = nearEnabled;
+  _fuzzySearchBooleanEnabled = booleanEnabled;
+  _fuzzySearchNearEnabled = nearEnabled;
   wholeWordMatchingEnabled = wholeWordEnabled;
 
   // Update the optimized service
