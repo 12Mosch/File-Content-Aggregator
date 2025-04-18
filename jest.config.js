@@ -39,6 +39,9 @@ const config = {
     "import.meta": {
       url: "file:///mock/url",
     },
+    // Add __filename and __dirname for ESM compatibility
+    __filename: "mock-filename",
+    __dirname: "mock-dirname",
   },
 };
 

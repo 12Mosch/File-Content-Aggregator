@@ -25,8 +25,10 @@ if (typeof window !== "undefined") {
 
 // Mock import.meta.url for tests
 global.URL = class URL {
-  constructor(url) {
+  constructor(url, base) {
     this.url = url;
+    this.href = url;
+    this.pathname = url;
   }
 };
 
@@ -46,6 +48,14 @@ global.require = jest.fn((module) => {
   }
   return {};
 });
+
+// Handle ESM-specific issues in performance tests
+if (typeof jest !== "undefined") {
+  jest.mock("url", () => ({
+    fileURLToPath: jest.fn((url) => "mocked-path"),
+    URL: global.URL,
+  }));
+}
 
 // Suppress console logs during tests
 beforeEach(() => {
