@@ -29,7 +29,8 @@
     "test:coverage": "jest --coverage",
     "test:performance": "node scripts/runPerformanceTests.js",
     "test:complexity": "node scripts/analyzeCodeComplexity.js src",
-    "test:compare": "node scripts/comparePerformance.js"
+    "test:compare": "node scripts/comparePerformance.js",
+    "test:metrics": "node scripts/countLinesOfCode.js"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.4",
