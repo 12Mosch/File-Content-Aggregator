@@ -86,7 +86,7 @@
     "@types/node": "^22.14.0",
     "@types/picomatch": "^4.0.0",
     "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
+    "@types/react-dom": "^19.1.2",
     "@types/react-window": "^1.8.8",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
