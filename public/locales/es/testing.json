@@ -1,0 +1,100 @@
+{
+  "coreSearch": {
+    "title": "Core Search Tests",
+    "description": "Tests for the core search functionality",
+    "searchTermParsing": {
+      "title": "Search Term Parsing Tests",
+      "description": "Tests for parsing different types of search terms",
+      "simpleTerm": "Simple term parsing",
+      "quotedTerm": "Quoted term parsing",
+      "regexPattern": "Regex pattern parsing",
+      "booleanExpression": "Boolean expression parsing",
+      "nearOperator": "NEAR operator parsing",
+      "invalidSyntax": "Invalid syntax handling"
+    },
+    "searchTermEvaluation": {
+      "title": "Search Term Evaluation Tests",
+      "description": "Tests for evaluating search terms against content",
+      "exactMatching": "Exact term matching",
+      "caseSensitivity": "Case sensitivity",
+      "regexMatching": "Regex pattern matching",
+      "booleanEvaluation": "Boolean expression evaluation",
+      "nearEvaluation": "NEAR operator evaluation",
+      "fuzzyMatching": "Fuzzy matching"
+    },
+    "fileFiltering": {
+      "title": "File Filtering Tests",
+      "description": "Tests for filtering files based on various criteria",
+      "extensionFiltering": "File extension filtering",
+      "pathFiltering": "File path inclusion/exclusion",
+      "directoryExclusion": "Directory exclusion",
+      "sizeFiltering": "File size filtering",
+      "dateFiltering": "File date filtering",
+      "depthFiltering": "Maximum depth filtering"
+    }
+  },
+  "integrationTests": {
+    "searchPipeline": {
+      "title": "Search Pipeline Integration Tests",
+      "description": "Tests for the end-to-end search process",
+      "endToEnd": {
+        "title": "End-to-end Search Process Tests",
+        "description": "Tests for the search process with different query types",
+        "simpleTerm": "Simple term query search",
+        "booleanQuery": "Boolean query search",
+        "regexQuery": "Regex query search",
+        "nearOperator": "NEAR operator search"
+      },
+      "cancellation": {
+        "title": "Search Cancellation Tests",
+        "description": "Tests for cancelling an ongoing search",
+        "beforeDiscovery": "Cancellation before file discovery",
+        "duringProcessing": "Cancellation during file processing"
+      },
+      "progress": {
+        "title": "Progress Reporting Tests",
+        "description": "Tests for progress reporting during search",
+        "updates": "Progress updates during search",
+        "fileCounts": "File count accuracy in progress reports"
+      },
+      "errorHandling": {
+        "title": "Error Handling Tests",
+        "description": "Tests for error handling during search",
+        "fileReadErrors": "File read error handling",
+        "pathErrors": "Path error handling",
+        "invalidRegex": "Invalid regex pattern handling"
+      }
+    },
+    "fuzzySearch": {
+      "title": "Fuzzy Search Integration Tests",
+      "description": "Tests for fuzzy search functionality in the search pipeline",
+      "contentQuery": {
+        "title": "Content Query Mode Tests",
+        "description": "Tests for fuzzy search in Content Query mode",
+        "misspellings": "Finding matches with slight misspellings",
+        "extraChars": "Finding matches with extra characters",
+        "disabled": "No fuzzy matches when disabled"
+      },
+      "booleanQuery": {
+        "title": "Boolean Query Mode Tests",
+        "description": "Tests for fuzzy search in Boolean Query mode",
+        "misspelledTerms": "Boolean expressions with misspelled terms"
+      },
+      "nearOperator": {
+        "title": "NEAR Operator Tests",
+        "description": "Tests for fuzzy search with NEAR operator",
+        "misspelledTerms": "NEAR expressions with misspelled terms"
+      },
+      "multipleTerms": {
+        "title": "Multiple Terms Tests",
+        "description": "Tests for fuzzy search with multiple terms",
+        "multipleMatches": "Multiple misspelled terms in a single query"
+      },
+      "performance": {
+        "title": "Performance Tests",
+        "description": "Tests for performance impact of fuzzy search",
+        "enabledVsDisabled": "Performance comparison with fuzzy search enabled vs disabled"
+      }
+    }
+  }
+}

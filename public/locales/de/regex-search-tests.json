@@ -1,0 +1,28 @@
+{
+  "regexSearchIntegration": {
+    "title": "Regex-Suchintegrationstests",
+    "description": "Tests für die Regex-Suchfunktion im Suchprozess",
+    "booleanExpressions": {
+      "title": "Tests für Regex in booleschen Abfragen",
+      "description": "Tests für Regex-Muster mit booleschen Operatoren",
+      "regexAnd": "Regex mit AND-Operator",
+      "regexOr": "Regex mit OR-Operator",
+      "regexNot": "Regex mit NOT-Operator",
+      "mixedTerms": "Gemischte Regex- und Klartextbegriffe"
+    },
+    "nearOperator": {
+      "title": "Tests für Regex mit NEAR-Operator",
+      "description": "Tests für Regex-Muster mit NEAR-Operator",
+      "bothRegex": "NEAR mit Regex-Mustern für beide Begriffe",
+      "mixedTerms": "NEAR mit gemischten Regex- und Klartextbegriffen",
+      "complexPatterns": "NEAR mit komplexen Regex-Mustern"
+    },
+    "performance": {
+      "title": "Regex-Leistungstests",
+      "description": "Tests für die Leistung mit komplexen Regex-Mustern",
+      "complexPatterns": "Leistungstest für komplexe Regex-Muster",
+      "largeContent": "Regex-Suche mit großem Inhalt",
+      "multipleMatches": "Regex-Suche mit vielen Treffern"
+    }
+  }
+}

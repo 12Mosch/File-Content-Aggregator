@@ -1,0 +1,31 @@
+{
+  "localizationTests": {
+    "title": "Localization Tests",
+    "description": "Tests for localization functionality",
+    "languageSettings": {
+      "title": "Language Settings Tests",
+      "description": "Tests for UI with different language settings",
+      "changeLanguage": "Change language settings",
+      "unsupportedLanguage": "Handle unsupported languages gracefully"
+    },
+    "nonLatinSearch": {
+      "title": "Non-Latin Character Search Tests",
+      "description": "Tests for search with non-Latin characters",
+      "japaneseExact": "Find exact matches with Japanese characters",
+      "arabicExact": "Find exact matches with Arabic characters",
+      "cyrillicExact": "Find exact matches with Cyrillic characters",
+      "japaneseFuzzy": "Find fuzzy matches with Japanese characters",
+      "arabicFuzzy": "Find fuzzy matches with Arabic characters",
+      "cyrillicFuzzy": "Find fuzzy matches with Cyrillic characters"
+    },
+    "nonLatinHighlighting": {
+      "title": "Non-Latin Character Highlighting Tests",
+      "description": "Tests for highlighting with non-Latin characters",
+      "japaneseHighlight": "Highlight Japanese characters in HTML content",
+      "arabicHighlight": "Highlight Arabic characters in HTML content",
+      "cyrillicHighlight": "Highlight Cyrillic characters in HTML content",
+      "mixedHighlight": "Highlight mixed Latin and non-Latin characters",
+      "emojiHighlight": "Highlight emoji characters in HTML content"
+    }
+  }
+}

@@ -5,6 +5,11 @@
   "saveDialogFilterAll": "Alle Dateien",
   "errorTitle": "Dialogfehler",
   "showError": "Fehler beim Anzeigen des Dialogs: {{detail}}",
+  "exportErrorTitle": "Exportfehler",
+  "exportGenerationError": "Fehler beim Generieren von {{format}}-Inhalt: {{detail}}",
+  "exportDialogTitle": "Suchergebnisse exportieren",
+  "exportDialogButtonLabel": "Exportieren",
+  "exportDialogFilterAll": "Alle Dateien",
   "directoryDialogTitle": "Verzeichnisse auswählen",
   "directoryDialogButtonLabel": "Auswählen",
   "directoryDialogError": "Fehler beim Anzeigen des Verzeichnisauswahldialogs: {{detail}}"

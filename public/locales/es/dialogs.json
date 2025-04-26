@@ -7,5 +7,10 @@
   "showError": "Error al mostrar el diálogo: {{detail}}",
   "directoryDialogTitle": "Seleccionar Directorios",
   "directoryDialogButtonLabel": "Seleccionar",
-  "directoryDialogError": "Error al mostrar el diálogo de selección de directorios: {{detail}}"
+  "directoryDialogError": "Error al mostrar el diálogo de selección de directorios: {{detail}}",
+  "exportErrorTitle": "Error de exportación",
+  "exportGenerationError": "Error al generar contenido {{format}}: {{detail}}",
+  "exportDialogTitle": "Exportar resultados de búsqueda",
+  "exportDialogButtonLabel": "Exportar",
+  "exportDialogFilterAll": "Todos los archivos"
 }
