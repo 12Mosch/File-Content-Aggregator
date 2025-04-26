@@ -30,3 +30,6 @@ todo.txt
 *.njsproj
 *.sln
 *.sw?
+
+# AI/IDE config
+.windsurfrules
