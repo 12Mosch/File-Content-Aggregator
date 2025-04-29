@@ -98,11 +98,11 @@ export class FuzzySearchService {
    * @param options Search options
    * @returns A FuzzySearchResult object
    */
-  public search(
+  public async search(
     content: string,
     term: string,
     options: FuzzySearchOptions = {}
-  ): FuzzySearchResult {
+  ): Promise<FuzzySearchResult> {
     const startTime = performance.now();
     this.metrics.totalSearches++;
 
@@ -172,8 +172,7 @@ export class FuzzySearchService {
 
     try {
       // Dynamically import Fuse.js
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Fuse = require("fuse.js");
+      const Fuse = (await import("fuse.js")).default;
 
       // Configure Fuse.js options with optimized settings
       const fuseOptions = {

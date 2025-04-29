@@ -213,7 +213,7 @@ export class FileProcessingService {
    */
   public async processFileInChunks(
     filePath: string,
-    matcher: (chunk: string) => boolean,
+    matcher: (chunk: string) => Promise<boolean> | boolean,
     options: FileProcessingOptions = {}
   ): Promise<StreamProcessResult> {
     const result: StreamProcessResult = {
@@ -254,7 +254,7 @@ export class FileProcessingService {
         }
 
         if (content) {
-          result.matched = matcher(content);
+          result.matched = await Promise.resolve(matcher(content));
           if (result.matched && !options.earlyTermination) {
             result.matchedChunks = [content];
           }
@@ -281,28 +281,27 @@ export class FileProcessingService {
         // Maximum buffer size to prevent memory issues
         const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
 
-        readStream.on("data", (chunk) => {
-          // Convert Buffer to string if needed
-          const chunkStr =
-            typeof chunk === "string" ? chunk : chunk.toString(encoding);
-
+        // Helper function to process chunks asynchronously
+        const processChunk = async (chunkStr: string) => {
           // Check if the chunk itself matches before adding to buffer
-          if (!matched && matcher(chunkStr)) {
-            matched = true;
+          if (!matched) {
+            const isMatch = await Promise.resolve(matcher(chunkStr));
+            if (isMatch) {
+              matched = true;
 
-            if (!options.earlyTermination && result.matchedChunks) {
-              result.matchedChunks.push(chunkStr);
-            } else if (options.earlyTermination) {
-              // Early termination if requested
-              readStream.destroy();
-              return;
+              if (!options.earlyTermination && result.matchedChunks) {
+                result.matchedChunks.push(chunkStr);
+              } else if (options.earlyTermination) {
+                // Early termination if requested
+                readStream.destroy();
+                return;
+              }
             }
           }
+        };
 
-          // Add to buffer and process lines
-          buffer += chunkStr;
-
-          // If buffer is getting too large, process and clear it
+        // Helper function to process buffer when it gets too large
+        const processBuffer = async () => {
           if (buffer.length > MAX_BUFFER_SIZE) {
             // Process complete lines
             const lastNewlineIndex = buffer.lastIndexOf("\n");
@@ -313,7 +312,8 @@ export class FileProcessingService {
 
               // Process the complete lines if we haven't found a match yet
               if (!matched && !options.earlyTermination) {
-                if (matcher(completeLines)) {
+                const isMatch = await Promise.resolve(matcher(completeLines));
+                if (isMatch) {
                   matched = true;
                   if (result.matchedChunks) {
                     result.matchedChunks.push(completeLines);
@@ -322,12 +322,29 @@ export class FileProcessingService {
               }
             }
           }
+        };
+
+        // Process data chunks
+        readStream.on("data", (chunk) => {
+          // Convert Buffer to string if needed
+          const chunkStr =
+            typeof chunk === "string" ? chunk : chunk.toString(encoding);
+
+          // Process the chunk asynchronously
+          void (async () => {
+            await processChunk(chunkStr);
+            // Add to buffer and process lines
+            buffer += chunkStr;
+
+            // Process buffer if needed
+            await processBuffer();
+          })();
         });
 
-        readStream.on("end", () => {
+        readStream.on("end", async () => {
           // Check remaining buffer
           if (!matched && buffer.length > 0) {
-            matched = matcher(buffer);
+            matched = await Promise.resolve(matcher(buffer));
 
             if (matched && !options.earlyTermination && result.matchedChunks) {
               result.matchedChunks.push(buffer);

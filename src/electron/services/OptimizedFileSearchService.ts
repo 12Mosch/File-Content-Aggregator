@@ -246,7 +246,9 @@ export class OptimizedFileSearchService {
       });
 
       // Prepare content matcher if a search term is provided
-      let contentMatcher: ((content: string) => boolean) | null = null;
+      let contentMatcher:
+        | ((content: string) => Promise<boolean> | boolean)
+        | null = null;
       let parseOrRegexError = false;
       let parseErrorMessage = "Unknown parsing error";
 

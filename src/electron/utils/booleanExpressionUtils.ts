@@ -5,9 +5,7 @@
  */
 
 import type * as Jsep from "jsep";
-import module from "node:module";
-const require = module.createRequire(import.meta.url);
-const jsep = require("jsep") as typeof import("jsep");
+import jsep from "jsep";
 
 // Import services
 import {
@@ -47,23 +45,23 @@ export function updateBooleanSearchSettings(
  * @param caseSensitive Whether to use case-sensitive matching
  * @returns Whether the content matches the boolean expression
  */
-export function evaluateBooleanAst(
+export async function evaluateBooleanAst(
   node: Jsep.Expression,
   content: string,
   caseSensitive = false
-): boolean {
+): Promise<boolean> {
   try {
     const wordBoundaryService = WordBoundaryService.getInstance();
 
     switch (node.type) {
       case "BinaryExpression": {
         const binaryNode = node as Jsep.BinaryExpression;
-        const left = evaluateBooleanAst(
+        const left = await evaluateBooleanAst(
           binaryNode.left,
           content,
           caseSensitive
         );
-        const right = evaluateBooleanAst(
+        const right = await evaluateBooleanAst(
           binaryNode.right,
           content,
           caseSensitive
@@ -84,11 +82,11 @@ export function evaluateBooleanAst(
       case "UnaryExpression": {
         const unaryNode = node as Jsep.UnaryExpression;
         if (unaryNode.operator === "!" || unaryNode.operator === "NOT") {
-          return !evaluateBooleanAst(
+          return !(await evaluateBooleanAst(
             unaryNode.argument,
             content,
             caseSensitive
-          );
+          ));
         }
         console.warn(`Unsupported unary operator: ${unaryNode.operator}`);
         return false;
@@ -215,10 +213,14 @@ export function evaluateBooleanAst(
             // Use the optimized FuzzySearchService
             const fuzzySearchService = FuzzySearchService.getInstance();
 
-            const fuzzyResult = fuzzySearchService.search(content, searchTerm, {
-              isCaseSensitive: caseSensitive,
-              useWholeWordMatching: wholeWordMatchingEnabled,
-            });
+            const fuzzyResult = await fuzzySearchService.search(
+              content,
+              searchTerm,
+              {
+                isCaseSensitive: caseSensitive,
+                useWholeWordMatching: wholeWordMatchingEnabled,
+              }
+            );
 
             found = fuzzyResult.isMatch;
             console.log(
@@ -236,7 +238,7 @@ export function evaluateBooleanAst(
         const compoundNode = node as Jsep.Compound;
         let result = false;
         for (const child of compoundNode.body) {
-          result = evaluateBooleanAst(child, content, caseSensitive);
+          result = await evaluateBooleanAst(child, content, caseSensitive);
         }
         return result;
       }

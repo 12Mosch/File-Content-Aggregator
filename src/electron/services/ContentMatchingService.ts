@@ -14,9 +14,7 @@ import { evaluateBooleanAst } from "../utils/booleanExpressionUtils.js";
 import { createSafeRegex } from "../utils/regexUtils.js";
 
 // Import jsep for boolean expression parsing
-import module from "node:module";
-const require = module.createRequire(import.meta.url);
-const jsep = require("jsep");
+import jsep from "jsep";
 
 // Define interfaces for the service
 export type ContentSearchMode = "term" | "regex" | "boolean";
@@ -74,7 +72,10 @@ export class ContentMatchingService {
     searchTerm: string,
     searchMode: ContentSearchMode,
     options: ContentMatchingOptions = {}
-  ): { matcher: ((content: string) => boolean) | null; error: string | null } {
+  ): {
+    matcher: ((content: string) => Promise<boolean>) | null;
+    error: string | null;
+  } {
     const {
       caseSensitive = false,
       wholeWordMatching = false,
@@ -96,7 +97,10 @@ export class ContentMatchingService {
 
           if (regex) {
             return {
-              matcher: (content) => regex.test(content),
+              matcher: async (content) => {
+                await Promise.resolve();
+                return regex.test(content);
+              },
               error: null,
             };
           } else {
@@ -114,7 +118,7 @@ export class ContentMatchingService {
 
             // Create matcher function that evaluates the AST
             return {
-              matcher: (content) => {
+              matcher: async (content) => {
                 // Clear cache for this specific content before evaluation
                 this.wordBoundaryService.removeFromCache(content);
 
@@ -122,8 +126,11 @@ export class ContentMatchingService {
                 // We don't need to set them here
 
                 // Evaluate the AST
-
-                return evaluateBooleanAst(parsedAst, content, caseSensitive);
+                return await evaluateBooleanAst(
+                  parsedAst,
+                  content,
+                  caseSensitive
+                );
               },
               error: null,
             };
@@ -162,18 +169,27 @@ export class ContentMatchingService {
             );
 
             return {
-              matcher: (content) => wordBoundaryRegex.test(content),
+              matcher: async (content) => {
+                await Promise.resolve();
+                return wordBoundaryRegex.test(content);
+              },
               error: null,
             };
           } else if (caseSensitive) {
             return {
-              matcher: (content) => content.includes(term),
+              matcher: async (content) => {
+                await Promise.resolve();
+                return content.includes(term);
+              },
               error: null,
             };
           } else {
             const termLower = term.toLowerCase();
             return {
-              matcher: (content) => content.toLowerCase().includes(termLower),
+              matcher: async (content) => {
+                await Promise.resolve();
+                return content.toLowerCase().includes(termLower);
+              },
               error: null,
             };
           }
@@ -195,12 +211,12 @@ export class ContentMatchingService {
    * @param options Matching options
    * @returns The match result
    */
-  public matchContent(
+  public async matchContent(
     content: string,
     searchTerm: string,
     searchMode: ContentSearchMode,
     options: ContentMatchingOptions = {}
-  ): MatchResult {
+  ): Promise<MatchResult> {
     // Check if content is too large
     const maxContentSize = options.maxContentSize || Number.MAX_SAFE_INTEGER;
     if (content.length > maxContentSize) {
@@ -233,7 +249,7 @@ export class ContentMatchingService {
 
     try {
       // Match content
-      const matched = matcher(content);
+      const matched = await matcher(content);
       return { matched };
     } catch (matchError) {
       return {
