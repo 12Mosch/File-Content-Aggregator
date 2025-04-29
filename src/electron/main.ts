@@ -21,7 +21,7 @@ import type PLimit from "p-limit";
 import { getProfiler } from "../lib/utils/Profiler.js";
 
 // Import from optimized file search service
-import { searchFiles, updateSearchSettings } from "./fileSearchService.js";
+import { searchFiles, updateSearchSettings } from "./FileSearchService.js";
 
 // Import types from types.ts
 import {
