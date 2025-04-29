@@ -62,7 +62,7 @@
     "i18next-fs-backend": "^2.6.0",
     "i18next-http-backend": "^3.0.2",
     "jsep": "^1.4.0",
-    "lucide-react": "^0.487.0",
+    "lucide-react": "^0.503.0",
     "mime": "^4.0.3",
     "p-limit": "^6.2.0",
     "picomatch": "^4.0.2",
