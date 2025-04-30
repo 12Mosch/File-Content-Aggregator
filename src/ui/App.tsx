@@ -77,6 +77,9 @@ function App() {
   // State for filter case sensitivity
   const [resultsFilterCaseSensitive, setResultsFilterCaseSensitive] =
     useState<boolean>(false);
+  // State for whole word matching
+  const [wholeWordMatchingEnabled, setWholeWordMatchingEnabled] =
+    useState<boolean>(false);
   // Debounced filter term to pass down to ResultsDisplay with optimized debouncing
   const debouncedFilterTerm = useDebounce(
     resultsFilterTerm,
@@ -836,6 +839,24 @@ function App() {
                   {t("results:filterCaseSensitiveLabel")}
                 </Label>
               </div>
+              <div className="flex items-center space-x-2 shrink-0">
+                <Checkbox
+                  id="wholeWordMatching"
+                  checked={wholeWordMatchingEnabled}
+                  onCheckedChange={(checked) =>
+                    setWholeWordMatchingEnabled(Boolean(checked))
+                  }
+                />
+                <Label
+                  htmlFor="wholeWordMatching"
+                  className="text-sm text-muted-foreground cursor-pointer"
+                >
+                  {t(
+                    "results:wholeWordMatchingLabel",
+                    "Match whole words only"
+                  )}
+                </Label>
+              </div>
             </div>
 
             {/* Pass original results, debounced filter term, query structure, and case sensitivity */}
@@ -853,6 +874,7 @@ function App() {
               searchQueryStructure={lastSearchQueryStructure} // Pass the query structure for content highlighting
               searchQueryCaseSensitive={lastSearchQueryCaseSensitive} // Pass the query case sensitivity
               searchHighlightTerms={searchHighlightTerms} // Pass the direct search terms for highlighting
+              wholeWordMatching={wholeWordMatchingEnabled} // Pass whole word matching setting
             />
           </section>
         )}

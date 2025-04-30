@@ -11,25 +11,19 @@
  * @param html The HTML string (typically from highlight.js)
  * @param terms Array of search terms (strings or RegExp objects)
  * @param caseSensitive Whether the search should be case-sensitive
+ * @param wholeWordMatching Whether to match whole words only
  * @returns New HTML string with search terms highlighted
  */
 export function highlightTermsInHtml(
   html: string,
   terms: (string | RegExp)[],
-  caseSensitive: boolean
+  caseSensitive: boolean,
+  wholeWordMatching: boolean = false
 ): string {
   // If empty HTML, return the original HTML
   if (!html) {
     return html;
   }
-
-  // Debug: Log the terms being used for highlighting
-  console.log(
-    "Highlighting HTML with terms:",
-    terms,
-    "caseSensitive:",
-    caseSensitive
-  );
 
   // Ensure terms is an array and filter out empty terms
   const termsArray = Array.isArray(terms) ? terms : [];
@@ -41,19 +35,11 @@ export function highlightTermsInHtml(
     return term instanceof RegExp;
   });
 
-  // Debug: Log the valid terms after filtering
-  console.log(
-    "highlightTermsInHtml - Valid terms after filtering:",
-    validTerms.map((t) => (typeof t === "string" ? t : t.toString()))
-  );
-
   // Process the valid terms for highlighting
   if (!validTerms.length) {
     // No valid terms to highlight, just return the original HTML
     return html;
   }
-
-  console.log("Valid terms for highlighting:", validTerms);
 
   // Create a temporary DOM element to parse the HTML
   const tempDiv = document.createElement("div");
@@ -66,10 +52,6 @@ export function highlightTermsInHtml(
 
   // Process all text nodes in the DOM
   const walkTextNodes = (node: Node) => {
-    // Debug: Log the node type and content
-    console.log(
-      `Processing node: type=${node.nodeType}, content=${node.nodeType === Node.TEXT_NODE ? node.textContent : "non-text node"}`
-    );
     if (node.nodeType === Node.TEXT_NODE && node.textContent) {
       const textContent = node.textContent;
       let modified = false;
@@ -88,21 +70,31 @@ export function highlightTermsInHtml(
             const termMatch = searchTerm.match(/^Term:\s*(.+)$/i);
             if (termMatch && termMatch[1]) {
               searchTerm = termMatch[1].trim();
-              // Term extracted successfully
             }
 
             // Check for quoted strings like "database"
             const quotedMatch = searchTerm.match(/^"(.+)"$/);
             if (quotedMatch && quotedMatch[1]) {
               searchTerm = quotedMatch[1].trim();
-              // Quoted term extracted successfully
             }
-            regex = new RegExp(
-              escapeRegExp(searchTerm),
-              caseSensitive ? "g" : "gi"
-            );
+
+            // Apply whole word matching if enabled
+            if (wholeWordMatching) {
+              // Use word boundary markers for whole word matching
+              regex = new RegExp(
+                `\\b${escapeRegExp(searchTerm)}\\b`,
+                caseSensitive ? "g" : "gi"
+              );
+            } else {
+              regex = new RegExp(
+                escapeRegExp(searchTerm),
+                caseSensitive ? "g" : "gi"
+              );
+            }
           } else {
             // Use the provided RegExp object, ensure it has the global flag
+            // For RegExp objects, we don't modify them for whole word matching
+            // as they may already have their own boundary conditions
             regex = new RegExp(
               term.source,
               term.flags.includes("g") ? term.flags : term.flags + "g"
@@ -119,7 +111,6 @@ export function highlightTermsInHtml(
           const currentFragments: (string | Node)[] = [];
 
           while ((match = regex.exec(currentText)) !== null) {
-            console.log(`Found match: '${match[0]}' at index ${match.index}`);
             // Add text before the match
             if (match.index > currentLastIndex) {
               currentFragments.push(
@@ -138,13 +129,16 @@ export function highlightTermsInHtml(
             span.style.padding = "0 2px";
             span.style.borderRadius = "2px";
             span.style.fontWeight = "bold";
+            span.style.boxShadow = "0 0 2px rgba(138, 43, 226, 0.5)"; // Subtle glow effect
+            span.style.transition = "all 0.2s ease"; // Smooth transition for hover effects
 
             // Add title attribute for tooltip
-            let tooltipText =
-              "Search terms from your query are highlighted in violet";
+            let tooltipText = "Search term match";
+            if (wholeWordMatching) {
+              tooltipText += " (whole word matching enabled)";
+            }
             if (typeof term === "string" && term.match(/^"(.+)"$/)) {
-              tooltipText +=
-                ' - Quoted terms like "database" are automatically highlighted without quotes';
+              tooltipText += " - Quoted term highlighted without quotes";
             }
             span.setAttribute("title", tooltipText);
             currentFragments.push(span);
@@ -196,24 +190,17 @@ export function highlightTermsInHtml(
 
       // If we modified the text, replace the text node with our fragments
       if (modified) {
-        console.log("Node was modified, replacing with fragments", fragments);
         const parent = node.parentNode;
         if (parent) {
           fragments.forEach((fragment) => {
             if (typeof fragment === "string") {
               parent.insertBefore(document.createTextNode(fragment), node);
             } else {
-              console.log(
-                "Inserting span with class:",
-                (fragment as Element).className
-              );
               parent.insertBefore(fragment, node);
             }
           });
           parent.removeChild(node);
         }
-      } else {
-        console.log("No modifications made to this text node");
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       // Recursively process child nodes
@@ -224,15 +211,6 @@ export function highlightTermsInHtml(
   // Process all text nodes in the DOM
   Array.from(tempDiv.childNodes).forEach(walkTextNodes);
 
-  // Debug: Log the modified HTML
-  const modifiedHtml = tempDiv.innerHTML;
-  console.log(
-    "Modified HTML with highlighted terms:",
-    modifiedHtml.includes("search-term-match")
-      ? "Contains search-term-match class"
-      : "No search-term-match class found"
-  );
-
   // Return the modified HTML
-  return modifiedHtml;
+  return tempDiv.innerHTML;
 }

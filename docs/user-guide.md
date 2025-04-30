@@ -197,6 +197,7 @@ Above the results display, you'll see a summary:
 The results are displayed in a Tree View:
 
 - Lists _all_ files that were processed (passed initial path/extension/metadata filters).
+- Each file is displayed with an appropriate file type icon based on its extension, making it easier to visually scan through different file types.
 - Click the arrow (`▶`/`▼`) or the file path to expand/collapse an item and view its content preview (if available).
 - **Matched Files:** Show a preview of their content (syntax highlighted where possible). **The specific search terms from your Content Query that caused the match will be highlighted in violet** within the preview, making it easy to locate relevant parts of matched files. When using multiple search terms, all terms will be highlighted. Content is loaded on demand when you expand the item. If content is long, a "Show More" button appears.
 - **Non-Matching Files:** Show only the file path (content preview is hidden).

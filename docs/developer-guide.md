@@ -115,6 +115,8 @@ file-content-aggregator/
 │   │   ├── HistoryModal.tsx  # History UI
 │   │   ├── ThemeManager.tsx  # Theme application logic and listener component
 │   │   ├── highlight.worker.ts # Web worker for syntax highlighting
+│   │   ├── utils/            # UI utility functions
+│   │   │   ├── fileTypeIcons.tsx # File type icon mapping utility
 │   │   ├── i18n.ts           # i18next configuration for UI
 │   │   ├── index.css         # Main CSS entry point (Tailwind directives)
 │   │   ├── queryBuilderUtils.ts # Utilities for query builder (ID gen, type guard)
@@ -388,6 +390,7 @@ function addToSum(value: number): void {
 - **TypeScript:** Provides static typing for improved code quality and maintainability.
 - **Tailwind CSS:** Utility-first CSS framework for styling.
 - **shadcn/ui:** Re-usable UI components built on Radix UI and Tailwind CSS. Components like Accordion, Dialog, Popover, and Select are used throughout the application to create a consistent and accessible UI.
+- **Lucide React:** Icon library used for UI elements, including file type icons in the results display.
 - **i18next / react-i18next:** Framework for internationalization (handling multiple languages). Locales stored in `public/locales`.
 - **react-window / react-virtualized-auto-sizer:** Libraries for efficiently rendering long lists (search results) by only rendering visible items (virtualization).
 - **fast-glob:** Efficient library for finding files matching glob patterns. Used for initial file discovery.

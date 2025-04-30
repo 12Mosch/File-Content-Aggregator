@@ -428,40 +428,34 @@ void app.whenReady().then(async () => {
   });
 });
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    console.log("All windows closed, quitting application...");
-    app.quit();
+  // Always quit the application when all windows are closed, even on macOS
+  // This is a change from the Electron default behavior where apps keep running on macOS
+  console.log("All windows closed, quitting application...");
+  app.quit();
 
-    // Force exit on Windows to ensure all processes terminate
-    if (process.platform === "win32") {
-      console.log("Windows platform detected, forcing process exit...");
-      // Use a more aggressive approach to terminate all processes
-      setTimeout(() => {
-        console.log("Forcing immediate exit...");
-        process.exit(0);
-      }, 100); // Small delay to allow logs to be written
-    }
-  }
+  // Force exit after a short delay to ensure all resources are cleaned up
+  // This is particularly important on Windows where background processes might persist
+  setTimeout(() => {
+    console.log("Forcing immediate exit to ensure complete termination...");
+    process.exit(0);
+  }, 200); // Slightly longer delay to allow for cleanup operations
 });
 
-// Force quit the application when running in development mode
+// Ensure clean termination in development mode
 if (isDev()) {
   app.on("before-quit", () => {
-    console.log("Application is quitting, terminating process...");
-    // Use a more aggressive approach to terminate all processes
-    setTimeout(() => {
-      console.log("Forcing immediate exit in development mode...");
-      process.exit(0); // Force exit the process
-    }, 100); // Small delay to allow logs to be written
+    console.log("Application is quitting, preparing to terminate process...");
+    // Clean up any development-specific resources here if needed
   });
 
-  // Also handle the 'will-quit' event in development mode
+  // Handle the 'will-quit' event in development mode
   app.on("will-quit", () => {
     console.log("Application will quit, ensuring all processes terminate...");
+    // Force exit with a short delay to ensure logs are written
     setTimeout(() => {
-      console.log("Forcing exit from will-quit event...");
+      console.log("Forcing exit from will-quit event in development mode...");
       process.exit(0);
-    }, 100);
+    }, 200);
   });
 }
 
@@ -1840,7 +1834,8 @@ ipcMain.handle(
 
     console.log(`IPC: Received request to show file location: ${filePath}`);
     try {
-      shell.showItemInFolder(filePath);
+      // On Windows, use showItemInFolder which highlights the file in Explorer
+      await shell.showItemInFolder(filePath);
       return { success: true };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

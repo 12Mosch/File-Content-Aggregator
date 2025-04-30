@@ -31,6 +31,7 @@ import type {
 } from "./vite-env.d";
 import { extractSearchTermsFromQuery } from "./queryBuilderUtils"; // Import the new utility
 import { highlightTermsInHtml } from "./highlightHtmlUtils"; // Import the new HTML highlighting utility
+import { getFileTypeIcon } from "./utils/fileTypeIcons"; // Import file type icons utility
 import {
   Copy,
   AlertTriangle,
@@ -149,6 +150,7 @@ interface ResultsDisplayProps {
   searchQueryStructure: QueryStructure | null; // Added: The query structure used for the search
   searchQueryCaseSensitive: boolean; // Added: Case sensitivity used for the search query
   searchHighlightTerms?: string[]; // Added: Direct search terms for highlighting
+  wholeWordMatching?: boolean; // Added: Whether to match whole words only
 }
 
 // --- Row Component for Tree View (Refactored with Tailwind) ---
@@ -162,6 +164,7 @@ interface TreeRowData {
   pathFilterCaseSensitive: boolean; // Renamed: Case sensitivity for path highlighting
   contentHighlightTerms: (string | RegExp)[]; // Added: Terms for highlighting content
   contentHighlightCaseSensitive: boolean; // Added: Case sensitivity for content highlighting
+  wholeWordMatching: boolean; // Added: Whether to match whole words only
   highlightCache: HighlightCache;
   requestHighlighting: (
     filePath: string,
@@ -258,6 +261,7 @@ const TreeRow = React.memo(
       pathFilterCaseSensitive, // Use renamed prop
       contentHighlightTerms, // Use new prop for content highlighting
       contentHighlightCaseSensitive, // Use new prop for content highlighting case sensitivity
+      wholeWordMatching, // Use whole word matching setting
       highlightCache,
       requestHighlighting,
       onCopyContent,
@@ -482,6 +486,10 @@ const TreeRow = React.memo(
           <span className="inline-block w-6 text-xs mr-1 text-center text-muted-foreground shrink-0">
             {isExpanded ? "▼" : "▶"}
           </span>
+          {/* File type icon */}
+          <span className="inline-flex items-center justify-center w-6 mr-1 text-muted-foreground shrink-0">
+            {getFileTypeIcon(item.filePath)}
+          </span>
           <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
             {/* Use HighlightMatches for the file path with pathFilterTerm */}
             <HighlightMatches
@@ -490,6 +498,7 @@ const TreeRow = React.memo(
                 pathFilterTerm && pathFilterTerm.trim() ? [pathFilterTerm] : []
               } // Only pass non-empty path filter term
               caseSensitive={pathFilterCaseSensitive} // Pass case sensitivity for path
+              wholeWordMatching={false} // Don't use whole word matching for path filtering
             />
           </span>
           {/* Only show copy button if content is loadable (no initial read error) */}
@@ -546,6 +555,7 @@ const TreeRow = React.memo(
                   })}
                   terms={[pathFilterTerm]} // Use path filter term for error message
                   caseSensitive={pathFilterCaseSensitive} // Use path filter case sensitivity
+                  wholeWordMatching={false} // Don't use whole word matching for error messages
                 />
               </span>
             ) : // Handle content loading states
@@ -579,6 +589,7 @@ const TreeRow = React.memo(
                             : []
                         } // Use content terms if available
                         caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                        wholeWordMatching={wholeWordMatching} // Use whole word matching setting
                       />
                     </code>
                   ) : highlightInfo.status === "pending" ? (
@@ -599,6 +610,7 @@ const TreeRow = React.memo(
                               : []
                           } // Use content terms if available
                           caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                          wholeWordMatching={wholeWordMatching} // Use whole word matching setting
                         />
                       </code>
                     </>
@@ -614,7 +626,8 @@ const TreeRow = React.memo(
                             contentHighlightTerms.length > 0
                             ? contentHighlightTerms
                             : [],
-                          contentHighlightCaseSensitive
+                          contentHighlightCaseSensitive,
+                          wholeWordMatching
                         ),
                       }}
                     />
@@ -630,6 +643,7 @@ const TreeRow = React.memo(
                             : []
                         } // Use content terms if available
                         caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
+                        wholeWordMatching={wholeWordMatching} // Use whole word matching setting
                       />
                     </code>
                   )}
@@ -765,6 +779,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   searchQueryStructure, // Added prop
   searchQueryCaseSensitive, // Added prop
   searchHighlightTerms = [], // Direct search terms for highlighting
+  wholeWordMatching = false, // Default to false if not provided
 }) => {
   const { t } = useTranslation(["results", "errors"]);
   const [copyStatus, setCopyStatus] = useState<string>("");
@@ -1079,6 +1094,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       pathFilterCaseSensitive: filterCaseSensitive, // Pass case sensitivity for path
       contentHighlightTerms: contentHighlightTerms, // Pass extracted terms for content
       contentHighlightCaseSensitive: searchQueryCaseSensitive, // Pass query case sensitivity for content
+      wholeWordMatching: wholeWordMatching, // Pass whole word matching setting
       highlightCache: highlightCacheRef.current,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
@@ -1098,6 +1114,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     filterCaseSensitive, // Keep for path highlighting
     contentHighlightTerms, // Depend on extracted content terms
     searchQueryCaseSensitive, // Depend on query case sensitivity
+    wholeWordMatching, // Depend on whole word matching setting
     requestHighlighting,
     handleCopyFileContent,
     requestContent,

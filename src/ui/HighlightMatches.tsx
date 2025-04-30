@@ -5,6 +5,7 @@ interface HighlightMatchesProps {
   text: string | null | undefined;
   terms: (string | RegExp)[];
   caseSensitive: boolean; // Case sensitivity for simple string terms
+  wholeWordMatching?: boolean; // Whether to match whole words only
 }
 
 // Helper function to escape special characters for RegExp (remains the same)
@@ -22,6 +23,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
   text,
   terms,
   caseSensitive,
+  wholeWordMatching = false,
 }) => {
   const { t } = useTranslation();
 
@@ -71,10 +73,20 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
           if (searchTerm.length === 0) {
             return;
           }
-          regex = new RegExp(
-            escapeRegExp(searchTerm),
-            caseSensitive ? "g" : "gi"
-          );
+
+          // Apply whole word matching if enabled
+          if (wholeWordMatching) {
+            // Use word boundary markers for whole word matching
+            regex = new RegExp(
+              `\\b${escapeRegExp(searchTerm)}\\b`,
+              caseSensitive ? "g" : "gi"
+            );
+          } else {
+            regex = new RegExp(
+              escapeRegExp(searchTerm),
+              caseSensitive ? "g" : "gi"
+            );
+          }
         } else {
           // Use the provided RegExp object, ensure it has the global flag
           regex = new RegExp(
@@ -137,6 +149,14 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
       if (match.start >= lastIndex) {
         // Create tooltip text based on the match type
         let tooltipText = t("results:highlightingTerms");
+        if (wholeWordMatching) {
+          tooltipText +=
+            " - " +
+            t(
+              "results:wholeWordMatchingEnabled",
+              "Whole word matching enabled"
+            );
+        }
         if (typeof match.term === "string" && match.term.match(/^"(.+)"$/)) {
           tooltipText += " - " + t("results:highlightingQuotedTerms");
         }
@@ -152,6 +172,10 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
               color: "white",
               opacity: 0.9,
               fontWeight: "bold",
+              padding: "0 2px",
+              borderRadius: "2px",
+              boxShadow: "0 0 2px rgba(138, 43, 226, 0.5)", // Subtle glow effect
+              transition: "all 0.2s ease", // Smooth transition for hover effects
             }}
           >
             {text.substring(match.start, match.end)}
