@@ -5,11 +5,9 @@
  * It can be used to compare performance data from different runs and identify bottlenecks.
  */
 
-/* eslint-disable no-undef */
-
-const fs = require("fs");
-const path = require("path");
-const { program } = require("commander");
+import fs from "fs";
+import path from "path";
+import { program } from "commander";
 
 // Define the command-line interface
 program
