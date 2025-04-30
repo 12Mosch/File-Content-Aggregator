@@ -1129,9 +1129,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
       const displayState = itemDisplayStates.get(item.filePath);
       const isExpanded = displayState?.expanded ?? false;
-      const showFull = displayState?.showFull ?? false;
 
+      // Always return just the header height for collapsed items
       if (!isExpanded) return TREE_ITEM_HEADER_HEIGHT;
+
+      const showFull = displayState?.showFull ?? false;
 
       // Calculate size based on cached content or loading/error state
       const contentInfo =
@@ -1246,11 +1248,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   // Effect to reset list scroll/size when view mode, data, filter, or sort changes
   useEffect(() => {
     if (treeListRef.current) {
+      // Force a complete recalculation of all item sizes
       treeListRef.current.resetAfterIndex(0, true);
     }
   }, [
     viewMode,
-    itemDisplayVersion,
+    itemDisplayVersion, // This changes when itemDisplayStates changes
     highlightUpdateCounter,
     contentUpdateCounter,
     isFilterActive,
