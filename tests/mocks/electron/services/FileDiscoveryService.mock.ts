@@ -42,7 +42,7 @@ export interface ProgressCallback {
   }): void;
 }
 
-export type CancellationChecker = () => boolean;
+export type CancellationChecker = (() => boolean) | jest.Mock;
 
 // Mock FileDiscoveryService class
 export class FileDiscoveryService {

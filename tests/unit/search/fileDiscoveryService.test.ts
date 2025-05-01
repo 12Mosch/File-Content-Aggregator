@@ -13,14 +13,13 @@ import {
 import {
   FileDiscoveryService,
   type FileDiscoveryOptions,
-  type ProgressCallback,
   type PathErrorDetail,
 } from "../../../tests/mocks/electron/services/FileDiscoveryService.mock";
 
 describe("FileDiscoveryService", () => {
   // Setup variables
   let fileDiscoveryService: FileDiscoveryService;
-  let mockProgressCallback: jest.Mock<ProgressCallback>;
+  let mockProgressCallback: jest.Mock;
   let mockCancellationChecker: jest.Mock;
 
   // Setup before each test
