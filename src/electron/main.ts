@@ -520,7 +520,7 @@ app.on("will-quit", (event) => {
         const fs = await import("fs/promises");
         try {
           await fs.mkdir(path.dirname(reportPath), { recursive: true });
-        } catch (_err) {
+        } catch (error) {
           // Ignore if directory already exists
         }
 
@@ -1882,6 +1882,285 @@ ipcMain.handle(
       const message = error instanceof Error ? error.message : String(error);
       console.error(`Error showing file location for '${filePath}':`, message);
       return { success: false, error: "openFileLocationError" };
+    }
+  }
+);
+
+/**
+ * Handles the 'copy-file-paths' IPC request.
+ * Copies the file paths of selected files to the clipboard.
+ */
+ipcMain.handle(
+  "copy-file-paths",
+  (event, filePaths: string[]): { success: boolean; error?: string } => {
+    if (!validateSender(event.senderFrame)) {
+      return { success: false, error: "Invalid sender." };
+    }
+    if (!filePaths || filePaths.length === 0) {
+      return { success: false, error: "No file paths provided." };
+    }
+
+    console.log(`IPC: Received request to copy ${filePaths.length} file paths`);
+    try {
+      // Join paths with newlines for better readability when pasted
+      const content = filePaths.join("\n");
+      clipboard.writeText(content);
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error copying file paths to clipboard:`, message);
+      return { success: false, error: "copyFilePathsError" };
+    }
+  }
+);
+
+/**
+ * Handles the 'copy-files-to-folder' IPC request.
+ * Copies selected files to a destination folder.
+ */
+ipcMain.handle(
+  "copy-files-to-folder",
+  async (
+    event,
+    filePaths: string[]
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    destinationFolder?: string;
+  }> => {
+    if (!validateSender(event.senderFrame) || !mainWindow) {
+      return { success: false, error: "Invalid sender or main window." };
+    }
+    if (!filePaths || filePaths.length === 0) {
+      return { success: false, error: "No file paths provided." };
+    }
+
+    console.log(
+      `IPC: Received request to copy ${filePaths.length} files to a folder`
+    );
+
+    try {
+      // Ensure i18n is ready for dialogs
+      await i18nMain.loadNamespaces("dialogs");
+
+      // Show folder selection dialog
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ["openDirectory"],
+        title: i18nMain.t(
+          "dialogs:selectDestinationFolderTitle",
+          "Select Destination Folder"
+        ),
+        buttonLabel: i18nMain.t(
+          "dialogs:selectDestinationFolderButton",
+          "Select"
+        ),
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, error: "Operation cancelled." };
+      }
+
+      const destinationFolder = result.filePaths[0];
+
+      // Copy each file
+      let successCount = 0;
+      const errors: string[] = [];
+
+      for (const filePath of filePaths) {
+        try {
+          const fileName = path.basename(filePath);
+          const destinationPath = path.join(destinationFolder, fileName);
+
+          // Check if destination file already exists
+          try {
+            await fs.access(destinationPath);
+            // If we get here, the file exists
+            const { response } = await dialog.showMessageBox(mainWindow, {
+              type: "question",
+              buttons: [
+                i18nMain.t("dialogs:replaceButton", "Replace"),
+                i18nMain.t("dialogs:skipButton", "Skip"),
+                i18nMain.t("dialogs:cancelButton", "Cancel"),
+              ],
+              defaultId: 0,
+              title: i18nMain.t(
+                "dialogs:fileExistsTitle",
+                "File Already Exists"
+              ),
+              message: i18nMain.t("dialogs:fileExistsMessage", {
+                fileName,
+                defaultValue: `File "${fileName}" already exists in the destination folder.`,
+              }),
+            });
+
+            if (response === 2) {
+              // Cancel
+              return {
+                success: successCount > 0,
+                error: "Operation cancelled by user.",
+                destinationFolder,
+              };
+            } else if (response === 1) {
+              // Skip
+              continue;
+            }
+            // If response === 0 (Replace), we continue with the copy
+          } catch (error) {
+            // File doesn't exist, which is fine
+          }
+
+          // Copy the file
+          const fileContent = await fs.readFile(filePath);
+          await fs.writeFile(destinationPath, fileContent);
+          successCount++;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`${path.basename(filePath)}: ${message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        return {
+          success: successCount > 0,
+          error: `Copied ${successCount} of ${filePaths.length} files. Errors: ${errors.join("; ")}`,
+          destinationFolder,
+        };
+      }
+
+      return {
+        success: true,
+        destinationFolder,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error copying files to folder:`, message);
+      return { success: false, error: "copyFilesToFolderError" };
+    }
+  }
+);
+
+/**
+ * Handles the 'move-files-to-folder' IPC request.
+ * Moves selected files to a destination folder.
+ */
+ipcMain.handle(
+  "move-files-to-folder",
+  async (
+    event,
+    filePaths: string[]
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    destinationFolder?: string;
+  }> => {
+    if (!validateSender(event.senderFrame) || !mainWindow) {
+      return { success: false, error: "Invalid sender or main window." };
+    }
+    if (!filePaths || filePaths.length === 0) {
+      return { success: false, error: "No file paths provided." };
+    }
+
+    console.log(
+      `IPC: Received request to move ${filePaths.length} files to a folder`
+    );
+
+    try {
+      // Ensure i18n is ready for dialogs
+      await i18nMain.loadNamespaces("dialogs");
+
+      // Show folder selection dialog
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ["openDirectory"],
+        title: i18nMain.t(
+          "dialogs:selectDestinationFolderTitle",
+          "Select Destination Folder"
+        ),
+        buttonLabel: i18nMain.t(
+          "dialogs:selectDestinationFolderButton",
+          "Select"
+        ),
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, error: "Operation cancelled." };
+      }
+
+      const destinationFolder = result.filePaths[0];
+
+      // Move each file
+      let successCount = 0;
+      const errors: string[] = [];
+
+      for (const filePath of filePaths) {
+        try {
+          const fileName = path.basename(filePath);
+          const destinationPath = path.join(destinationFolder, fileName);
+
+          // Check if destination file already exists
+          try {
+            await fs.access(destinationPath);
+            // If we get here, the file exists
+            const { response } = await dialog.showMessageBox(mainWindow, {
+              type: "question",
+              buttons: [
+                i18nMain.t("dialogs:replaceButton", "Replace"),
+                i18nMain.t("dialogs:skipButton", "Skip"),
+                i18nMain.t("dialogs:cancelButton", "Cancel"),
+              ],
+              defaultId: 0,
+              title: i18nMain.t(
+                "dialogs:fileExistsTitle",
+                "File Already Exists"
+              ),
+              message: i18nMain.t("dialogs:fileExistsMessage", {
+                fileName,
+                defaultValue: `File "${fileName}" already exists in the destination folder.`,
+              }),
+            });
+
+            if (response === 2) {
+              // Cancel
+              return {
+                success: successCount > 0,
+                error: "Operation cancelled by user.",
+                destinationFolder,
+              };
+            } else if (response === 1) {
+              // Skip
+              continue;
+            }
+            // If response === 0 (Replace), we continue with the move
+          } catch (error) {
+            // File doesn't exist, which is fine
+          }
+
+          // Move the file (copy then delete)
+          const fileContent = await fs.readFile(filePath);
+          await fs.writeFile(destinationPath, fileContent);
+          await fs.unlink(filePath);
+          successCount++;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`${path.basename(filePath)}: ${message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        return {
+          success: successCount > 0,
+          error: `Moved ${successCount} of ${filePaths.length} files. Errors: ${errors.join("; ")}`,
+          destinationFolder,
+        };
+      }
+
+      return {
+        success: true,
+        destinationFolder,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error moving files to folder:`, message);
+      return { success: false, error: "moveFilesToFolderError" };
     }
   }
 );

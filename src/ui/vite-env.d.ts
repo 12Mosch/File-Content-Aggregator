@@ -183,6 +183,26 @@ export interface IElectronAPI {
     canceled: boolean;
     error?: string;
   }>;
+  /** Copies the file paths of selected files to the clipboard. */
+  copyFilePaths: (
+    filePaths: string[]
+  ) => Promise<{ success: boolean; error?: string }>;
+  /** Copies selected files to a destination folder. */
+  copyFilesToFolder: (
+    filePaths: string[]
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    destinationFolder?: string;
+  }>;
+  /** Moves selected files to a destination folder. */
+  moveFilesToFolder: (
+    filePaths: string[]
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    destinationFolder?: string;
+  }>;
 }
 
 // --- Global Window Augmentation ---

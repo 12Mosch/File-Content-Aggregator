@@ -270,6 +270,39 @@ const electronAPI = {
     canceled: boolean;
     error?: string;
   }> => ipcRenderer.invoke("show-directory-dialog"),
+  /**
+   * Copies the file paths of selected files to the clipboard.
+   * @param filePaths Array of file paths to copy.
+   * @returns A promise resolving with an object indicating success or failure (with an optional error message).
+   */
+  copyFilePaths: (
+    filePaths: string[]
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("copy-file-paths", filePaths),
+  /**
+   * Copies selected files to a destination folder.
+   * @param filePaths Array of file paths to copy.
+   * @returns A promise resolving with an object indicating success or failure (with an optional error message and destination folder).
+   */
+  copyFilesToFolder: (
+    filePaths: string[]
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    destinationFolder?: string;
+  }> => ipcRenderer.invoke("copy-files-to-folder", filePaths),
+  /**
+   * Moves selected files to a destination folder.
+   * @param filePaths Array of file paths to move.
+   * @returns A promise resolving with an object indicating success or failure (with an optional error message and destination folder).
+   */
+  moveFilesToFolder: (
+    filePaths: string[]
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    destinationFolder?: string;
+  }> => ipcRenderer.invoke("move-files-to-folder", filePaths),
 };
 
 // --- Expose API to Renderer ---

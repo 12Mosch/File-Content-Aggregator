@@ -69,5 +69,17 @@
   "selectedFilesCount": "{{count}} files selected",
   "selectFile": "Select file",
   "deselectFile": "Deselect file",
-  "scrollingPlaceholder": "Scrolling... Content will load when scrolling stops."
+  "scrollingPlaceholder": "Scrolling... Content will load when scrolling stops.",
+  "batchOperationsLabel": "Batch Operations",
+  "copyPathsLabel": "Copy Paths to Clipboard",
+  "copyFilesLabel": "Copy Files to Folder",
+  "moveFilesLabel": "Move Files to Folder",
+  "copyPathsSuccess": "File paths copied to clipboard!",
+  "copyPathsError": "Failed to copy file paths",
+  "copyFilesSuccess": "Files copied successfully",
+  "copyFilesError": "Error copying files",
+  "moveFilesSuccess": "Files moved successfully",
+  "moveFilesError": "Error moving files",
+  "batchOperationInProgress": "Operation in progress...",
+  "batchOperationCancelled": "Operation cancelled"
 }

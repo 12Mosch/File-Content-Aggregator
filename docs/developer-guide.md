@@ -516,11 +516,15 @@ function addToSum(value: number): void {
   - Uses helper functions (`generateTxt`, `generateCsv`, etc.) to format data including fetched content.
   - Prompts user for save location using `dialog.showSaveDialog`.
   - Writes the generated content to file.
-  - **Export Selected Files:** Allows users to select specific files from the tree view and export only those files.
+  - **Batch Operations on Selected Files:** Allows users to perform various operations on selected files.
     - Uses a checkbox in each tree item to select/deselect files.
     - Selection state is managed using a reducer pattern with a Set of file paths.
     - "Select All" and "Deselect All" buttons for bulk operations.
-    - "Export Selected" button filters the items to only include selected files before calling the export function.
+    - A dropdown menu provides access to multiple batch operations:
+      - **Export Selected:** Filters the items to only include selected files before calling the export function.
+      - **Copy Paths to Clipboard:** Copies the file paths of selected files to the clipboard.
+      - **Copy Files to Folder:** Copies the selected files to a destination folder.
+      - **Move Files to Folder:** Moves the selected files to a destination folder.
 - **On-Demand Content Loading:**
   - `get-file-content` IPC channel handled in `main.ts`.
   - Renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` on item expansion.
@@ -530,9 +534,13 @@ function addToSum(value: number): void {
   - `open-file` IPC channel handled in `main.ts` uses Electron's `shell.openPath()` to open files with the default system application.
   - `open-file-location` IPC channel handled in `main.ts` uses Electron's `shell.showItemInFolder()` to open the file's containing folder in the system's file explorer.
   - `show-directory-dialog` IPC channel handled in `main.ts` uses Electron's `dialog.showOpenDialog()` to allow users to select directories visually.
+  - `copy-file-paths` IPC channel handled in `main.ts` copies selected file paths to the clipboard.
+  - `copy-files-to-folder` IPC channel handled in `main.ts` copies selected files to a destination folder.
+  - `move-files-to-folder` IPC channel handled in `main.ts` moves selected files to a destination folder.
   - Renderer (`SearchForm.tsx`) provides a "Browse..." button next to the Search Paths input that uses the directory selection dialog.
   - Renderer (`ResultsDisplay.tsx`) provides buttons for file operations in each file's header.
-  - All operations include proper error handling and validation.
+  - Batch operations on selected files are handled through the dropdown menu in the results area.
+  - All operations include proper error handling and validation, including handling file conflicts when copying or moving files.
   - **Content Highlighting:**
     - Plain text files use `HighlightMatches` component to highlight search terms.
     - Syntax-highlighted code (via highlight.js in a Web Worker) uses `highlightTermsInHtml` utility to post-process the HTML and highlight search terms within the syntax-highlighted content.

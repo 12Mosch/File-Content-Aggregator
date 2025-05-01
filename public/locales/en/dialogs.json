@@ -8,5 +8,17 @@
   "exportDialogFilterAll": "All Files",
   "directoryDialogTitle": "Select Directories",
   "directoryDialogButtonLabel": "Select",
-  "directoryDialogError": "Error showing directory selection dialog: {{detail}}"
+  "directoryDialogError": "Error showing directory selection dialog: {{detail}}",
+  "selectDestinationFolderTitle": "Select Destination Folder",
+  "selectDestinationFolderButton": "Select",
+  "fileExistsTitle": "File Already Exists",
+  "fileExistsMessage": "File \"{{fileName}}\" already exists in the destination folder.",
+  "replaceButton": "Replace",
+  "skipButton": "Skip",
+  "cancelButton": "Cancel",
+  "batchOperationSuccessTitle": "Operation Complete",
+  "batchOperationErrorTitle": "Operation Error",
+  "copyFilesSuccessMessage": "Successfully copied {{count}} files to {{folder}}",
+  "moveFilesSuccessMessage": "Successfully moved {{count}} files to {{folder}}",
+  "copyPathsSuccessMessage": "Successfully copied {{count}} file paths to clipboard"
 }

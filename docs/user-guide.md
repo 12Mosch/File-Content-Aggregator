@@ -243,7 +243,11 @@ Below the results display area, you'll find options to copy or save the results:
   - Use the **Select All** button to select all files currently displayed in the results list.
   - Use the **Deselect All** button to clear all selections.
   - The number of currently selected files is displayed next to these buttons.
-- **Export Selected:** Allows you to export only the files you've selected (via checkboxes) to a file in the selected **Format**. This is useful when you only want to export a subset of the search results.
+- **Batch Operations:** The dropdown menu provides several operations you can perform on selected files:
+  - **Export Selected:** Allows you to export only the files you've selected (via checkboxes) to a file in the selected **Format**. This is useful when you only want to export a subset of the search results.
+  - **Copy Paths to Clipboard:** Copies just the file paths of selected files to the clipboard, one path per line. Useful for pasting into other applications or documents.
+  - **Copy Files to Folder:** Copies the selected files to a destination folder of your choice. A folder selection dialog will appear, and you'll be prompted to confirm if any files with the same names already exist in the destination.
+  - **Move Files to Folder:** Moves the selected files to a destination folder of your choice. This operation removes the files from their original locations after copying them to the destination. A folder selection dialog will appear, and you'll be prompted to confirm if any files with the same names already exist in the destination.
 
 ## Search History
 

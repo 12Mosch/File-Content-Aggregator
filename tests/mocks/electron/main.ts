@@ -130,6 +130,19 @@ mockIpcMain.handle.mockImplementation((channel: string, handler: any) => {
   mockIpcHandlers[channel] = handler;
 });
 
+// Define batch operations handlers
+const copyFilePaths = async (_event: IpcEvent, filePaths: string[]) => {
+  return { success: true };
+};
+
+const copyFilesToFolder = async (_event: IpcEvent, filePaths: string[]) => {
+  return { success: true, destinationFolder: "/mock/destination" };
+};
+
+const moveFilesToFolder = async (_event: IpcEvent, filePaths: string[]) => {
+  return { success: true, destinationFolder: "/mock/destination" };
+};
+
 // Register all handlers
 mockIpcMain.handle("get-theme-preference", getThemePreference);
 mockIpcMain.handle("set-theme-preference", setThemePreference);
@@ -143,6 +156,9 @@ mockIpcMain.handle(
 );
 mockIpcMain.handle("get-fuzzy-search-near-enabled", getFuzzySearchNearEnabled);
 mockIpcMain.handle("set-fuzzy-search-near-enabled", setFuzzySearchNearEnabled);
+mockIpcMain.handle("copy-file-paths", copyFilePaths);
+mockIpcMain.handle("copy-files-to-folder", copyFilesToFolder);
+mockIpcMain.handle("move-files-to-folder", moveFilesToFolder);
 
 // Initialize settings on import
 initializeSettings();

@@ -23,6 +23,12 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type {
   StructuredItem,
@@ -43,6 +49,10 @@ import {
   FolderOpen,
   Check,
   X,
+  Download,
+  ClipboardCopy,
+  Upload,
+  ChevronDown,
 } from "lucide-react";
 
 // Constants
@@ -785,6 +795,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [copyStatus, setCopyStatus] = useState<string>("");
   const [exportStatus, setExportStatus] = useState<string>("");
   const [copyFileStatus, setCopyFileStatus] = useState<string>("");
+  const [batchStatus, setBatchStatus] = useState<string>("");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("txt");
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -1354,6 +1365,149 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       });
   };
 
+  // --- Batch Operations Handlers ---
+
+  // Copy file paths to clipboard
+  const handleCopyFilePaths = () => {
+    if (selectedFiles.size === 0) {
+      setBatchStatus(t("exportSelectedNoSelection"));
+      setTimeout(() => setBatchStatus(""), 3000);
+      return;
+    }
+
+    if (!window.electronAPI?.copyFilePaths) {
+      setBatchStatus(t("copyPathsError"));
+      console.error("Copy file paths API not available.");
+      setTimeout(() => setBatchStatus(""), 3000);
+      return;
+    }
+
+    setBatchStatus(t("batchOperationInProgress"));
+
+    // Convert Set to Array
+    const filePaths = Array.from(selectedFiles);
+
+    window.electronAPI
+      .copyFilePaths(filePaths)
+      .then(({ success, error }) => {
+        if (success) {
+          setBatchStatus(t("copyPathsSuccess"));
+        } else {
+          setBatchStatus(t("copyPathsError"));
+          console.error("Copy file paths failed:", error);
+        }
+      })
+      .catch((err: unknown) => {
+        setBatchStatus(t("copyPathsError"));
+        console.error(
+          "Copy file paths failed:",
+          err instanceof Error ? err.message : err
+        );
+      })
+      .finally(() => {
+        setTimeout(() => setBatchStatus(""), 5000);
+      });
+  };
+
+  // Copy files to folder
+  const handleCopyFilesToFolder = () => {
+    if (selectedFiles.size === 0) {
+      setBatchStatus(t("exportSelectedNoSelection"));
+      setTimeout(() => setBatchStatus(""), 3000);
+      return;
+    }
+
+    if (!window.electronAPI?.copyFilesToFolder) {
+      setBatchStatus(t("copyFilesError"));
+      console.error("Copy files to folder API not available.");
+      setTimeout(() => setBatchStatus(""), 3000);
+      return;
+    }
+
+    setBatchStatus(t("batchOperationInProgress"));
+
+    // Convert Set to Array
+    const filePaths = Array.from(selectedFiles);
+
+    window.electronAPI
+      .copyFilesToFolder(filePaths)
+      .then(({ success, error, destinationFolder: _destinationFolder }) => {
+        if (success) {
+          setBatchStatus(t("copyFilesSuccess"));
+        } else {
+          setBatchStatus(
+            error === "Operation cancelled."
+              ? t("batchOperationCancelled")
+              : t("copyFilesError")
+          );
+          if (error) console.error("Copy files failed:", error);
+        }
+      })
+      .catch((err: unknown) => {
+        setBatchStatus(t("copyFilesError"));
+        console.error(
+          "Copy files failed:",
+          err instanceof Error ? err.message : err
+        );
+      })
+      .finally(() => {
+        setTimeout(() => setBatchStatus(""), 5000);
+      });
+  };
+
+  // Move files to folder
+  const handleMoveFilesToFolder = () => {
+    if (selectedFiles.size === 0) {
+      setBatchStatus(t("exportSelectedNoSelection"));
+      setTimeout(() => setBatchStatus(""), 3000);
+      return;
+    }
+
+    if (!window.electronAPI?.moveFilesToFolder) {
+      setBatchStatus(t("moveFilesError"));
+      console.error("Move files to folder API not available.");
+      setTimeout(() => setBatchStatus(""), 3000);
+      return;
+    }
+
+    setBatchStatus(t("batchOperationInProgress"));
+
+    // Convert Set to Array
+    const filePaths = Array.from(selectedFiles);
+
+    window.electronAPI
+      .moveFilesToFolder(filePaths)
+      .then(({ success, error, destinationFolder: _destinationFolder }) => {
+        if (success) {
+          setBatchStatus(t("moveFilesSuccess"));
+
+          // If files were successfully moved, we should update the UI
+          // by removing them from the selection and potentially from the results
+          dispatchSelection({ type: "deselectAll" });
+
+          // Note: In a real implementation, you might want to refresh the results
+          // or remove the moved files from the display
+        } else {
+          setBatchStatus(
+            error === "Operation cancelled."
+              ? t("batchOperationCancelled")
+              : t("moveFilesError")
+          );
+          if (error) console.error("Move files failed:", error);
+        }
+      })
+      .catch((err: unknown) => {
+        setBatchStatus(t("moveFilesError"));
+        console.error(
+          "Move files failed:",
+          err instanceof Error ? err.message : err
+        );
+      })
+      .finally(() => {
+        setTimeout(() => setBatchStatus(""), 5000);
+      });
+  };
+
   // Determine summary label based on whether a content query was active
   const getSummaryLabelKey = (): string => {
     const baseKey = hasContentQuery
@@ -1618,57 +1772,102 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <Save className="mr-2 h-4 w-4" />
           {exportStatus || t("saveButtonLabel")}
         </Button>
-        {/* Export Selected Button */}
-        <Button
-          onClick={() => {
-            if (selectedFiles.size === 0) {
-              setExportStatus(t("exportSelectedNoSelection"));
-              setTimeout(() => setExportStatus(""), 3000);
-              return;
-            }
-            if (!sortedItems || !window.electronAPI?.exportResults) {
-              setExportStatus(t("exportButtonError"));
-              setTimeout(() => setExportStatus(""), 3000);
-              return;
-            }
-
-            // Filter sortedItems to only include selected files
-            const selectedItems = sortedItems.filter((item) =>
-              selectedFiles.has(item.filePath)
-            );
-
-            setExportStatus(t("exportButtonExporting"));
-            window.electronAPI
-              .exportResults(selectedItems, exportFormat)
-              .then(({ success, error }) => {
-                if (success) {
-                  setExportStatus(t("exportButtonSuccess"));
-                } else {
-                  setExportStatus(
-                    error === "Export cancelled."
-                      ? t("exportButtonCancelled")
-                      : t("exportButtonError")
-                  );
-                  console.error("Export failed:", error);
+        {/* Batch Operations Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              disabled={
+                selectedFiles.size === 0 ||
+                !!exportStatus ||
+                !!copyStatus ||
+                !!batchStatus
+              }
+              variant="secondary"
+            >
+              {batchStatus || t("batchOperationsLabel")}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {/* Export Selected */}
+            <DropdownMenuItem
+              onClick={() => {
+                if (selectedFiles.size === 0) {
+                  setExportStatus(t("exportSelectedNoSelection"));
+                  setTimeout(() => setExportStatus(""), 3000);
+                  return;
                 }
-              })
-              .catch((err) => {
-                setExportStatus(t("exportButtonError"));
-                console.error(
-                  "Export failed:",
-                  err instanceof Error ? err.message : err
+                if (!sortedItems || !window.electronAPI?.exportResults) {
+                  setExportStatus(t("exportButtonError"));
+                  setTimeout(() => setExportStatus(""), 3000);
+                  return;
+                }
+
+                // Filter sortedItems to only include selected files
+                const selectedItems = sortedItems.filter((item) =>
+                  selectedFiles.has(item.filePath)
                 );
-              })
-              .finally(() => {
-                setTimeout(() => setExportStatus(""), 5000);
-              });
-          }}
-          disabled={selectedFiles.size === 0 || !!exportStatus || !!copyStatus}
-          variant="secondary"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {exportStatus || t("exportSelectedLabel")}
-        </Button>
+
+                setExportStatus(t("exportButtonExporting"));
+                window.electronAPI
+                  .exportResults(selectedItems, exportFormat)
+                  .then(({ success, error }) => {
+                    if (success) {
+                      setExportStatus(t("exportButtonSuccess"));
+                    } else {
+                      setExportStatus(
+                        error === "Export cancelled."
+                          ? t("exportButtonCancelled")
+                          : t("exportButtonError")
+                      );
+                      console.error("Export failed:", error);
+                    }
+                  })
+                  .catch((err) => {
+                    setExportStatus(t("exportButtonError"));
+                    console.error(
+                      "Export failed:",
+                      err instanceof Error ? err.message : err
+                    );
+                  })
+                  .finally(() => {
+                    setTimeout(() => setExportStatus(""), 5000);
+                  });
+              }}
+              disabled={selectedFiles.size === 0}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {t("exportSelectedLabel")}
+            </DropdownMenuItem>
+
+            {/* Copy Paths to Clipboard */}
+            <DropdownMenuItem
+              onClick={handleCopyFilePaths}
+              disabled={selectedFiles.size === 0}
+            >
+              <ClipboardCopy className="mr-2 h-4 w-4" />
+              {t("copyPathsLabel")}
+            </DropdownMenuItem>
+
+            {/* Copy Files to Folder */}
+            <DropdownMenuItem
+              onClick={handleCopyFilesToFolder}
+              disabled={selectedFiles.size === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {t("copyFilesLabel")}
+            </DropdownMenuItem>
+
+            {/* Move Files to Folder */}
+            <DropdownMenuItem
+              onClick={handleMoveFilesToFolder}
+              disabled={selectedFiles.size === 0}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {t("moveFilesLabel")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       {/* ----------------------------- */}
     </div>
