@@ -520,7 +520,7 @@ app.on("will-quit", (event) => {
         const fs = await import("fs/promises");
         try {
           await fs.mkdir(path.dirname(reportPath), { recursive: true });
-        } catch (error) {
+        } catch (_error) {
           // Ignore if directory already exists
         }
 
@@ -1523,50 +1523,58 @@ ipcMain.handle(
 /**
  * Gets the performance summary data.
  */
-ipcMain.handle("get-performance-summary", (event): Promise<any> => {
-  if (!validateSender(event.senderFrame)) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    try {
-      const profiler = getProfiler();
-      if (profiler.isEnabled()) {
-        const summary = profiler.generateSummary();
-        resolve(summary);
-      } else {
+ipcMain.handle(
+  "get-performance-summary",
+  (event): Promise<Record<string, unknown> | null> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      try {
+        const profiler = getProfiler();
+        if (profiler.isEnabled()) {
+          const summary = profiler.generateSummary();
+          // Convert to unknown first to avoid type checking issues
+          resolve(summary as unknown as Record<string, unknown>);
+        } else {
+          resolve(null);
+        }
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error getting performance summary:",
+          error instanceof Error ? error.message : error
+        );
         resolve(null);
       }
-    } catch (error: unknown) {
-      console.error(
-        "IPC: Error getting performance summary:",
-        error instanceof Error ? error.message : error
-      );
-      resolve(null);
-    }
-  });
-});
+    });
+  }
+);
 
 /**
  * Gets the performance metrics history.
  */
-ipcMain.handle("get-performance-metrics-history", (event): Promise<any[]> => {
-  if (!validateSender(event.senderFrame)) return Promise.resolve([]);
-  return new Promise((resolve) => {
-    try {
-      const profiler = getProfiler();
-      if (profiler.isEnabled()) {
-        const history = profiler.getMetricsHistory();
-        resolve(history);
-      } else {
+ipcMain.handle(
+  "get-performance-metrics-history",
+  (event): Promise<Record<string, unknown>[]> => {
+    if (!validateSender(event.senderFrame)) return Promise.resolve([]);
+    return new Promise((resolve) => {
+      try {
+        const profiler = getProfiler();
+        if (profiler.isEnabled()) {
+          const history = profiler.getMetricsHistory();
+          // Convert to unknown first to avoid type checking issues
+          resolve(history as unknown as Record<string, unknown>[]);
+        } else {
+          resolve([]);
+        }
+      } catch (error: unknown) {
+        console.error(
+          "IPC: Error getting performance metrics history:",
+          error instanceof Error ? error.message : error
+        );
         resolve([]);
       }
-    } catch (error: unknown) {
-      console.error(
-        "IPC: Error getting performance metrics history:",
-        error instanceof Error ? error.message : error
-      );
-      resolve([]);
-    }
-  });
-});
+    });
+  }
+);
 
 /**
  * Saves the performance report to a file.
@@ -2005,7 +2013,7 @@ ipcMain.handle(
               continue;
             }
             // If response === 0 (Replace), we continue with the copy
-          } catch (error) {
+          } catch (_error) {
             // File doesn't exist, which is fine
           }
 
@@ -2014,7 +2022,8 @@ ipcMain.handle(
           await fs.writeFile(destinationPath, fileContent);
           successCount++;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           errors.push(`${path.basename(filePath)}: ${message}`);
         }
       }
@@ -2130,7 +2139,7 @@ ipcMain.handle(
               continue;
             }
             // If response === 0 (Replace), we continue with the move
-          } catch (error) {
+          } catch (_error) {
             // File doesn't exist, which is fine
           }
 
@@ -2140,7 +2149,8 @@ ipcMain.handle(
           await fs.unlink(filePath);
           successCount++;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           errors.push(`${path.basename(filePath)}: ${message}`);
         }
       }

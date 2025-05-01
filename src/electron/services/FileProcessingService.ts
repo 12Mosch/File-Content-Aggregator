@@ -341,21 +341,28 @@ export class FileProcessingService {
           })();
         });
 
-        readStream.on("end", async () => {
-          // Check remaining buffer
-          if (!matched && buffer.length > 0) {
-            matched = await Promise.resolve(matcher(buffer));
+        readStream.on("end", () => {
+          // Use an IIFE to handle the async operations
+          void (async () => {
+            // Check remaining buffer
+            if (!matched && buffer.length > 0) {
+              matched = await Promise.resolve(matcher(buffer));
 
-            if (matched && !options.earlyTermination && result.matchedChunks) {
-              result.matchedChunks.push(buffer);
+              if (
+                matched &&
+                !options.earlyTermination &&
+                result.matchedChunks
+              ) {
+                result.matchedChunks.push(buffer);
+              }
             }
-          }
 
-          // Clear buffer to free memory
-          buffer = "";
+            // Clear buffer to free memory
+            buffer = "";
 
-          result.matched = matched;
-          resolve(result);
+            result.matched = matched;
+            resolve(result);
+          })();
         });
 
         readStream.on("error", (err) => {

@@ -363,8 +363,31 @@ export class LRUCache<K, V> {
       .map((v) => {
         if (v === null) return "null";
         if (v === undefined) return "undefined";
-        if (typeof v === "object") return JSON.stringify(v);
-        return String(v);
+        if (typeof v === "object") {
+          try {
+            return JSON.stringify(v);
+          } catch (_e) {
+            // Use a more specific format than default toString()
+            return `[object ${Object.prototype.toString.call(v).slice(8, -1)}]`;
+          }
+        }
+        // Handle primitive types safely
+        if (typeof v === "string") return v;
+        if (
+          typeof v === "number" ||
+          typeof v === "boolean" ||
+          typeof v === "bigint"
+        ) {
+          return v.toString();
+        }
+        if (typeof v === "symbol") {
+          return v.description ?? "Symbol";
+        }
+        if (typeof v === "function") {
+          return "[function]";
+        }
+        // Fallback for any other types
+        return `[${typeof v}]`;
       })
       .join(":");
   }
@@ -398,28 +421,30 @@ export class LRUCache<K, V> {
    * @param obj The object to measure
    * @returns Approximate size in bytes
    */
-  private estimateObjectSize(obj: any): number {
+  private estimateObjectSize(obj: unknown): number {
     if (obj === null || obj === undefined) return 0;
 
     const type = typeof obj;
 
     if (type === "number") return 8;
     if (type === "boolean") return 4;
-    if (type === "string") return obj.length * 2;
+    if (type === "string") return (obj as string).length * 2;
 
     if (type === "object") {
       if (Array.isArray(obj)) {
-        return obj.reduce(
+        return obj.reduce<number>(
           (size, item) => size + this.estimateObjectSize(item),
           0
         );
       }
 
       let size = 0;
-      for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      // We know obj is an object at this point
+      const objAsRecord = obj as Record<string, unknown>;
+      for (const key in objAsRecord) {
+        if (Object.prototype.hasOwnProperty.call(objAsRecord, key)) {
           size += key.length * 2; // Key size
-          size += this.estimateObjectSize(obj[key]); // Value size
+          size += this.estimateObjectSize(objAsRecord[key]); // Value size
         }
       }
       return size;

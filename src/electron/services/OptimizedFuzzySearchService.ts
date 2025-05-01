@@ -33,6 +33,19 @@ export interface FuzzySearchResult {
   processingTimeMs?: number;
 }
 
+// Interface for cache statistics
+export interface CacheStatistics {
+  resultCache: {
+    size: number;
+  };
+  normalizedStringCache: {
+    size: number;
+  };
+  fuseInstances: {
+    size: number;
+  };
+}
+
 interface FuzzySearchMetrics {
   totalSearches: number;
   cacheHits: number;
@@ -1069,7 +1082,7 @@ export class OptimizedFuzzySearchService {
   /**
    * Gets cache statistics
    */
-  public getCacheStats(): any {
+  public getCacheStats(): CacheStatistics {
     return {
       resultCache: {
         size: this.resultCache.size(),

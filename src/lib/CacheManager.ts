@@ -19,7 +19,7 @@ export interface CacheInfo extends CacheStats {
 
 export class CacheManager {
   private static instance: CacheManager;
-  private caches: Map<string, LRUCache<any, any>> = new Map();
+  private caches: Map<string, LRUCache<unknown, unknown>> = new Map();
   private configs: Map<string, CacheConfig> = new Map();
 
   /**
@@ -219,18 +219,18 @@ export class CacheManager {
    * @param obj The object to measure
    * @returns Approximate size in bytes
    */
-  private estimateObjectSize(obj: any): number {
+  private estimateObjectSize(obj: unknown): number {
     if (obj === null || obj === undefined) return 0;
 
     const type = typeof obj;
 
     if (type === "number") return 8;
     if (type === "boolean") return 4;
-    if (type === "string") return obj.length * 2;
+    if (type === "string") return (obj as string).length * 2;
 
     if (type === "object") {
       if (Array.isArray(obj)) {
-        return obj.reduce(
+        return obj.reduce<number>(
           (size, item) => size + this.estimateObjectSize(item),
           0
         );
@@ -240,7 +240,9 @@ export class CacheManager {
       for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
           size += key.length * 2; // Key size
-          size += this.estimateObjectSize(obj[key]); // Value size
+          size += this.estimateObjectSize(
+            (obj as Record<string, unknown>)[key]
+          ); // Value size
         }
       }
       return size;
