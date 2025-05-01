@@ -1780,72 +1780,56 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               }
               variant="secondary"
             >
-              {exportStatus || batchStatus || t("saveButtonLabel")}
+              {exportStatus || batchStatus || t("exportButtonLabel")}
               <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {/* Save All Results */}
-            <DropdownMenuItem
-              onClick={handleExport}
-              disabled={
-                !sortedItems ||
-                sortedItems.length === 0 ||
-                !!exportStatus ||
-                !!copyStatus
-              }
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {t("saveAllResultsLabel")}
-            </DropdownMenuItem>
-
             {/* Export Selected/All */}
             <DropdownMenuItem
               onClick={() => {
-                if (!sortedItems || sortedItems.length === 0) {
-                  setExportStatus(t("exportButtonNoResults"));
-                  setTimeout(() => setExportStatus(""), 3000);
-                  return;
-                }
-                if (!window.electronAPI?.exportResults) {
-                  setExportStatus(t("exportButtonError"));
-                  setTimeout(() => setExportStatus(""), 3000);
-                  return;
-                }
-
-                // Use selected files if any are selected, otherwise use all results
-                const itemsToExport =
-                  selectedFiles.size > 0
-                    ? sortedItems.filter((item) =>
-                        selectedFiles.has(item.filePath)
-                      )
-                    : sortedItems;
-
-                setExportStatus(t("exportButtonExporting"));
-                window.electronAPI
-                  .exportResults(itemsToExport, exportFormat)
-                  .then(({ success, error }) => {
-                    if (success) {
-                      setExportStatus(t("exportButtonSuccess"));
-                    } else {
-                      setExportStatus(
-                        error === "Export cancelled."
-                          ? t("exportButtonCancelled")
-                          : t("exportButtonError")
-                      );
-                      console.error("Export failed:", error);
-                    }
-                  })
-                  .catch((err) => {
+                if (selectedFiles.size > 0) {
+                  // Export selected files
+                  if (!sortedItems || !window.electronAPI?.exportResults) {
                     setExportStatus(t("exportButtonError"));
-                    console.error(
-                      "Export failed:",
-                      err instanceof Error ? err.message : err
-                    );
-                  })
-                  .finally(() => {
-                    setTimeout(() => setExportStatus(""), 5000);
-                  });
+                    setTimeout(() => setExportStatus(""), 3000);
+                    return;
+                  }
+
+                  // Filter sortedItems to only include selected files
+                  const selectedItems = sortedItems.filter((item) =>
+                    selectedFiles.has(item.filePath)
+                  );
+
+                  setExportStatus(t("exportButtonExporting"));
+                  window.electronAPI
+                    .exportResults(selectedItems, exportFormat)
+                    .then(({ success, error }) => {
+                      if (success) {
+                        setExportStatus(t("exportButtonSuccess"));
+                      } else {
+                        setExportStatus(
+                          error === "Export cancelled."
+                            ? t("exportButtonCancelled")
+                            : t("exportButtonError")
+                        );
+                        console.error("Export failed:", error);
+                      }
+                    })
+                    .catch((err) => {
+                      setExportStatus(t("exportButtonError"));
+                      console.error(
+                        "Export failed:",
+                        err instanceof Error ? err.message : err
+                      );
+                    })
+                    .finally(() => {
+                      setTimeout(() => setExportStatus(""), 5000);
+                    });
+                } else {
+                  // Export all results
+                  handleExport();
+                }
               }}
               disabled={!sortedItems || sortedItems.length === 0}
             >
