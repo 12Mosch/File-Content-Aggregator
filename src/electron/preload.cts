@@ -8,6 +8,8 @@ import type {
   ThemePreference,
   StructuredItem,
   ExportFormat,
+  ProfileSummary,
+  PerformanceMetrics,
 } from "../ui/vite-env.d";
 
 /**
@@ -232,10 +234,10 @@ const electronAPI = {
   setDetailedMemoryTrackingEnabled: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke("set-detailed-memory-tracking-enabled", enabled),
   /** Gets the performance summary data. */
-  getPerformanceSummary: (): Promise<any> =>
+  getPerformanceSummary: (): Promise<ProfileSummary | null> =>
     ipcRenderer.invoke("get-performance-summary"),
   /** Gets the performance metrics history. */
-  getPerformanceMetricsHistory: (): Promise<any[]> =>
+  getPerformanceMetricsHistory: (): Promise<PerformanceMetrics[]> =>
     ipcRenderer.invoke("get-performance-metrics-history"),
   /** Saves the performance report to a file. */
   savePerformanceReport: (): Promise<{ success: boolean; error?: string }> =>
