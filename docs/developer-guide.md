@@ -516,15 +516,17 @@ function addToSum(value: number): void {
   - Uses helper functions (`generateTxt`, `generateCsv`, etc.) to format data including fetched content.
   - Prompts user for save location using `dialog.showSaveDialog`.
   - Writes the generated content to file.
-  - **Batch Operations on Selected Files:** Allows users to perform various operations on selected files.
+  - **Batch Operations:** Allows users to perform various operations on selected files or all search results.
     - Uses a checkbox in each tree item to select/deselect files.
     - Selection state is managed using a reducer pattern with a Set of file paths.
     - "Select All" and "Deselect All" buttons for bulk operations.
-    - A dropdown menu provides access to multiple batch operations:
-      - **Export Selected:** Filters the items to only include selected files before calling the export function.
-      - **Copy Paths to Clipboard:** Copies the file paths of selected files to the clipboard.
-      - **Copy Files to Folder:** Copies the selected files to a destination folder.
-      - **Move Files to Folder:** Moves the selected files to a destination folder.
+    - The "Export Results" dropdown menu provides access to multiple batch operations:
+      - **Export All Results/Export Selected:** Exports all search results or only selected files based on selection state.
+      - **Copy All Paths/Copy Selected Paths:** Copies the file paths of all search results or only selected files to the clipboard.
+      - **Copy All Files to Folder/Copy Selected Files to Folder:** Copies all search results or only selected files to a destination folder.
+      - **Move All Files to Folder/Move Selected Files to Folder:** Moves all search results or only selected files to a destination folder.
+    - When no files are selected, operations apply to all search results.
+    - The menu item text dynamically changes based on selection state to indicate whether the operation will apply to selected files or all results.
 - **On-Demand Content Loading:**
   - `get-file-content` IPC channel handled in `main.ts`.
   - Renderer (`ResultsDisplay.tsx`) calls `window.electronAPI.invokeGetFileContent(filePath)` on item expansion.
@@ -548,12 +550,17 @@ function addToSum(value: number): void {
     - When loading a search from history, the search terms are extracted and used for highlighting.
     - The `highlightHtmlUtils.ts` file contains the logic for highlighting search terms within HTML content.
 - **Copying Results:**
-  - **Copy All Results:** Button triggers `handleCopyResults` in `ResultsDisplay.tsx`.
+  - **Copy Results:** Button triggers `handleCopyResults` in `ResultsDisplay.tsx`.
     - Calls `generate-export-content` IPC handler.
     - Handler calls `fetchContentForExport` for matched files.
     - Generates content string (including content) and returns it.
     - Renderer uses `copy-to-clipboard` IPC handler.
     - Warning shown for large result sets.
+  - **Export Results Dropdown:** Combines the functionality of the previous "Save Results As..." button and "Batch Operations" dropdown.
+    - Uses a single dropdown menu for all export and batch operations.
+    - The button text shows "Export Results" instead of "Save Results As...".
+    - Menu items dynamically change based on selection state.
+    - When no files are selected, operations apply to all search results.
   - **Copy Individual File Content:** Icon triggers `handleCopyFileContent` in `ResultsDisplay.tsx`.
     - Uses content already loaded in `contentCache`.
     - Calls `copy-to-clipboard` IPC handler.

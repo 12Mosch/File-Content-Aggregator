@@ -237,17 +237,17 @@ Below the results display area, you'll find options to copy or save the results:
   - **Markdown:** Creates a Markdown file with each file listed under a heading, followed by its status and content/error message in a code block. Suitable for documentation or readable reports.
 - **Copy Results:** Copies the data for _all processed files_ (including content for matched files, formatted according to the selected **Format**) to your clipboard. The copied data respects the current **sort order** and **filter**.
   - ⚠️ **Warning:** If the result set is very large, the generated text might be truncated by your operating system's clipboard limits. Use the "Save Results As..." option instead for large result sets.
-- **Save Results As...:** Opens a system dialog allowing you to save the data for _all processed files_ (including content for matched files) to a file in the selected **Format**. The saved data respects the current **sort order** and **filter**. This is the recommended way to export large or structured results.
+- **Export Results:** Opens a dropdown menu with various export and batch operations:
+  - **Export All Results/Export Selected:** Opens a system dialog allowing you to save the data to a file in the selected **Format**. If you have files selected (via checkboxes), only those files will be exported; otherwise, all search results will be exported. The saved data respects the current **sort order** and **filter**. This is the recommended way to export large or structured results.
+  - **Copy All Paths/Copy Selected Paths:** Copies the file paths to the clipboard, one path per line. If you have files selected, only those paths will be copied; otherwise, all search result paths will be copied. Useful for pasting into other applications or documents.
+  - **Copy All Files to Folder/Copy Selected Files to Folder:** Copies files to a destination folder of your choice. If you have files selected, only those files will be copied; otherwise, all search result files will be copied. A folder selection dialog will appear, and you'll be prompted to confirm if any files with the same names already exist in the destination.
+  - **Move All Files to Folder/Move Selected Files to Folder:** Moves files to a destination folder of your choice. If you have files selected, only those files will be moved; otherwise, all search result files will be moved. This operation removes the files from their original locations after copying them to the destination. A folder selection dialog will appear, and you'll be prompted to confirm if any files with the same names already exist in the destination.
 - **Selecting Files for Export:**
   - Each file in the results list has a checkbox at the beginning of its row that allows you to select or deselect it.
   - Use the **Select All** button to select all files currently displayed in the results list.
   - Use the **Deselect All** button to clear all selections.
   - The number of currently selected files is displayed next to these buttons.
-- **Batch Operations:** The dropdown menu provides several operations you can perform on selected files:
-  - **Export Selected:** Allows you to export only the files you've selected (via checkboxes) to a file in the selected **Format**. This is useful when you only want to export a subset of the search results.
-  - **Copy Paths to Clipboard:** Copies just the file paths of selected files to the clipboard, one path per line. Useful for pasting into other applications or documents.
-  - **Copy Files to Folder:** Copies the selected files to a destination folder of your choice. A folder selection dialog will appear, and you'll be prompted to confirm if any files with the same names already exist in the destination.
-  - **Move Files to Folder:** Moves the selected files to a destination folder of your choice. This operation removes the files from their original locations after copying them to the destination. A folder selection dialog will appear, and you'll be prompted to confirm if any files with the same names already exist in the destination.
+  - When no files are selected, batch operations will apply to all search results.
 
 ## Search History
 
