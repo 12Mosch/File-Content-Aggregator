@@ -79,7 +79,7 @@ Performance tests verify that the application meets performance requirements.
 - Integration tests for settings UI
 - Accessibility tests
 - Localization tests
-- Unit tests for ErrorBoundary component
+- Unit tests for ErrorBoundary component and ErrorBoundaryUtils
 - Unit tests for Error Handling Service
 
 ### In Progress Tests

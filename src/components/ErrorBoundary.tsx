@@ -139,23 +139,3 @@ export default function ErrorBoundary(
 ): React.ReactElement {
   return <ErrorBoundaryClass {...props} />;
 }
-
-// Export the withErrorBoundary HOC separately to avoid fast refresh issues
-export { withErrorBoundary };
-
-/**
- * Higher-order component that wraps a component with an error boundary
- * @param Component Component to wrap
- * @param componentName Name of the component (for error reporting)
- * @returns Wrapped component with error boundary
- */
-function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
-  componentName?: string
-): React.FC<P> {
-  return (props: P) => (
-    <ErrorBoundaryClass component={componentName}>
-      <Component {...props} />
-    </ErrorBoundaryClass>
-  );
-}

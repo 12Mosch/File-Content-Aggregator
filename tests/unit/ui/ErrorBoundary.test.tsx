@@ -36,9 +36,8 @@ jest.mock("../../../src/lib/utils", () => ({
   cn: (...inputs: unknown[]) => inputs.filter(Boolean).join(" "),
 }));
 
-import ErrorBoundary, {
-  withErrorBoundary,
-} from "../../../src/components/ErrorBoundary";
+import ErrorBoundary from "../../../src/components/ErrorBoundary";
+import { withErrorBoundary } from "../../../src/components/ErrorBoundaryUtils";
 
 // Mock the error handler
 jest.mock("../../../src/lib/services/ErrorHandlingService", () => ({
