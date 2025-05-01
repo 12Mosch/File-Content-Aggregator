@@ -15,10 +15,13 @@ const require = module.createRequire(import.meta.url);
 
 // Use the created require function to load fast-glob
 import type { Options as FastGlobOptions } from "fast-glob";
-const fg: (
+// Properly type the fast-glob module
+type FastGlobFunction = (
   patterns: string | readonly string[],
   options?: FastGlobOptions
-) => Promise<string[]> = require("fast-glob");
+) => Promise<string[]>;
+// Use type assertion to avoid unsafe assignment warning
+const fg = require("fast-glob") as FastGlobFunction;
 
 // Define interfaces for the service
 export type FolderExclusionMode =

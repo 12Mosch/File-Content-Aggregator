@@ -26,8 +26,21 @@ function generateLargeContent(size: number): string {
   return sampleText.repeat(size);
 }
 
+// Define a type for test results
+interface TestResult {
+  contentSize?: string;
+  executionTime?: string;
+  memoryUsed?: string;
+  matchesFound?: number;
+  memoryRatio?: string;
+  [key: string]: unknown;
+}
+
 // Helper function to save test results
-async function saveTestResults(testName: string, results: any): Promise<void> {
+async function saveTestResults(
+  testName: string,
+  results: TestResult | TestResult[]
+): Promise<void> {
   const resultsDir = path.join(currentDirPath, "../../performance-results");
 
   try {

@@ -43,8 +43,7 @@ const initializeApp = async () => {
     // Initialize i18n only once with the options from i18n.ts
     if (!i18n.isInitialized) {
       // Using type assertion to handle i18next API compatibility
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await i18n.init(i18nOptions as any);
+      await i18n.init(i18nOptions);
       console.log("UI: i18next initialized with options");
     }
 
@@ -68,8 +67,7 @@ const initializeApp = async () => {
       // If there was an error and i18n is still not initialized, try one more time
       if (!i18n.isInitialized) {
         // Using type assertion to handle i18next API compatibility
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await i18n.init(i18nOptions as any);
+        await i18n.init(i18nOptions);
       }
       if (!i18n.language) {
         await i18n.changeLanguage(

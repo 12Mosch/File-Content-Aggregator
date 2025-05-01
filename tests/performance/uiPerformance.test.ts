@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { performance } from "perf_hooks";
 import fs from "fs/promises";
 import path from "path";
@@ -25,7 +25,11 @@ type StructuredItem = {
   fileSize: number;
   lastModified: string;
   matched: boolean;
-  matchedLines: any[];
+  matchedLines: Array<{
+    lineNumber: number;
+    content: string;
+    matches?: Array<{ start: number; end: number }>;
+  }>;
   readError: string | null;
 };
 

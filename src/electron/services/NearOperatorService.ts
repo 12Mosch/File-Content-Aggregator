@@ -906,7 +906,7 @@ export class NearOperatorService {
       });
 
       // Save profiling data to a file for analysis
-      this.saveProfilingData();
+      void this.saveProfilingData();
     }
   }
 

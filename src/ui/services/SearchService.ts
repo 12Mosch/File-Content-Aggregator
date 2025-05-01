@@ -167,12 +167,16 @@ export class SearchService {
         if (!state) return; // Search was cancelled
 
         // If it's a cancellation, ignore
-        if (error.message === "Task was cancelled") {
+        if (error instanceof Error && error.message === "Task was cancelled") {
           return;
         }
 
         // Notify error
-        this.notifyListeners(searchId, "error", error);
+        this.notifyListeners(
+          searchId,
+          "error",
+          error instanceof Error ? error : new Error(String(error))
+        );
 
         // Continue with next file
         state.currentIndex++;

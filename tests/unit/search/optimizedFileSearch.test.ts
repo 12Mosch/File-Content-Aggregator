@@ -185,7 +185,11 @@ describe("Optimized File Search Service", () => {
 
     // Use the mock function for this test
     const originalSearchFiles = searchFiles;
-    (global as any).searchFiles = mockSearchFiles;
+    // Define a type for the global object with searchFiles
+    interface CustomGlobal extends NodeJS.Global {
+      searchFiles: typeof searchFiles;
+    }
+    (global as CustomGlobal).searchFiles = mockSearchFiles;
 
     try {
       const result = await searchFiles(
@@ -211,7 +215,7 @@ describe("Optimized File Search Service", () => {
       );
     } finally {
       // Restore the original function
-      (global as any).searchFiles = originalSearchFiles;
+      (global as CustomGlobal).searchFiles = originalSearchFiles;
     }
   });
 

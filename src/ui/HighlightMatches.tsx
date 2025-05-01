@@ -117,7 +117,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
 
     // Sort matches by start index to process them in order
     return result.sort((a, b) => a.start - b.start);
-  }, [validTerms, text, caseSensitive]);
+  }, [validTerms, text, caseSensitive, wholeWordMatching]);
 
   const resultElements = useMemo(() => {
     // Early return for empty text
@@ -197,7 +197,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
     }
 
     return elements;
-  }, [matches, text, t, validTerms]);
+  }, [matches, text, t, validTerms, wholeWordMatching]);
 
   // Early return for empty text
   if (!text) {

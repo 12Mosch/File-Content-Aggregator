@@ -54,7 +54,7 @@ export function CacheSettings() {
     // Refresh cache info every 5 seconds
     const interval = setInterval(loadCacheInfo, 5000);
     return () => clearInterval(interval);
-  }, [selectedCache]);
+  }, [selectedCache, cacheManager]);
 
   // Load selected cache settings
   useEffect(() => {
@@ -74,7 +74,7 @@ export function CacheSettings() {
     setMaxSize(info.capacity);
     setTimeToLive(info.timeToLive);
     setEnableTTL(info.timeToLive !== undefined);
-  }, [selectedCache, cacheInfo]);
+  }, [selectedCache, cacheInfo, cacheManager]);
 
   // Handle saving cache settings
   const handleSaveSettings = () => {

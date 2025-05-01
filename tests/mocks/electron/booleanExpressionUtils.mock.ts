@@ -17,8 +17,19 @@ export function updateBooleanSearchSettings(
   wholeWordMatchingEnabled = wholeWordEnabled;
 }
 
+// Define a type for AST nodes
+export interface AstNode {
+  type: string;
+  value?: string;
+  callee?: { name: string };
+  left?: AstNode;
+  right?: AstNode;
+  operator?: string;
+  argument?: AstNode;
+}
+
 export function evaluateBooleanAst(
-  node: any,
+  node: AstNode,
   content: string,
   caseSensitive = false
 ): boolean {
@@ -38,27 +49,31 @@ export function evaluateBooleanAst(
 
   // For BinaryExpression nodes (AND, OR)
   if (node.type === "BinaryExpression") {
-    const left = evaluateBooleanAst(node.left, content, caseSensitive);
-    const right = evaluateBooleanAst(node.right, content, caseSensitive);
+    if (node.left && node.right) {
+      const left = evaluateBooleanAst(node.left, content, caseSensitive);
+      const right = evaluateBooleanAst(node.right, content, caseSensitive);
 
-    if (node.operator === "&&" || node.operator === "AND") {
-      return left && right;
-    } else if (node.operator === "||" || node.operator === "OR") {
-      return left || right;
+      if (node.operator === "&&" || node.operator === "AND") {
+        return left && right;
+      } else if (node.operator === "||" || node.operator === "OR") {
+        return left || right;
+      }
     }
+    return false;
   }
 
   // For UnaryExpression nodes (NOT)
   if (node.type === "UnaryExpression") {
-    if (node.operator === "!" || node.operator === "NOT") {
+    if ((node.operator === "!" || node.operator === "NOT") && node.argument) {
       return !evaluateBooleanAst(node.argument, content, caseSensitive);
     }
+    return false;
   }
 
   return false;
 }
 
-export function parseBooleanExpression(expression: string): any {
+export function parseBooleanExpression(expression: string): AstNode {
   // Simple mock implementation for testing
   return { type: "Literal", value: expression };
 }
