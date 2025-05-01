@@ -7,8 +7,8 @@ import {
   session,
   protocol,
   nativeTheme,
-  WebFrameMain,
   shell,
+  WebFrameMain,
 } from "electron";
 import path from "path";
 import fs from "fs/promises";
@@ -19,6 +19,14 @@ import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
 import type PLimit from "p-limit";
 import { getProfiler } from "../lib/utils/Profiler.js";
+import {
+  getErrorHandler,
+  ErrorSeverity,
+} from "../lib/services/ErrorHandlingService.js";
+import {
+  validateSender as validateIpcSender,
+  wrapIpcHandler,
+} from "./utils/errorHandling.js";
 
 // Import from optimized file search service
 import { searchFiles, updateSearchSettings } from "./FileSearchService.js";
@@ -552,10 +560,7 @@ app.on("web-contents-created", (_event, contents) => {
  * @returns True if the sender is valid, false otherwise.
  */
 function validateSender(senderFrame: WebFrameMain | null): boolean {
-  if (!mainWindow || !senderFrame) return false;
-  if (senderFrame === mainWindow.webContents.mainFrame) return true;
-  console.error("IPC Validation Failed: Sender is not main frame.");
-  return false;
+  return validateIpcSender(senderFrame, mainWindow);
 }
 
 // --- Export Helper Functions ---
@@ -1295,37 +1300,50 @@ ipcMain.handle(
  */
 ipcMain.handle(
   "get-file-content",
-  async (
-    event,
-    filePath: string
-  ): Promise<{ content: string | null; error?: string }> => {
-    if (!validateSender(event.senderFrame)) {
-      return { content: null, error: "Invalid sender." };
-    }
-    if (!filePath) {
-      return { content: null, error: "No file path provided." };
-    }
-
-    console.log(`IPC: Received request for content of: ${filePath}`);
-    try {
-      const content = await fs.readFile(filePath, { encoding: "utf8" });
-      return { content: content, error: undefined };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`Error reading file content for '${filePath}':`, message);
-      let reasonKey = "readError"; // Default error reason
-      const code = (error as { code?: string })?.code;
-      if (code === "EPERM" || code === "EACCES") {
-        reasonKey = "readPermissionDenied";
-      } else if (code === "ENOENT") {
-        reasonKey = "fileNotFoundDuringRead";
-      } else if (code === "EISDIR") {
-        reasonKey = "pathIsDir";
+  wrapIpcHandler(
+    async (
+      event,
+      filePath: string
+    ): Promise<{ content: string | null; error?: string }> => {
+      if (!validateSender(event.senderFrame)) {
+        return { content: null, error: "Invalid sender." };
       }
-      // Return the reason key for potential translation in the UI
-      return { content: null, error: reasonKey };
-    }
-  }
+      if (!filePath) {
+        return { content: null, error: "No file path provided." };
+      }
+
+      console.log(`IPC: Received request for content of: ${filePath}`);
+      try {
+        const content = await fs.readFile(filePath, { encoding: "utf8" });
+        return { content: content, error: undefined };
+      } catch (error: unknown) {
+        const errorHandler = getErrorHandler();
+        errorHandler.handleError(error, {
+          severity: ErrorSeverity.MEDIUM,
+          context: {
+            component: "FileContentHandler",
+            operation: "readFile",
+            data: { filePath },
+          },
+        });
+
+        // Determine the error reason for translation
+        let reasonKey = "readError"; // Default error reason
+        const code = (error as { code?: string })?.code;
+        if (code === "EPERM" || code === "EACCES") {
+          reasonKey = "readPermissionDenied";
+        } else if (code === "ENOENT") {
+          reasonKey = "fileNotFoundDuringRead";
+        } else if (code === "EISDIR") {
+          reasonKey = "pathIsDir";
+        }
+
+        // Return the reason key for potential translation in the UI
+        return { content: null, error: reasonKey };
+      }
+    },
+    "FileContentHandler"
+  )
 );
 
 /**
@@ -1847,10 +1865,7 @@ ipcMain.handle(
  */
 ipcMain.handle(
   "open-file-location",
-  async (
-    event,
-    filePath: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  (event, filePath: string): { success: boolean; error?: string } => {
     if (!validateSender(event.senderFrame)) {
       return { success: false, error: "Invalid sender." };
     }
@@ -1861,7 +1876,7 @@ ipcMain.handle(
     console.log(`IPC: Received request to show file location: ${filePath}`);
     try {
       // On Windows, use showItemInFolder which highlights the file in Explorer
-      await shell.showItemInFolder(filePath);
+      shell.showItemInFolder(filePath);
       return { success: true };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

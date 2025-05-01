@@ -195,22 +195,94 @@ The application follows a structured approach to code organization to ensure mai
 
 #### Error Handling
 
-The application uses a standardized error handling approach with the `AppError` class. This class provides:
+The application uses a comprehensive error handling system with multiple components:
 
-- Consistent error types with error codes
-- Detailed error information
-- Factory methods for common error types
-- Proper error propagation
+1. **AppError Class**: Base error class that provides:
 
-Example usage:
+   - Consistent error types with error codes
+   - Detailed error information
+   - Factory methods for common error types
+   - Proper error propagation
 
-```typescript
-try {
-  // Some operation that might fail
-} catch (error) {
-  throw AppError.fileNotFound(filePath);
-}
-```
+   Example usage:
+
+   ```typescript
+   try {
+     // Some operation that might fail
+   } catch (error) {
+     throw AppError.fileNotFound(filePath);
+   }
+   ```
+
+2. **ErrorHandlingService**: Centralized service for handling errors:
+
+   - Standardized error logging and reporting
+   - Error severity levels (LOW, MEDIUM, HIGH, CRITICAL)
+   - Error context tracking (component, operation, data)
+   - Error listener registration for UI notifications
+   - Error statistics collection
+
+   Example usage:
+
+   ```typescript
+   const errorHandler = getErrorHandler();
+   errorHandler.handleError(error, {
+     severity: ErrorSeverity.MEDIUM,
+     context: {
+       component: "FileProcessor",
+       operation: "readFile",
+       data: { filePath },
+     },
+     showToUser: true,
+   });
+   ```
+
+3. **Error Boundaries**: React components that catch JavaScript errors in their child component tree:
+
+   - Prevent the entire application from crashing
+   - Display fallback UI when errors occur
+   - Log errors to the ErrorHandlingService
+   - Allow component recovery through reset functionality
+
+   Example usage:
+
+   ```tsx
+   <ErrorBoundary component="SearchResults">
+     <SearchResultsComponent />
+   </ErrorBoundary>
+   ```
+
+4. **IPC Error Handling**: Utilities for handling errors in IPC communication:
+
+   - Standardized error responses
+   - Sender validation
+   - Error context tracking
+   - Error wrapping for IPC handlers
+
+   Example usage:
+
+   ```typescript
+   ipcMain.handle(
+     "get-file-content",
+     wrapIpcHandler(async (event, filePath) => {
+       // Handler implementation
+     }, "FileContentHandler")
+   );
+   ```
+
+5. **i18n Error Messages**: Internationalized error messages for user-facing errors:
+   - Error message templates in multiple languages
+   - Error code to message mapping
+   - Error severity labels
+   - Component error messages
+
+The error handling system ensures that errors are:
+
+- Properly caught and logged
+- Reported to the user when appropriate
+- Contextualized with relevant information
+- Handled consistently throughout the application
+- Recoverable when possible
 
 #### Utilities
 

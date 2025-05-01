@@ -4,6 +4,8 @@ import App from "./App";
 import i18n, { i18nOptions } from "./i18n";
 import { ThemeHandler } from "./ThemeManager";
 import { applyTheme } from "./themeUtils";
+import ErrorBoundary from "../components/ErrorBoundary";
+import { getErrorHandler } from "../lib/services/ErrorHandlingService";
 import "./index.css";
 import "highlight.js/styles/github-dark.css";
 import type { ThemePreference } from "./vite-env.d";
@@ -80,12 +82,28 @@ const initializeApp = async () => {
       console.error("Error setting fallback language:", fallbackError);
     }
   } finally {
+    // Initialize error handler
+    const errorHandler = getErrorHandler();
+
     // --- Render the App ---
     // ThemeHandler is still needed to listen for subsequent changes
     root.render(
       <StrictMode>
-        <ThemeHandler />
-        <App />
+        <ErrorBoundary
+          component="RootApp"
+          onError={(error, errorInfo) => {
+            errorHandler.handleError(error, {
+              context: {
+                component: "RootApp",
+                operation: "rendering",
+                data: errorInfo,
+              },
+            });
+          }}
+        >
+          <ThemeHandler />
+          <App />
+        </ErrorBoundary>
       </StrictMode>
     );
   }

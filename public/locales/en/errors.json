@@ -27,6 +27,17 @@
   "themeInitFailed": "Failed to load initial theme preference. Using system default.",
   "pathTraversalError": "Traversal error in \"{{path}}\": Some files/folders might have been skipped due to access issues ({{detail}}).",
 
+  "componentError": "Component Error",
+  "componentErrorDescription": "An error occurred in this component. The application will continue to function, but this component may not work correctly.",
+  "tryAgain": "Try Again",
+  "errorBoundaryDescription": "This error has been logged and will be addressed in a future update.",
+  "unexpectedError": "An unexpected error occurred",
+  "reportError": "Report Error",
+  "dismissError": "Dismiss",
+  "errorDetails": "Error Details",
+  "showErrorDetails": "Show Details",
+  "hideErrorDetails": "Hide Details",
+
   "appError": {
     "fileNotFound": "File not found: {{path}}",
     "fileAccessError": "Cannot access file: {{path}}",
@@ -38,5 +49,12 @@
     "cancellationError": "Operation cancelled: {{operation}}",
     "validationError": "Validation error: {{message}}",
     "unknownError": "An unknown error occurred"
+  },
+
+  "errorSeverity": {
+    "low": "Minor Issue",
+    "medium": "Warning",
+    "high": "Error",
+    "critical": "Critical Error"
   }
 }
