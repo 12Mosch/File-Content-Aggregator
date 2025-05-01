@@ -8,6 +8,13 @@
 
 import { Logger } from "./Logger.js";
 
+/**
+ * Type definition for NodeJS global with garbage collection
+ */
+interface GlobalWithGC {
+  gc: () => void;
+}
+
 export interface MemoryStats {
   heapUsed: number;
   heapTotal: number;
@@ -209,9 +216,10 @@ export class MemoryMonitor {
    * @returns True if garbage collection was triggered, false otherwise
    */
   public forceGarbageCollection(): boolean {
-    if (typeof global !== "undefined" && (global as any).gc) {
+    // Check if gc is available on the global object
+    if (typeof global !== "undefined" && "gc" in global) {
       try {
-        (global as any).gc();
+        (global as GlobalWithGC).gc();
         this.logger.debug("Manual garbage collection triggered");
         return true;
       } catch (error) {
