@@ -126,20 +126,25 @@ const setFuzzySearchNearEnabled = async (
 mockIpcMain.handle = jest.fn();
 
 // Register IPC handlers
-mockIpcMain.handle.mockImplementation((channel: string, handler: any) => {
-  mockIpcHandlers[channel] = handler;
-});
+mockIpcMain.handle.mockImplementation(
+  (
+    channel: string,
+    handler: (event: IpcEvent, ...args: unknown[]) => unknown
+  ) => {
+    mockIpcHandlers[channel] = handler;
+  }
+);
 
 // Define batch operations handlers
-const copyFilePaths = async (_event: IpcEvent, filePaths: string[]) => {
+const copyFilePaths = async (_event: IpcEvent, _filePaths: string[]) => {
   return { success: true };
 };
 
-const copyFilesToFolder = async (_event: IpcEvent, filePaths: string[]) => {
+const copyFilesToFolder = async (_event: IpcEvent, _filePaths: string[]) => {
   return { success: true, destinationFolder: "/mock/destination" };
 };
 
-const moveFilesToFolder = async (_event: IpcEvent, filePaths: string[]) => {
+const moveFilesToFolder = async (_event: IpcEvent, _filePaths: string[]) => {
   return { success: true, destinationFolder: "/mock/destination" };
 };
 
