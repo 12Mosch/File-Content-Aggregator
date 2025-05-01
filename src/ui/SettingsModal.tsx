@@ -104,8 +104,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       if (window.electronAPI?.getProfilingEnabled) {
         void window.electronAPI
           .getProfilingEnabled()
-          .then((enabled) => setIsProfilingEnabled(enabled))
-          .catch((err) =>
+          .then((enabled: boolean) => setIsProfilingEnabled(enabled))
+          .catch((err: unknown) =>
             console.error("Error fetching profiling setting:", err)
           );
       }
@@ -113,8 +113,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       if (window.electronAPI?.getDetailedMemoryTrackingEnabled) {
         void window.electronAPI
           .getDetailedMemoryTrackingEnabled()
-          .then((enabled) => setIsDetailedMemoryTrackingEnabled(enabled))
-          .catch((err) =>
+          .then((enabled: boolean) =>
+            setIsDetailedMemoryTrackingEnabled(enabled)
+          )
+          .catch((err: unknown) =>
             console.error(
               "Error fetching detailed memory tracking setting:",
               err
@@ -132,13 +134,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     if (window.electronAPI?.getPerformanceSummary) {
       void window.electronAPI
         .getPerformanceSummary()
-        .then((summary) => {
+        .then((summary: ProfileSummary | null) => {
           if (summary) {
             setPerformanceSummary(summary);
             setLastUpdated(new Date());
           }
         })
-        .catch((err) =>
+        .catch((err: unknown) =>
           console.error("Error fetching performance summary:", err)
         );
     }
@@ -146,12 +148,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     if (window.electronAPI?.getPerformanceMetricsHistory) {
       void window.electronAPI
         .getPerformanceMetricsHistory()
-        .then((history) => {
+        .then((history: PerformanceMetrics[]) => {
           if (history) {
             setMetricsHistory(history);
           }
         })
-        .catch((err) =>
+        .catch((err: unknown) =>
           console.error("Error fetching performance metrics history:", err)
         );
     }
@@ -293,7 +295,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           if (enabled) {
             fetchPerformanceData();
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Error setting profiling preference:", error);
         }
       };
@@ -310,7 +312,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       const setMemoryTrackingPref = async () => {
         try {
           await window.electronAPI.setDetailedMemoryTrackingEnabled(enabled);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(
             "Error setting detailed memory tracking preference:",
             error
@@ -329,7 +331,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       const saveReport = async () => {
         try {
           await window.electronAPI.savePerformanceReport();
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Error saving performance report:", error);
         }
       };
@@ -347,7 +349,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           await window.electronAPI.clearPerformanceData();
           setPerformanceSummary(null);
           setMetricsHistory([]);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Error clearing performance data:", error);
         }
       };

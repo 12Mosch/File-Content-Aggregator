@@ -170,6 +170,24 @@ export interface IElectronAPI {
   /** Sets the whole word matching enabled preference. */
   setWholeWordMatchingEnabled: (enabled: boolean) => Promise<void>;
 
+  // Performance Profiling API
+  /** Gets the profiling enabled preference. */
+  getProfilingEnabled: () => Promise<boolean>;
+  /** Sets the profiling enabled preference. */
+  setProfilingEnabled: (enabled: boolean) => Promise<void>;
+  /** Gets the detailed memory tracking enabled preference. */
+  getDetailedMemoryTrackingEnabled: () => Promise<boolean>;
+  /** Sets the detailed memory tracking enabled preference. */
+  setDetailedMemoryTrackingEnabled: (enabled: boolean) => Promise<void>;
+  /** Gets the performance summary data. */
+  getPerformanceSummary: () => Promise<ProfileSummary | null>;
+  /** Gets the performance metrics history. */
+  getPerformanceMetricsHistory: () => Promise<PerformanceMetrics[]>;
+  /** Saves the performance report to a file. */
+  savePerformanceReport: () => Promise<{ success: boolean; error?: string }>;
+  /** Clears all performance data. */
+  clearPerformanceData: () => Promise<boolean>;
+
   // File System Operations
   /** Opens the specified file with the default system application. */
   openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -188,17 +206,13 @@ export interface IElectronAPI {
     filePaths: string[]
   ) => Promise<{ success: boolean; error?: string }>;
   /** Copies selected files to a destination folder. */
-  copyFilesToFolder: (
-    filePaths: string[]
-  ) => Promise<{
+  copyFilesToFolder: (filePaths: string[]) => Promise<{
     success: boolean;
     error?: string;
     destinationFolder?: string;
   }>;
   /** Moves selected files to a destination folder. */
-  moveFilesToFolder: (
-    filePaths: string[]
-  ) => Promise<{
+  moveFilesToFolder: (filePaths: string[]) => Promise<{
     success: boolean;
     error?: string;
     destinationFolder?: string;
@@ -213,6 +227,9 @@ declare global {
   }
 }
 
+// --- Import Performance Types ---
+import type { ProfileSummary, PerformanceMetrics } from "@/lib/utils/Profiler";
+
 // --- Exports ---
 // Re-export types for easier import in UI components
 export type {
@@ -222,4 +239,6 @@ export type {
   SearchParams,
   FolderExclusionMode,
   StructuredItem,
+  ProfileSummary,
+  PerformanceMetrics,
 };
