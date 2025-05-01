@@ -700,6 +700,7 @@ function areSearchParamsEqual(
 /**
  * Handles the 'search-files' IPC request from the renderer process.
  * Performs the file search based on the provided parameters.
+ * Includes timeout handling to prevent stuck IPC calls.
  */
 ipcMain.handle(
   "search-files",
@@ -726,15 +727,32 @@ ipcMain.handle(
       return isSearchCancelled;
     };
 
+    // Create a timeout promise to prevent hanging
+    const timeoutPromise = new Promise<SearchResult>((_, reject) => {
+      const timeoutId = setTimeout(
+        () => {
+          isSearchCancelled = true; // Set cancellation flag
+          reject(new Error("Search operation timed out after 5 minutes"));
+        },
+        5 * 60 * 1000
+      ); // 5 minute timeout
+
+      // Clear the timeout if the component is unmounted
+      return () => clearTimeout(timeoutId);
+    });
+
     try {
-      const results = await searchFiles(
-        params,
-        progressCallback,
-        checkCancellation
-      );
+      // Race the search against the timeout
+      const results = await Promise.race([
+        searchFiles(params, progressCallback, checkCancellation),
+        timeoutPromise,
+      ]);
+
       return results;
     } catch (error: unknown) {
       const errorMsg = `Search failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error("Search error details:", error);
+
       progressCallback({
         processed: 0,
         total: 0,
@@ -742,6 +760,7 @@ ipcMain.handle(
         error: error instanceof Error ? error.message : String(error),
         status: "error",
       });
+
       return {
         structuredItems: [],
         filesFound: 0,

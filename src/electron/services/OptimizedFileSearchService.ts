@@ -313,6 +313,22 @@ export class OptimizedFileSearchService {
         };
       }
 
+      // Add memory usage check to prevent out-of-memory errors
+      const memoryUsage = process.memoryUsage();
+      if (memoryUsage.heapUsed > 1.5 * 1024 * 1024 * 1024) {
+        // 1.5GB heap usage
+        this.logger.warn("High memory usage detected before file processing", {
+          heapUsed: Math.round(memoryUsage.heapUsed / (1024 * 1024)) + "MB",
+          rss: Math.round(memoryUsage.rss / (1024 * 1024)) + "MB",
+        });
+
+        // Force garbage collection if available (Node.js with --expose-gc flag)
+        if (global.gc) {
+          this.logger.info("Forcing garbage collection");
+          global.gc();
+        }
+      }
+
       // --- Phase 3: Process Files ---
       this.logger.debug("Starting file processing phase", {
         totalFiles: totalFilesToProcess,
@@ -439,6 +455,39 @@ export class OptimizedFileSearchService {
           if (checkCancellation()) {
             wasCancelled = true;
             break;
+          }
+
+          // Check memory usage periodically to prevent OOM errors
+          if (i > 0 && i % 500 === 0) {
+            const memoryUsage = process.memoryUsage();
+            const heapUsedMB = Math.round(memoryUsage.heapUsed / (1024 * 1024));
+
+            // Log memory usage for monitoring
+            this.logger.debug("Memory usage during file processing", {
+              heapUsedMB,
+              rssMB: Math.round(memoryUsage.rss / (1024 * 1024)),
+              filesProcessed: filesProcessedCounter,
+              totalFiles: totalFilesToProcess,
+            });
+
+            // If memory usage is getting high, force GC if available and slow down processing
+            if (heapUsedMB > 1200) {
+              // 1.2GB
+              this.logger.warn("High memory usage during file processing", {
+                heapUsedMB,
+              });
+
+              // Force garbage collection if available
+              if (global.gc) {
+                this.logger.info(
+                  "Forcing garbage collection during processing"
+                );
+                global.gc();
+
+                // Small delay to allow GC to complete and memory to be freed
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              }
+            }
           }
 
           const batch = processingPromises.slice(i, i + 100);

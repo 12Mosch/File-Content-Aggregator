@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import SearchForm from "./SearchForm";
 import ResultsDisplay from "./ResultsDisplay";
@@ -293,6 +287,7 @@ function App() {
   );
 
   // Handle worker search (currently unused but kept for future use)
+   
   const _handleWorkerSearch = useCallback(
     (
       files: Array<{ filePath: string; content: string }>,
@@ -465,10 +460,27 @@ function App() {
       try {
         if (!window.electronAPI?.invokeSearch)
           throw new Error(t("errors:searchFunctionNA"));
+
+        // Set a timeout to handle potential IPC timeouts
+        const timeoutPromise = new Promise<SearchResult>((_, reject) => {
+          const timeoutId = setTimeout(
+            () => {
+              reject(new Error("Search request timed out after 5 minutes"));
+            },
+            5 * 60 * 1000
+          ); // 5 minute timeout
+
+          return () => clearTimeout(timeoutId);
+        });
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { structuredQuery, ...backendParams } = params;
-        const searchResult: SearchResult =
-          await window.electronAPI.invokeSearch(backendParams);
+
+        // Race the search against the timeout
+        const searchResult: SearchResult = await Promise.race([
+          window.electronAPI.invokeSearch(backendParams),
+          timeoutPromise,
+        ]);
 
         setStructuredResults(searchResult.structuredItems); // Set the original results
         setSearchSummary({
