@@ -1758,37 +1758,38 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <Copy className="mr-2 h-4 w-4" />
           {copyStatus || t("copyButton")}
         </Button>
-        {/* Save Button */}
-        <Button
-          onClick={handleExport}
-          disabled={
-            !sortedItems ||
-            sortedItems.length === 0 ||
-            !!exportStatus ||
-            !!copyStatus
-          }
-          variant="secondary"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {exportStatus || t("saveButtonLabel")}
-        </Button>
-        {/* Batch Operations Dropdown */}
+        {/* Save Button with Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               disabled={
-                selectedFiles.size === 0 ||
+                ((!sortedItems || sortedItems.length === 0) &&
+                  selectedFiles.size === 0) ||
                 !!exportStatus ||
                 !!copyStatus ||
                 !!batchStatus
               }
               variant="secondary"
             >
-              {batchStatus || t("batchOperationsLabel")}
+              {exportStatus || batchStatus || t("saveButtonLabel")}
               <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* Save All Results */}
+            <DropdownMenuItem
+              onClick={handleExport}
+              disabled={
+                !sortedItems ||
+                sortedItems.length === 0 ||
+                !!exportStatus ||
+                !!copyStatus
+              }
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {t("saveAllResultsLabel")}
+            </DropdownMenuItem>
+
             {/* Export Selected */}
             <DropdownMenuItem
               onClick={() => {

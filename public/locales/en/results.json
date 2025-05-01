@@ -15,6 +15,7 @@
   "copyButtonTruncated": "Copied! (May be truncated)",
   "copyButtonFailed": "Copy Failed!",
   "saveButtonLabel": "Save Results As...",
+  "saveAllResultsLabel": "Save All Results",
   "exportFormatLabel": "Format:",
   "exportFormatTXT": "TXT",
   "exportFormatCSV": "CSV",
