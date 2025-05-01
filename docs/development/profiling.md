@@ -40,6 +40,8 @@ The Performance Dashboard in the Settings dialog provides real-time visualizatio
 - **Memory**: Shows memory usage by operation (when detailed memory tracking is enabled).
 - **Timeline**: Displays a timeline of recent operations.
 
+The dashboard automatically refreshes every 2 seconds when profiling is enabled, ensuring you always see the most up-to-date performance data. You can also manually refresh the data at any time by clicking the "Refresh" button.
+
 ## Saving Performance Reports
 
 You can save performance data to a file for later analysis:

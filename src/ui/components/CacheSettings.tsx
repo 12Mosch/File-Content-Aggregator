@@ -25,7 +25,7 @@ import { Progress } from "@/components/ui/progress";
 import { Trash2, RefreshCw as _RefreshCw } from "lucide-react";
 
 export function CacheSettings() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(["cache", "common"]);
   const [cacheInfo, setCacheInfo] = useState<CacheInfo[]>([]);
   const [selectedCache, setSelectedCache] = useState<string>("");
   const [maxSize, setMaxSize] = useState<number>(100);

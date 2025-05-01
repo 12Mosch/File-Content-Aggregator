@@ -129,6 +129,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
+  // Set up automatic refresh for performance data when the modal is open
+  useEffect(() => {
+    // Only set up the refresh interval if the modal is open
+    if (isOpen) {
+      // Fetch performance data immediately
+      fetchPerformanceData();
+
+      // Set up an interval to refresh the data every 1 second
+      const refreshInterval = setInterval(() => {
+        fetchPerformanceData();
+      }, 1000);
+
+      // Clean up the interval when the component unmounts or when the modal closes
+      return () => {
+        clearInterval(refreshInterval);
+      };
+    }
+  }, [isOpen]);
+
   // Fetch performance data from the main process
   const fetchPerformanceData = () => {
     if (window.electronAPI?.getPerformanceSummary) {
@@ -560,6 +579,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               onToggleMemoryTracking={handleToggleMemoryTracking}
               onSaveReport={handleSavePerformanceReport}
               onClearData={handleClearPerformanceData}
+              onRefreshData={fetchPerformanceData}
               performanceSummary={performanceSummary}
               metricsHistory={metricsHistory}
               lastUpdated={lastUpdated}

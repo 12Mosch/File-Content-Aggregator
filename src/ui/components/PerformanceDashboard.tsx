@@ -25,6 +25,7 @@ interface PerformanceDashboardProps {
   onToggleMemoryTracking: (enabled: boolean) => void;
   onSaveReport: () => void;
   onClearData: () => void;
+  onRefreshData: () => void;
   performanceSummary: ProfileSummary | null;
   metricsHistory: PerformanceMetrics[];
   lastUpdated: Date | null;
@@ -37,6 +38,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
   onToggleMemoryTracking,
   onSaveReport,
   onClearData,
+  onRefreshData,
   performanceSummary,
   metricsHistory,
   lastUpdated,
@@ -78,6 +80,14 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={onRefreshData}
+            disabled={!isProfilingEnabled}
+            title={t("settings:refreshData")}
+          >
+            {t("settings:refreshData")}
+          </Button>
           <Button
             variant="outline"
             onClick={onSaveReport}

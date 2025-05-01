@@ -47,5 +47,6 @@
   "profilingDisabled": "Profiling is Disabled",
   "profilingDisabledDescription": "Enable profiling to collect and analyze performance metrics.",
   "saveReport": "Save Report",
-  "clearData": "Clear Data"
+  "clearData": "Clear Data",
+  "refreshData": "Refresh"
 }

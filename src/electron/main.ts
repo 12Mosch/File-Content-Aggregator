@@ -160,7 +160,7 @@ const i18nMain = i18next.createInstance();
 void i18nMain.use(Backend).init({
   fallbackLng: fallbackLngMain,
   supportedLngs: supportedLngsMain,
-  ns: ["common", "dialogs"],
+  ns: ["common", "dialogs", "cache", "settings"],
   defaultNS: "common",
   backend: {
     loadPath: isDev()
@@ -168,6 +168,7 @@ void i18nMain.use(Backend).init({
       : path.join(app.getAppPath(), "dist-react/locales/{{lng}}/{{ns}}.json"),
   },
   initImmediate: false,
+  keySeparator: ":",
 });
 async function initializeMainI18nLanguage() {
   let initialLang = fallbackLngMain;
@@ -411,12 +412,12 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 void app.whenReady().then(async () => {
-  // Check for profiling flag
-  const enableProfiling = process.argv.includes("--profile");
-  if (enableProfiling) {
-    getProfiler().setEnabled(true);
-    console.log("Performance profiling enabled");
-  }
+  // Always enable profiling by default with detailed memory tracking
+  const detailedMemoryTracking = true;
+  getProfiler().setEnabled(true, { detailedMemoryTracking });
+  store.set(PROFILING_ENABLED_KEY, true);
+  store.set(DETAILED_MEMORY_TRACKING_ENABLED_KEY, true);
+  console.log("Performance profiling enabled with detailed memory tracking");
 
   await initializeMainI18nLanguage();
   try {

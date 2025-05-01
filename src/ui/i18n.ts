@@ -18,7 +18,7 @@ import type { InitOptions } from "i18next";
 export const i18nOptions: InitOptions = {
   fallbackLng: fallbackLng,
   supportedLngs: supportedLngs,
-  ns: ["common", "form", "results", "errors", "dialogs"],
+  ns: ["common", "form", "results", "errors", "dialogs", "cache", "settings"],
   defaultNS: "common",
   load: "languageOnly", // This is now properly typed as "languageOnly" | "all" | "currentOnly" | undefined
   backend: {
@@ -32,6 +32,7 @@ export const i18nOptions: InitOptions = {
     escapeValue: false,
   },
   initImmediate: false,
+  keySeparator: ":",
 };
 
 export default i18n;

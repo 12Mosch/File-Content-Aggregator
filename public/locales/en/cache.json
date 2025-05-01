@@ -25,5 +25,6 @@
   "days": "days",
   "day": "day",
   "weeks": "weeks",
-  "week": "week"
+  "week": "week",
+  "refreshData": "Refresh"
 }
