@@ -16,6 +16,7 @@ import useDebounce from "./hooks/useDebounce";
 import {
   SearchService,
   SearchProgress as SearchProgressType,
+  SearchOptions,
 } from "./services/SearchService";
 import { SearchProgress } from "./components/SearchProgress";
 import type {
@@ -293,10 +294,10 @@ function App() {
 
   // Handle worker search (currently unused but kept for future use)
   const _handleWorkerSearch = useCallback(
-    async (
+    (
       files: Array<{ filePath: string; content: string }>,
       term: string | RegExp,
-      options: any
+      options: SearchOptions
     ) => {
       if (!searchServiceRef.current) return;
 

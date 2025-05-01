@@ -56,7 +56,10 @@ interface SearchResponse {
 const activeSearches = new Map<string, boolean>();
 
 // Cache for search results to avoid redundant processing
-const searchCache = new Map<string, any>();
+const searchCache = new Map<
+  string,
+  { matches: number[]; matchCount: number; processingTimeMs: number }
+>();
 const MAX_CACHE_SIZE = 100;
 
 // Helper function to generate a cache key
@@ -98,7 +101,8 @@ function performSearch(
   const cachedResult = searchCache.get(cacheKey);
   if (cachedResult) {
     return {
-      ...cachedResult,
+      matches: cachedResult.matches,
+      matchCount: cachedResult.matchCount,
       processingTimeMs: performance.now() - startTime,
     };
   }
@@ -191,7 +195,7 @@ self.onmessage = (event: MessageEvent<SearchRequest | CancelRequest>) => {
     default:
       self.postMessage({
         id,
-        error: `Unknown action: ${action}`,
+        error: `Unknown action: ${String(action)}`,
         status: "error",
       } as SearchResponse);
   }

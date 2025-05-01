@@ -51,19 +51,18 @@ export function safeJsonStringify(obj: unknown, defaultValue = "{}"): string {
  * @param immediate Whether to call the function immediately
  * @returns Debounced function
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
   func: T,
   wait: number,
   immediate = false
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
 
-  return function (this: any, ...args: Parameters<T>): void {
-    const context = this;
-
-    const later = function () {
+  return function (...args: Parameters<T>): void {
+    // Use arrow function to preserve the lexical 'this'
+    const later = () => {
       timeout = null;
-      if (!immediate) func.apply(context, args);
+      if (!immediate) func(...args);
     };
 
     const callNow = immediate && !timeout;
@@ -71,7 +70,7 @@ export function debounce<T extends (...args: any[]) => any>(
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
 
-    if (callNow) func.apply(context, args);
+    if (callNow) func(...args);
   };
 }
 
@@ -81,7 +80,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param limit Limit in milliseconds
  * @returns Throttled function
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: Parameters<T>) => ReturnType<T>>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -89,11 +88,9 @@ export function throttle<T extends (...args: any[]) => any>(
   let lastFunc: NodeJS.Timeout;
   let lastRan: number;
 
-  return function (this: any, ...args: Parameters<T>): void {
-    const context = this;
-
+  return function (...args: Parameters<T>): void {
     if (!inThrottle) {
-      func.apply(context, args);
+      func(...args);
       lastRan = Date.now();
       inThrottle = true;
 
@@ -105,7 +102,7 @@ export function throttle<T extends (...args: any[]) => any>(
       lastFunc = setTimeout(
         () => {
           if (Date.now() - lastRan >= limit) {
-            func.apply(context, args);
+            func(...args);
             lastRan = Date.now();
           }
         },

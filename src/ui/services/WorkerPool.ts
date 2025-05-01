@@ -7,12 +7,19 @@
 
 import { v4 as uuidv4 } from "uuid";
 
+interface WorkerMessageData {
+  id?: string;
+  status?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
 interface WorkerTask {
   id: string;
   action: string;
-  payload: any;
-  resolve: (value: any) => void;
-  reject: (reason: any) => void;
+  payload: unknown;
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
   startTime: number;
 }
 
@@ -79,7 +86,8 @@ export class WorkerPool {
 
       // Handle messages from the worker
       worker.onmessage = (event) => {
-        const { id, status } = event.data;
+        const data = event.data as WorkerMessageData;
+        const { id, status } = data;
 
         // Handle worker ready message
         if (status === "ready" && !id) {
@@ -98,11 +106,11 @@ export class WorkerPool {
 
           // Process the result
           if (status === "error") {
-            task.reject(new Error(event.data.error || "Unknown error"));
+            task.reject(new Error(data.error || "Unknown error"));
           } else if (status === "cancelled") {
             task.reject(new Error("Task was cancelled"));
           } else {
-            task.resolve(event.data);
+            task.resolve(data);
           }
 
           // Process next task if available
@@ -169,7 +177,7 @@ export class WorkerPool {
       id: task.id,
       action: task.action,
       payload: task.payload,
-    });
+    } as WorkerMessageData);
   }
 
   /**
@@ -178,18 +186,23 @@ export class WorkerPool {
    * @param payload The payload for the action
    * @returns A promise that resolves with the result
    */
-  public async execute<T>(action: string, payload: any): Promise<T> {
+  public async execute<T>(action: string, payload: unknown): Promise<T> {
     // Wait for initialization if needed
     if (!this.isInitialized && this.initPromise) {
       await this.initPromise;
     }
 
     return new Promise<T>((resolve, reject) => {
+      // Create a type-safe wrapper for the resolve function
+      const typedResolve = (value: unknown): void => {
+        resolve(value as T);
+      };
+
       const task: WorkerTask = {
         id: uuidv4(),
         action,
         payload,
-        resolve,
+        resolve: typedResolve,
         reject,
         startTime: performance.now(),
       };
@@ -226,7 +239,7 @@ export class WorkerPool {
         payload: {
           requestId: taskId,
         },
-      });
+      } as WorkerMessageData);
     }
   }
 

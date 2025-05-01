@@ -33,6 +33,19 @@ export interface TimeSeriesData {
   color?: string;
 }
 
+/**
+ * Interface for hierarchical visualization data structure
+ */
+export interface HierarchicalNode {
+  name: string;
+  value?: number;
+  percentage?: number;
+  callCount?: number;
+  averageDuration?: number;
+  memoryDelta?: number;
+  children: HierarchicalNode[];
+}
+
 export class PerformanceVisualizer {
   /**
    * Generate chart data for operation durations
@@ -197,7 +210,9 @@ export class PerformanceVisualizer {
    * @param report Profile report
    * @returns Hierarchical data structure for visualization
    */
-  public static generateHierarchicalData(report: ProfileReport[]): any {
+  public static generateHierarchicalData(
+    report: ProfileReport[]
+  ): HierarchicalNode {
     return {
       name: "root",
       children: report.map((entry) => this.transformReportToHierarchy(entry)),
@@ -209,7 +224,9 @@ export class PerformanceVisualizer {
    * @param report Profile report entry
    * @returns Hierarchical data structure
    */
-  private static transformReportToHierarchy(report: ProfileReport): any {
+  private static transformReportToHierarchy(
+    report: ProfileReport
+  ): HierarchicalNode {
     return {
       name: report.name,
       value: report.duration,
