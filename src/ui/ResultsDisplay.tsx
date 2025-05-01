@@ -1369,8 +1369,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   // Copy file paths to clipboard
   const handleCopyFilePaths = () => {
-    if (selectedFiles.size === 0) {
-      setBatchStatus(t("exportSelectedNoSelection"));
+    if (!sortedItems || sortedItems.length === 0) {
+      setBatchStatus(t("exportButtonNoResults"));
       setTimeout(() => setBatchStatus(""), 3000);
       return;
     }
@@ -1384,8 +1384,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     setBatchStatus(t("batchOperationInProgress"));
 
-    // Convert Set to Array
-    const filePaths = Array.from(selectedFiles);
+    // Use selected files if any are selected, otherwise use all results
+    const filePaths =
+      selectedFiles.size > 0
+        ? Array.from(selectedFiles)
+        : sortedItems.map((item) => item.filePath);
 
     window.electronAPI
       .copyFilePaths(filePaths)
@@ -1411,8 +1414,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   // Copy files to folder
   const handleCopyFilesToFolder = () => {
-    if (selectedFiles.size === 0) {
-      setBatchStatus(t("exportSelectedNoSelection"));
+    if (!sortedItems || sortedItems.length === 0) {
+      setBatchStatus(t("exportButtonNoResults"));
       setTimeout(() => setBatchStatus(""), 3000);
       return;
     }
@@ -1426,8 +1429,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     setBatchStatus(t("batchOperationInProgress"));
 
-    // Convert Set to Array
-    const filePaths = Array.from(selectedFiles);
+    // Use selected files if any are selected, otherwise use all results
+    const filePaths =
+      selectedFiles.size > 0
+        ? Array.from(selectedFiles)
+        : sortedItems.map((item) => item.filePath);
 
     window.electronAPI
       .copyFilesToFolder(filePaths)
@@ -1457,8 +1463,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   // Move files to folder
   const handleMoveFilesToFolder = () => {
-    if (selectedFiles.size === 0) {
-      setBatchStatus(t("exportSelectedNoSelection"));
+    if (!sortedItems || sortedItems.length === 0) {
+      setBatchStatus(t("exportButtonNoResults"));
       setTimeout(() => setBatchStatus(""), 3000);
       return;
     }
@@ -1472,8 +1478,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     setBatchStatus(t("batchOperationInProgress"));
 
-    // Convert Set to Array
-    const filePaths = Array.from(selectedFiles);
+    // Use selected files if any are selected, otherwise use all results
+    const filePaths =
+      selectedFiles.size > 0
+        ? Array.from(selectedFiles)
+        : sortedItems.map((item) => item.filePath);
 
     window.electronAPI
       .moveFilesToFolder(filePaths)
@@ -1790,28 +1799,31 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               {t("saveAllResultsLabel")}
             </DropdownMenuItem>
 
-            {/* Export Selected */}
+            {/* Export Selected/All */}
             <DropdownMenuItem
               onClick={() => {
-                if (selectedFiles.size === 0) {
-                  setExportStatus(t("exportSelectedNoSelection"));
+                if (!sortedItems || sortedItems.length === 0) {
+                  setExportStatus(t("exportButtonNoResults"));
                   setTimeout(() => setExportStatus(""), 3000);
                   return;
                 }
-                if (!sortedItems || !window.electronAPI?.exportResults) {
+                if (!window.electronAPI?.exportResults) {
                   setExportStatus(t("exportButtonError"));
                   setTimeout(() => setExportStatus(""), 3000);
                   return;
                 }
 
-                // Filter sortedItems to only include selected files
-                const selectedItems = sortedItems.filter((item) =>
-                  selectedFiles.has(item.filePath)
-                );
+                // Use selected files if any are selected, otherwise use all results
+                const itemsToExport =
+                  selectedFiles.size > 0
+                    ? sortedItems.filter((item) =>
+                        selectedFiles.has(item.filePath)
+                      )
+                    : sortedItems;
 
                 setExportStatus(t("exportButtonExporting"));
                 window.electronAPI
-                  .exportResults(selectedItems, exportFormat)
+                  .exportResults(itemsToExport, exportFormat)
                   .then(({ success, error }) => {
                     if (success) {
                       setExportStatus(t("exportButtonSuccess"));
@@ -1835,37 +1847,45 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                     setTimeout(() => setExportStatus(""), 5000);
                   });
               }}
-              disabled={selectedFiles.size === 0}
+              disabled={!sortedItems || sortedItems.length === 0}
             >
               <Save className="mr-2 h-4 w-4" />
-              {t("exportSelectedLabel")}
+              {selectedFiles.size > 0
+                ? t("exportSelectedLabel")
+                : t("exportAllResultsLabel")}
             </DropdownMenuItem>
 
             {/* Copy Paths to Clipboard */}
             <DropdownMenuItem
               onClick={handleCopyFilePaths}
-              disabled={selectedFiles.size === 0}
+              disabled={!sortedItems || sortedItems.length === 0}
             >
               <ClipboardCopy className="mr-2 h-4 w-4" />
-              {t("copyPathsLabel")}
+              {selectedFiles.size > 0
+                ? t("copyPathsSelectedLabel")
+                : t("copyPathsAllLabel")}
             </DropdownMenuItem>
 
             {/* Copy Files to Folder */}
             <DropdownMenuItem
               onClick={handleCopyFilesToFolder}
-              disabled={selectedFiles.size === 0}
+              disabled={!sortedItems || sortedItems.length === 0}
             >
               <Download className="mr-2 h-4 w-4" />
-              {t("copyFilesLabel")}
+              {selectedFiles.size > 0
+                ? t("copyFilesSelectedLabel")
+                : t("copyFilesAllLabel")}
             </DropdownMenuItem>
 
             {/* Move Files to Folder */}
             <DropdownMenuItem
               onClick={handleMoveFilesToFolder}
-              disabled={selectedFiles.size === 0}
+              disabled={!sortedItems || sortedItems.length === 0}
             >
               <Upload className="mr-2 h-4 w-4" />
-              {t("moveFilesLabel")}
+              {selectedFiles.size > 0
+                ? t("moveFilesSelectedLabel")
+                : t("moveFilesAllLabel")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
