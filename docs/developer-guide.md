@@ -517,7 +517,7 @@ Security is paramount in Electron applications. Key measures taken:
 - **Context Isolation:** **Enabled** (`contextIsolation: true`).
 - **Sandbox:** **Enabled** (`sandbox: true`).
 - **Preload Script (`contextBridge`):** Only necessary functions exposed via `window.electronAPI`.
-- **Content Security Policy (CSP):** Strict CSP applied via `session.defaultSession.webRequest.onHeadersReceived`.
+- **Content Security Policy (CSP):** Strict CSP applied via `session.defaultSession.webRequest.onHeadersReceived` with different policies for development and production environments. The production policy eliminates unsafe directives like `unsafe-eval` and restricts resource loading to trusted sources.
 - **IPC Sender Validation:** All `ipcMain.handle` and `ipcMain.on` listeners use `validateSender`.
 - **No Node Integration in Renderer:** `nodeIntegration: false`.
 - **External Links:** Use `shell.openExternal` (if needed).

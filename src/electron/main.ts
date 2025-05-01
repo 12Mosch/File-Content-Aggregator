@@ -284,44 +284,70 @@ function registerAppProtocol() {
   });
   console.log(`Custom protocol "${APP_PROTOCOL}://" registered.`);
 }
+/**
+ * Sets up Content Security Policy for the application.
+ *
+ * In development mode, we need to allow:
+ * - Vite's dev server and WebSocket connections
+ * - Unsafe inline scripts and eval for HMR (but restricted to dev server origin)
+ *
+ * In production mode, we use a much stricter policy:
+ * - Only allow resources from our custom app protocol
+ * - No unsafe-eval or unsafe-inline except where absolutely necessary
+ * - Proper restrictions on all resource types
+ */
 function setupCSP() {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     let csp = "";
     const selfSrc = `'self'`;
     const appProtoSrc = `${APP_PROTOCOL}:`;
+
     if (isDev()) {
+      // Development mode - needs to allow Vite's dev server
       const viteServer = "http://localhost:5123";
       const viteWs = "ws://localhost:5123";
+
+      // We need unsafe-inline and unsafe-eval for development with Vite
+      // But we restrict it to only what's necessary
       csp = [
         `default-src ${selfSrc} ${viteServer}`,
-        `script-src ${selfSrc} 'unsafe-inline' 'unsafe-eval' ${viteServer} blob:`,
-        `style-src ${selfSrc} 'unsafe-inline'`,
+        // Allow unsafe-eval only for development, but restrict to self and Vite server
+        `script-src ${selfSrc} ${viteServer} 'unsafe-inline' 'unsafe-eval'`,
+        `style-src ${selfSrc} ${viteServer} 'unsafe-inline'`,
         `connect-src ${selfSrc} ${viteWs} ${viteServer}`,
         `img-src ${selfSrc} data:`,
         `font-src ${selfSrc}`,
         `worker-src ${selfSrc} blob:`,
         `object-src 'none'`,
         `frame-ancestors 'none'`,
+        `base-uri 'self'`,
+        `form-action 'none'`,
       ].join("; ");
     } else {
+      // Production mode - much stricter CSP
       csp = [
-        `default-src ${appProtoSrc}`,
-        `script-src ${appProtoSrc} blob:`,
-        `style-src ${appProtoSrc} 'unsafe-inline'`,
-        `connect-src ${appProtoSrc}`,
-        `img-src ${appProtoSrc} data:`,
-        `font-src ${appProtoSrc}`,
-        `worker-src ${appProtoSrc} blob:`,
+        `default-src 'self' ${appProtoSrc}`,
+        `script-src 'self' ${appProtoSrc} blob:`,
+        `style-src 'self' ${appProtoSrc} 'unsafe-inline'`, // Unsafe-inline needed for styled-components/CSS-in-JS
+        `connect-src 'self' ${appProtoSrc}`,
+        `img-src 'self' ${appProtoSrc} data:`,
+        `font-src 'self' ${appProtoSrc}`,
+        `worker-src 'self' ${appProtoSrc} blob:`,
         `object-src 'none'`,
         `frame-ancestors 'none'`,
+        `base-uri 'self'`,
+        `form-action 'none'`,
       ].join("; ");
     }
+
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [csp],
         "X-Content-Type-Options": ["nosniff"],
         "X-Frame-Options": ["DENY"],
+        "Referrer-Policy": ["strict-origin-when-cross-origin"],
+        "Permissions-Policy": ["camera=(), microphone=(), geolocation=()"],
       },
     });
   });
