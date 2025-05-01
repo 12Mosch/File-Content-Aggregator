@@ -12,25 +12,27 @@ import os from "os";
 const optimizedSearch = {
   searchFiles: jest
     .fn()
-    .mockImplementation(async (params, progressCallback, checkCancellation) => {
-      // Mock implementation that returns a basic result
-      return {
-        filesFound: 5,
-        filesProcessed: 10,
-        errorsEncountered: 0,
-        structuredItems: Array(5)
-          .fill(0)
-          .map((_, i) => ({
-            filePath: `file${i}.txt`,
-            fileName: `file${i}.txt`,
-            fileSize: 1024,
-            lastModified: new Date().toISOString(),
-            matched: i % 2 === 0,
-            matchedLines: [],
-            readError: null,
-          })),
-      };
-    }),
+    .mockImplementation(
+      async (_params, _progressCallback, _checkCancellation) => {
+        // Mock implementation that returns a basic result
+        return {
+          filesFound: 5,
+          filesProcessed: 10,
+          errorsEncountered: 0,
+          structuredItems: Array(5)
+            .fill(0)
+            .map((_, i) => ({
+              filePath: `file${i}.txt`,
+              fileName: `file${i}.txt`,
+              fileSize: 1024,
+              lastModified: new Date().toISOString(),
+              matched: i % 2 === 0,
+              matchedLines: [],
+              readError: null,
+            })),
+        };
+      }
+    ),
 };
 
 // Create a mock for the original implementation
@@ -39,7 +41,7 @@ const originalSearch = {
 };
 
 // Get directory path - compatible with both CommonJS and ESM
-const currentDirPath = path.resolve(__dirname || ".");
+const _currentDirPath = path.resolve(__dirname || ".");
 
 // Mock the console methods to reduce test output noise
 beforeEach(() => {
