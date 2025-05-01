@@ -13,12 +13,26 @@ export interface CacheStats {
   hitRate: number;
   timeToLive?: number;
   estimatedMemoryUsage?: number;
+  // Advanced metrics
+  averageAccessTime?: number;
+  totalAccessTime?: number;
+  accessCount?: number;
+  expiredEvictions?: number;
+  memoryEvictions?: number;
+  capacityEvictions?: number;
+  averageEntrySize?: number;
+  lastEvictionTimestamp?: number;
+  cacheEfficiencyScore?: number;
 }
 
 interface CacheEntry<V> {
   value: V;
   expires?: number; // Timestamp when this entry expires
   size?: number; // Estimated size in bytes
+  createdAt: number; // Timestamp when this entry was created
+  accessCount: number; // Number of times this entry has been accessed
+  lastAccessTime: number; // Timestamp of last access
+  totalAccessTime: number; // Total time spent accessing this entry (ms)
 }
 
 export class LRUCache<K, V> {
@@ -27,7 +41,17 @@ export class LRUCache<K, V> {
   private timeToLive?: number; // Time in milliseconds before entries expire
   private maxMemorySize?: number; // Maximum memory size in bytes
   private estimatedMemoryUsage = 0; // Estimated memory usage in bytes
-  private stats = { hits: 0, misses: 0, evictions: 0 };
+  private stats = {
+    hits: 0,
+    misses: 0,
+    evictions: 0,
+    totalAccessTime: 0,
+    accessCount: 0,
+    expiredEvictions: 0,
+    memoryEvictions: 0,
+    capacityEvictions: 0,
+    lastEvictionTimestamp: 0,
+  };
   private memoryPressureListener:
     | ((pressure: "low" | "medium" | "high") => void)
     | null = null;
@@ -53,6 +77,9 @@ export class LRUCache<K, V> {
    * @returns The cached value or undefined if not found
    */
   get(key: K): V | undefined {
+    const startTime = performance.now();
+    this.stats.accessCount++;
+
     if (this.cache.has(key)) {
       const entry = this.cache.get(key)!;
 
@@ -60,17 +87,36 @@ export class LRUCache<K, V> {
       if (entry.expires && entry.expires < Date.now()) {
         this.cache.delete(key);
         this.stats.evictions++;
+        this.stats.expiredEvictions++;
         this.stats.misses++;
+
+        const endTime = performance.now();
+        const accessTime = endTime - startTime;
+        this.stats.totalAccessTime += accessTime;
+
         return undefined;
       }
+
+      // Update entry access stats
+      entry.accessCount++;
+      entry.lastAccessTime = Date.now();
+      const accessTime = performance.now() - startTime;
+      entry.totalAccessTime += accessTime;
 
       // Move to end (most recently used)
       this.cache.delete(key);
       this.cache.set(key, entry);
+
       this.stats.hits++;
+      this.stats.totalAccessTime += accessTime;
+
       return entry.value;
     }
+
     this.stats.misses++;
+    const endTime = performance.now();
+    this.stats.totalAccessTime += endTime - startTime;
+
     return undefined;
   }
 
@@ -118,15 +164,20 @@ export class LRUCache<K, V> {
     }
 
     // Create the cache entry
+    const now = Date.now();
     const entry: CacheEntry<V> = {
       value,
       size: entrySize,
+      createdAt: now,
+      accessCount: 0,
+      lastAccessTime: now,
+      totalAccessTime: 0,
     };
 
     // Set expiration if applicable
     const ttl = customTTL !== undefined ? customTTL : this.timeToLive;
     if (ttl !== undefined) {
-      entry.expires = Date.now() + ttl;
+      entry.expires = now + ttl;
     }
 
     // Update our memory usage estimate
@@ -254,6 +305,37 @@ export class LRUCache<K, V> {
     const totalAccesses = this.stats.hits + this.stats.misses;
     const hitRate = totalAccesses > 0 ? this.stats.hits / totalAccesses : 0;
 
+    // Calculate average access time
+    const averageAccessTime =
+      this.stats.accessCount > 0
+        ? this.stats.totalAccessTime / this.stats.accessCount
+        : 0;
+
+    // Calculate average entry size
+    let totalSize = 0;
+    let entryCount = 0;
+    for (const entry of this.cache.values()) {
+      if (entry.size !== undefined) {
+        totalSize += entry.size;
+        entryCount++;
+      }
+    }
+    const averageEntrySize = entryCount > 0 ? totalSize / entryCount : 0;
+
+    // Calculate cache efficiency score (0-100)
+    // Higher score means better efficiency
+    // Factors: hit rate, average access time, eviction rate
+    const evictionRate =
+      totalAccesses > 0 ? this.stats.evictions / totalAccesses : 0;
+    const accessTimeScore =
+      averageAccessTime < 1 ? 100 : Math.min(100, 100 / averageAccessTime);
+    const cacheEfficiencyScore = Math.round(
+      (hitRate * 0.6 +
+        (1 - evictionRate) * 0.3 +
+        (accessTimeScore / 100) * 0.1) *
+        100
+    );
+
     return {
       ...this.stats,
       size: this.cache.size,
@@ -261,6 +343,11 @@ export class LRUCache<K, V> {
       hitRate,
       timeToLive: this.timeToLive,
       estimatedMemoryUsage: this.estimatedMemoryUsage,
+      averageAccessTime,
+      totalAccessTime: this.stats.totalAccessTime,
+      accessCount: this.stats.accessCount,
+      averageEntrySize,
+      cacheEfficiencyScore,
     };
   }
 
@@ -268,7 +355,17 @@ export class LRUCache<K, V> {
    * Resets the cache statistics
    */
   resetStats(): void {
-    this.stats = { hits: 0, misses: 0, evictions: 0 };
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      evictions: 0,
+      totalAccessTime: 0,
+      accessCount: 0,
+      expiredEvictions: 0,
+      memoryEvictions: 0,
+      capacityEvictions: 0,
+      lastEvictionTimestamp: 0,
+    };
   }
 
   /**
@@ -331,9 +428,13 @@ export class LRUCache<K, V> {
   /**
    * Trims the cache to the specified size by removing the least recently used items
    * @param newSize The new maximum size
+   * @param reason The reason for trimming (for metrics tracking)
    * @returns The number of items removed
    */
-  trimToSize(newSize: number): number {
+  trimToSize(
+    newSize: number,
+    reason: "capacity" | "memory" | "expired" = "capacity"
+  ): number {
     if (newSize >= this.cache.size) return 0;
     if (newSize < 0) newSize = 0;
 
@@ -344,8 +445,26 @@ export class LRUCache<K, V> {
     for (let i = 0; i < itemsToRemove; i++) {
       const key = keys.next().value;
       if (key !== undefined) {
+        const entry = this.cache.get(key)!;
+
+        // Update memory usage estimate
+        if (entry.size !== undefined) {
+          this.estimatedMemoryUsage -= entry.size;
+        }
+
         this.cache.delete(key);
         this.stats.evictions++;
+        this.stats.lastEvictionTimestamp = Date.now();
+
+        // Track the reason for eviction
+        if (reason === "capacity") {
+          this.stats.capacityEvictions++;
+        } else if (reason === "memory") {
+          this.stats.memoryEvictions++;
+        } else if (reason === "expired") {
+          this.stats.expiredEvictions++;
+        }
+
         removed++;
       }
     }
@@ -394,9 +513,12 @@ export class LRUCache<K, V> {
 
   /**
    * Evict the least recently used item from the cache
+   * @param reason The reason for eviction (for metrics tracking)
    * @returns True if an item was evicted, false if the cache was empty
    */
-  private evictLeastRecentlyUsed(): boolean {
+  private evictLeastRecentlyUsed(
+    reason: "capacity" | "memory" | "expired" = "capacity"
+  ): boolean {
     if (this.cache.size === 0) return false;
 
     const firstKey = this.cache.keys().next().value;
@@ -410,6 +532,17 @@ export class LRUCache<K, V> {
 
       this.cache.delete(firstKey);
       this.stats.evictions++;
+      this.stats.lastEvictionTimestamp = Date.now();
+
+      // Track the reason for eviction
+      if (reason === "capacity") {
+        this.stats.capacityEvictions++;
+      } else if (reason === "memory") {
+        this.stats.memoryEvictions++;
+      } else if (reason === "expired") {
+        this.stats.expiredEvictions++;
+      }
+
       return true;
     }
 
@@ -476,10 +609,10 @@ export class LRUCache<K, V> {
           this.memoryPressureListener = (pressure) => {
             if (pressure === "high") {
               // Under high memory pressure, trim the cache aggressively
-              this.trimToSize(Math.floor(this.maxSize * 0.5)); // Reduce to 50%
+              this.trimToSize(Math.floor(this.maxSize * 0.5), "memory"); // Reduce to 50%
             } else if (pressure === "medium") {
               // Under medium pressure, do a moderate trim
-              this.trimToSize(Math.floor(this.maxSize * 0.75)); // Reduce to 75%
+              this.trimToSize(Math.floor(this.maxSize * 0.75), "memory"); // Reduce to 75%
             }
           };
 

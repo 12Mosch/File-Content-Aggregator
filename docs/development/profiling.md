@@ -37,6 +37,7 @@ The Performance Dashboard in the Settings dialog provides real-time visualizatio
 
 - **Overview**: Shows high-level metrics like total operations, total duration, and memory usage.
 - **Operations**: Provides detailed metrics for each operation, including call counts and average durations.
+- **Search**: Displays detailed metrics for search operations, including NEAR operator, fuzzy search, and regex search performance.
 - **Memory**: Shows memory usage by operation (when detailed memory tracking is enabled).
 - **Timeline**: Displays a timeline of recent operations.
 
@@ -140,7 +141,7 @@ The profiling system helps identify bottlenecks in several ways:
 3. **Memory Usage**: Operations with high memory usage might need memory optimization.
 4. **Timeline Analysis**: The timeline view can help identify patterns and spikes in performance.
 5. **Phase Metrics**: Detailed metrics for different phases of an algorithm help pinpoint specific bottlenecks.
-6. **Cache Efficiency**: Cache hit/miss ratios indicate the effectiveness of caching mechanisms.
+6. **Cache Efficiency**: Cache hit/miss ratios, eviction rates, and efficiency scores indicate the effectiveness of caching mechanisms. The Cache Settings panel provides detailed metrics for analyzing cache performance.
 
 ## Best Practices
 
@@ -150,6 +151,25 @@ The profiling system helps identify bottlenecks in several ways:
 4. **Look for Patterns**: Sometimes the issue isn't a single operation but a pattern of operations.
 5. **Consider Trade-offs**: Some optimizations might improve speed at the cost of memory, or vice versa.
 
+## Cache Performance Monitoring
+
+The application includes a comprehensive cache performance monitoring system:
+
+1. **Basic Metrics**: Hit rate, miss rate, eviction count, and cache size.
+2. **Advanced Metrics**:
+   - Average access time
+   - Memory usage per cache entry
+   - Eviction breakdown (expired, memory pressure, capacity)
+   - Cache efficiency score
+3. **Historical Metrics**: Track cache performance over time to identify trends.
+
+The Cache Settings panel provides access to these metrics and allows you to:
+
+- View real-time cache statistics
+- Analyze cache efficiency
+- Optimize cache configuration based on usage patterns
+- Track cache performance history
+
 ## Implementation Details
 
 The profiling system is implemented in the following files:
@@ -158,6 +178,9 @@ The profiling system is implemented in the following files:
 - `src/lib/utils/PerformanceVisualizer.ts`: Utilities for visualizing performance data
 - `src/ui/components/PerformanceDashboard.tsx`: The UI component for the performance dashboard
 - `src/ui/components/PerformanceChart.tsx`: Chart components for visualizing metrics
+- `src/ui/components/CacheSettings.tsx`: The UI component for cache settings and metrics
+- `src/lib/LRUCache.ts`: The cache implementation with detailed metrics collection
+- `src/lib/CacheManager.ts`: The cache manager with historical metrics tracking
 - `scripts/analyzePerformance.js`: Command-line tool for analyzing performance data
 
 The NEAR operator implementation in `src/electron/services/NearOperatorService.ts` includes detailed profiling to help identify bottlenecks in the search algorithm.

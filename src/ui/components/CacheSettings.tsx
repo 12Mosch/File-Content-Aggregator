@@ -6,7 +6,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { CacheManager, CacheInfo } from "../../lib/CacheManager";
+import {
+  CacheManager,
+  CacheInfo,
+  CacheMetricsHistory,
+} from "../../lib/CacheManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +26,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Trash2, RefreshCw as _RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, BarChart, Clock, Award } from "lucide-react";
+import { CacheMetricsChart } from "./CacheMetricsChart";
 
 export function CacheSettings() {
   const { t } = useTranslation(["cache", "common"]);
@@ -32,6 +38,10 @@ export function CacheSettings() {
   const [timeToLive, setTimeToLive] = useState<number | undefined>(undefined);
   const [enableTTL, setEnableTTL] = useState<boolean>(false);
   const [memoryUsage, setMemoryUsage] = useState<number>(0);
+  const [metricsHistory, setMetricsHistory] = useState<CacheMetricsHistory[]>(
+    []
+  );
+  const [activeTab, setActiveTab] = useState<string>("stats");
 
   // Get the cache manager instance
   const cacheManager = CacheManager.getInstance();
@@ -47,6 +57,15 @@ export function CacheSettings() {
       }
 
       setMemoryUsage(cacheManager.getMemoryUsage());
+
+      // Load metrics history for the selected cache
+      if (selectedCache) {
+        const cacheId = info.find((c) => c.name === selectedCache)?.name;
+        if (cacheId) {
+          const history = cacheManager.getMetricsHistory(cacheId, 50);
+          setMetricsHistory(history);
+        }
+      }
     };
 
     loadCacheInfo();
@@ -113,11 +132,11 @@ export function CacheSettings() {
   };
 
   // Format bytes to a human-readable string
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
+  const formatBytes = (bytes?: number): string => {
+    if (bytes === undefined || bytes === 0) return "0 Bytes";
 
     const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
@@ -176,63 +195,27 @@ export function CacheSettings() {
             value={cache.name}
             className="space-y-4"
           >
-            <Card>
-              <CardHeader>
-                <CardTitle>{cache.name}</CardTitle>
-                <CardDescription>{t("cache:cacheStatistics")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>{t("cache:size")}</Label>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-sm">
-                        {cache.size} / {cache.capacity}
-                      </span>
-                      <Progress
-                        value={(cache.size / cache.capacity) * 100}
-                        className="h-2 w-32"
-                      />
-                    </div>
-                  </div>
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <TabsList>
+                  <TabsTrigger value="stats">
+                    <BarChart className="h-4 w-4 mr-2" />
+                    {t("cache:basicStats")}
+                  </TabsTrigger>
+                  <TabsTrigger value="advanced">
+                    <Award className="h-4 w-4 mr-2" />
+                    {t("cache:advancedStats")}
+                  </TabsTrigger>
+                  <TabsTrigger value="history">
+                    <Clock className="h-4 w-4 mr-2" />
+                    {t("cache:history")}
+                  </TabsTrigger>
+                </TabsList>
 
-                  <div>
-                    <Label>{t("cache:hitRate")}</Label>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-sm">
-                        {(cache.hitRate * 100).toFixed(1)}%
-                      </span>
-                      <Progress
-                        value={cache.hitRate * 100}
-                        className="h-2 w-32"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>{t("cache:hits")}</Label>
-                    <div className="text-sm mt-1">{cache.hits}</div>
-                  </div>
-
-                  <div>
-                    <Label>{t("cache:misses")}</Label>
-                    <div className="text-sm mt-1">{cache.misses}</div>
-                  </div>
-
-                  <div>
-                    <Label>{t("cache:evictions")}</Label>
-                    <div className="text-sm mt-1">{cache.evictions}</div>
-                  </div>
-
-                  <div>
-                    <Label>{t("cache:timeToLive")}</Label>
-                    <div className="text-sm mt-1">
-                      {formatTime(cache.timeToLive)}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
                 <Button
                   variant="outline"
                   size="sm"
@@ -241,8 +224,241 @@ export function CacheSettings() {
                   <Trash2 className="h-4 w-4 mr-2" />
                   {t("cache:clearCache")}
                 </Button>
-              </CardFooter>
-            </Card>
+              </div>
+
+              <TabsContent value="stats">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{cache.name}</CardTitle>
+                    <CardDescription>
+                      {t("cache:cacheStatistics")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>{t("cache:size")}</Label>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-sm">
+                            {cache.size} / {cache.capacity}
+                          </span>
+                          <Progress
+                            value={(cache.size / cache.capacity) * 100}
+                            className="h-2 w-32"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>{t("cache:hitRate")}</Label>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-sm">
+                            {(cache.hitRate * 100).toFixed(1)}%
+                          </span>
+                          <Progress
+                            value={cache.hitRate * 100}
+                            className="h-2 w-32"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>{t("cache:hits")}</Label>
+                        <div className="text-sm mt-1">{cache.hits}</div>
+                      </div>
+
+                      <div>
+                        <Label>{t("cache:misses")}</Label>
+                        <div className="text-sm mt-1">{cache.misses}</div>
+                      </div>
+
+                      <div>
+                        <Label>{t("cache:evictions")}</Label>
+                        <div className="text-sm mt-1">{cache.evictions}</div>
+                      </div>
+
+                      <div>
+                        <Label>{t("cache:timeToLive")}</Label>
+                        <div className="text-sm mt-1">
+                          {formatTime(cache.timeToLive)}
+                        </div>
+                      </div>
+
+                      {cache.cacheEfficiencyScore !== undefined && (
+                        <div className="col-span-2">
+                          <Label>{t("cache:efficiencyScore")}</Label>
+                          <div className="flex justify-between items-center mt-1">
+                            <Badge
+                              variant={
+                                cache.cacheEfficiencyScore > 80
+                                  ? "default"
+                                  : cache.cacheEfficiencyScore > 50
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                            >
+                              {cache.cacheEfficiencyScore}/100
+                            </Badge>
+                            <Progress
+                              value={cache.cacheEfficiencyScore}
+                              className="h-2 w-32"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="advanced">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("cache:advancedMetrics")}</CardTitle>
+                    <CardDescription>
+                      {t("cache:advancedMetricsDescription")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      {cache.averageAccessTime !== undefined && (
+                        <div>
+                          <Label>{t("cache:averageAccessTime")}</Label>
+                          <div className="text-sm mt-1">
+                            {cache.averageAccessTime.toFixed(2)} ms
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.accessCount !== undefined && (
+                        <div>
+                          <Label>{t("cache:accessCount")}</Label>
+                          <div className="text-sm mt-1">
+                            {cache.accessCount}
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.averageEntrySize !== undefined && (
+                        <div>
+                          <Label>{t("cache:averageEntrySize")}</Label>
+                          <div className="text-sm mt-1">
+                            {formatBytes(cache.averageEntrySize)}
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.estimatedMemoryUsage !== undefined && (
+                        <div>
+                          <Label>{t("cache:memoryUsage")}</Label>
+                          <div className="text-sm mt-1">
+                            {formatBytes(cache.estimatedMemoryUsage)}
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.expiredEvictions !== undefined && (
+                        <div>
+                          <Label>{t("cache:expiredEvictions")}</Label>
+                          <div className="text-sm mt-1">
+                            {cache.expiredEvictions}
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.memoryEvictions !== undefined && (
+                        <div>
+                          <Label>{t("cache:memoryEvictions")}</Label>
+                          <div className="text-sm mt-1">
+                            {cache.memoryEvictions}
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.capacityEvictions !== undefined && (
+                        <div>
+                          <Label>{t("cache:capacityEvictions")}</Label>
+                          <div className="text-sm mt-1">
+                            {cache.capacityEvictions}
+                          </div>
+                        </div>
+                      )}
+
+                      {cache.lastEvictionTimestamp !== undefined &&
+                        cache.lastEvictionTimestamp > 0 && (
+                          <div>
+                            <Label>{t("cache:lastEviction")}</Label>
+                            <div className="text-sm mt-1">
+                              {new Date(
+                                cache.lastEvictionTimestamp
+                              ).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="history">
+                <div className="space-y-4">
+                  <CacheMetricsChart
+                    metrics={metricsHistory}
+                    title={t("cache:metricsHistory")}
+                    description={t("cache:metricsHistoryDescription")}
+                  />
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t("cache:cacheOptimizationTips")}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {metricsHistory.length > 0 ? (
+                          <>
+                            {metricsHistory[metricsHistory.length - 1].hitRate <
+                              0.5 && (
+                              <div className="flex items-center p-2 bg-muted/20 rounded-md">
+                                <Badge variant="outline" className="mr-2">
+                                  Tip
+                                </Badge>
+                                <span>{t("cache:optimizationTip1")}</span>
+                              </div>
+                            )}
+
+                            {metricsHistory[metricsHistory.length - 1]
+                              .memoryUsage > 10000000 && (
+                              <div className="flex items-center p-2 bg-muted/20 rounded-md">
+                                <Badge variant="outline" className="mr-2">
+                                  Tip
+                                </Badge>
+                                <span>{t("cache:optimizationTip2")}</span>
+                              </div>
+                            )}
+
+                            {metricsHistory[metricsHistory.length - 1].hitRate <
+                              0.8 &&
+                              metricsHistory[metricsHistory.length - 1]
+                                .evictions > 0 && (
+                                <div className="flex items-center p-2 bg-muted/20 rounded-md">
+                                  <Badge variant="outline" className="mr-2">
+                                    Tip
+                                  </Badge>
+                                  <span>{t("cache:optimizationTip3")}</span>
+                                </div>
+                              )}
+                          </>
+                        ) : (
+                          <div className="text-center py-4 text-muted-foreground">
+                            {t("cache:noMetricsHistory")}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
 
             <Card>
               <CardHeader>

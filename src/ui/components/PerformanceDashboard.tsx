@@ -163,13 +163,14 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">
                 {t("settings:overview")}
               </TabsTrigger>
               <TabsTrigger value="operations">
                 {t("settings:operations")}
               </TabsTrigger>
+              <TabsTrigger value="search">{t("settings:search")}</TabsTrigger>
               <TabsTrigger value="memory">{t("settings:memory")}</TabsTrigger>
               <TabsTrigger value="timeline">
                 {t("settings:timeline")}
@@ -361,6 +362,193 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="search" className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {t("settings:searchOperations")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {performanceSummary.topOperations
+                        .filter(
+                          (op) =>
+                            op.name.includes("Search") ||
+                            op.name.includes("NEAR") ||
+                            op.name.includes("Fuzzy")
+                        )
+                        .reduce((sum, op) => sum + op.callCount, 0)
+                        .toLocaleString()}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {t("settings:searchTotalTime")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {formatDuration(
+                        performanceSummary.topOperations
+                          .filter(
+                            (op) =>
+                              op.name.includes("Search") ||
+                              op.name.includes("NEAR") ||
+                              op.name.includes("Fuzzy")
+                          )
+                          .reduce((sum, op) => sum + op.duration, 0)
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {t("settings:searchAvgTime")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {formatDuration(
+                        performanceSummary.topOperations
+                          .filter(
+                            (op) =>
+                              op.name.includes("Search") ||
+                              op.name.includes("NEAR") ||
+                              op.name.includes("Fuzzy")
+                          )
+                          .reduce((sum, op) => sum + op.duration, 0) /
+                          Math.max(
+                            1,
+                            performanceSummary.topOperations
+                              .filter(
+                                (op) =>
+                                  op.name.includes("Search") ||
+                                  op.name.includes("NEAR") ||
+                                  op.name.includes("Fuzzy")
+                              )
+                              .reduce((sum, op) => sum + op.callCount, 0)
+                          )
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {t("settings:searchOperationBreakdown")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("settings:searchOperationBreakdownDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PerformanceChart
+                    type="pie"
+                    data={{
+                      labels: performanceSummary.topOperations
+                        .filter(
+                          (op) =>
+                            op.name.includes("Search") ||
+                            op.name.includes("NEAR") ||
+                            op.name.includes("Fuzzy")
+                        )
+                        .slice(0, 5)
+                        .map((op) => op.name),
+                      datasets: [
+                        {
+                          label: t("settings:duration"),
+                          data: performanceSummary.topOperations
+                            .filter(
+                              (op) =>
+                                op.name.includes("Search") ||
+                                op.name.includes("NEAR") ||
+                                op.name.includes("Fuzzy")
+                            )
+                            .slice(0, 5)
+                            .map((op) => op.duration),
+                        },
+                      ],
+                    }}
+                    height={300}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("settings:searchMetricsDetails")}</CardTitle>
+                  <CardDescription>
+                    {t("settings:searchMetricsDetailsDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[300px]">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-4">
+                            {t("settings:searchOperation")}
+                          </th>
+                          <th className="text-right py-2 px-4">
+                            {t("settings:calls")}
+                          </th>
+                          <th className="text-right py-2 px-4">
+                            {t("settings:avgTime")}
+                          </th>
+                          <th className="text-right py-2 px-4">
+                            {t("settings:percentage")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {performanceSummary.topOperations
+                          .filter(
+                            (op) =>
+                              op.name.includes("Search") ||
+                              op.name.includes("NEAR") ||
+                              op.name.includes("Fuzzy")
+                          )
+                          .map((op, index) => (
+                            <tr
+                              key={op.name}
+                              className={
+                                index % 2 === 0 ? "bg-muted/50" : undefined
+                              }
+                            >
+                              <td className="py-2 px-4 text-left">{op.name}</td>
+                              <td className="py-2 px-4 text-right">
+                                {op.callCount.toLocaleString()}
+                              </td>
+                              <td className="py-2 px-4 text-right">
+                                {formatDuration(op.averageDuration)}
+                              </td>
+                              <td className="py-2 px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Progress
+                                    value={op.percentage}
+                                    className="h-2 w-16"
+                                  />
+                                  <span>{op.percentage.toFixed(1)}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="memory" className="space-y-4 mt-4">

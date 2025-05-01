@@ -17,10 +17,27 @@ export interface CacheInfo extends CacheStats {
   name: string;
 }
 
+export interface CacheMetricsHistory {
+  timestamp: number;
+  cacheId: string;
+  cacheName: string;
+  size: number;
+  capacity: number;
+  hitRate: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+  memoryUsage: number;
+  cacheEfficiencyScore?: number;
+}
+
 export class CacheManager {
   private static instance: CacheManager;
   private caches: Map<string, LRUCache<unknown, unknown>> = new Map();
   private configs: Map<string, CacheConfig> = new Map();
+  private metricsHistory: CacheMetricsHistory[] = [];
+  private historyLimit: number = 1000; // Limit the number of historical metrics
+  private metricsInterval: NodeJS.Timeout | null = null;
 
   /**
    * Get the singleton instance
@@ -38,6 +55,9 @@ export class CacheManager {
   private constructor() {
     // Initialize with default settings
     this.setupDefaultCaches();
+
+    // Start collecting metrics
+    this.startMetricsCollection();
   }
 
   /**
@@ -249,5 +269,91 @@ export class CacheManager {
     }
 
     return 0;
+  }
+
+  /**
+   * Start collecting cache metrics at regular intervals
+   * @param intervalMs Interval in milliseconds (default: 60000 - 1 minute)
+   */
+  public startMetricsCollection(intervalMs = 60000): void {
+    // Clear any existing interval
+    this.stopMetricsCollection();
+
+    // Set up a new interval
+    this.metricsInterval = setInterval(() => {
+      this.collectMetrics();
+    }, intervalMs);
+  }
+
+  /**
+   * Stop collecting cache metrics
+   */
+  public stopMetricsCollection(): void {
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval);
+      this.metricsInterval = null;
+    }
+  }
+
+  /**
+   * Collect metrics from all caches and add to history
+   */
+  private collectMetrics(): void {
+    const timestamp = Date.now();
+
+    for (const [id, cache] of this.caches.entries()) {
+      const config = this.configs.get(id)!;
+      const stats = cache.getStats();
+
+      this.metricsHistory.push({
+        timestamp,
+        cacheId: id,
+        cacheName: config.name,
+        size: stats.size,
+        capacity: stats.capacity,
+        hitRate: stats.hitRate,
+        hits: stats.hits,
+        misses: stats.misses,
+        evictions: stats.evictions,
+        memoryUsage: stats.estimatedMemoryUsage || 0,
+        cacheEfficiencyScore: stats.cacheEfficiencyScore,
+      });
+    }
+
+    // Trim history if it exceeds the limit
+    if (this.metricsHistory.length > this.historyLimit) {
+      this.metricsHistory = this.metricsHistory.slice(-this.historyLimit);
+    }
+  }
+
+  /**
+   * Get the cache metrics history
+   * @param cacheId Optional cache ID to filter by
+   * @param limit Maximum number of entries to return
+   * @returns Array of cache metrics history entries
+   */
+  public getMetricsHistory(
+    cacheId?: string,
+    limit = 100
+  ): CacheMetricsHistory[] {
+    // Force collection of current metrics
+    this.collectMetrics();
+
+    let history = [...this.metricsHistory];
+
+    // Filter by cache ID if specified
+    if (cacheId) {
+      history = history.filter((entry) => entry.cacheId === cacheId);
+    }
+
+    // Return the most recent entries up to the limit
+    return history.slice(-limit);
+  }
+
+  /**
+   * Clear the metrics history
+   */
+  public clearMetricsHistory(): void {
+    this.metricsHistory = [];
   }
 }
