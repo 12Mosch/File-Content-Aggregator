@@ -380,7 +380,9 @@ export class OptimizedFileSearchService {
               const displayFilePath = filePath.replace(/\\/g, "/");
 
               try {
-                // Use streaming file processing for better memory efficiency
+                // Use streaming file processing with timeout for NEAR operator
+                const isNearOperator =
+                  contentSearchTerm?.includes("NEAR(") || false;
                 const processResult =
                   await fileProcessingService.processFileInChunks(
                     filePath,
@@ -388,6 +390,7 @@ export class OptimizedFileSearchService {
                     {
                       earlyTermination: true, // Stop processing as soon as a match is found
                       maxFileSize: 50 * 1024 * 1024, // 50MB max file size
+                      timeout: isNearOperator ? 10000 : undefined, // 10 second timeout for NEAR operator
                     }
                   );
 

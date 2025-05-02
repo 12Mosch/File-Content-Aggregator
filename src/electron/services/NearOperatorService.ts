@@ -25,10 +25,14 @@ export interface NearOperatorOptions {
 }
 
 // Constants for performance tuning
-const TERM_INDICES_CACHE_SIZE = 200;
-const TERM_INDICES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const PROXIMITY_CACHE_SIZE = 500;
-const PROXIMITY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const TERM_INDICES_CACHE_SIZE = 500; // Increased from 200
+const TERM_INDICES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (increased from 5)
+const PROXIMITY_CACHE_SIZE = 1000; // Increased from 500
+const PROXIMITY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes (increased from 10)
+// Maximum content size to process in full (larger contents will use sampling)
+const MAX_FULL_CONTENT_SIZE = 1024 * 1024; // 1MB
+// Maximum execution time before applying more aggressive optimizations
+const MAX_EXECUTION_TIME_MS = 500; // 500ms
 
 export class NearOperatorService {
   private static instance: NearOperatorService;
@@ -160,6 +164,9 @@ export class NearOperatorService {
 
     // Track content size metrics
     this.updateContentSizeMetrics(content.length);
+
+    // For very large content, we use more aggressive sampling to prevent timeouts
+    // This is implemented in the checkProximityOptimized method via direct content length checks
 
     const {
       caseSensitive = false,
@@ -302,7 +309,17 @@ export class NearOperatorService {
       return false;
     }
 
-    // Early termination if either term is not found
+    // Check if we've already spent too much time on this evaluation
+    const currentTime = performance.now();
+    if (currentTime - startTime > MAX_EXECUTION_TIME_MS) {
+      this.logger.debug(
+        "NEAR operation timed out during term matching, using early termination"
+      );
+      this.metrics.earlyTerminations++;
+      return false;
+    }
+
+    // Early termination if either term is not found (redundant check, but keeping for safety)
     if (indices1.length === 0 || indices2.length === 0) {
       this.metrics.earlyTerminations++;
       this.proximityCache.set(proximityKey, false);
@@ -527,6 +544,10 @@ export class NearOperatorService {
         contentLength: content.length,
       }
     );
+
+    // Add timeout mechanism to prevent excessive processing time
+    const startTime = performance.now();
+
     // Early termination optimization:
     // If we have many indices, first check if any character indices are close enough
     // This avoids expensive word boundary calculations for obviously distant terms
@@ -546,7 +567,13 @@ export class NearOperatorService {
     }
 
     // For very large index sets, use sampling to improve performance
-    const sampleSize = 50;
+    // Use more aggressive sampling for larger content or when we have many indices
+    const isLargeContent = content.length > MAX_FULL_CONTENT_SIZE;
+    const hasLargeIndices = indices1.length > 200 || indices2.length > 200;
+
+    // Adjust sample size based on content and indices size
+    const sampleSize = isLargeContent || hasLargeIndices ? 25 : 50;
+
     const sampledIndices1 =
       indices1.length > sampleSize
         ? this.sampleIndices(indices1, sampleSize)
@@ -554,6 +581,13 @@ export class NearOperatorService {
 
     // For each index in the first set
     for (const index1 of sampledIndices1) {
+      // Check if we've exceeded the maximum execution time
+      if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
+        this.logger.debug("NEAR operation timed out, using early termination");
+        profiler.end(profileId, { timedOut: true });
+        return false; // Early termination due to timeout
+      }
+
       const wordBoundaryStart = performance.now();
       const wordIndex1 = this.wordBoundaryService.getWordIndexFromCharIndex(
         index1,
@@ -578,6 +612,15 @@ export class NearOperatorService {
       );
 
       for (const index2 of closestIndices) {
+        // Check for timeout in inner loop as well
+        if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
+          this.logger.debug(
+            "NEAR operation timed out in inner loop, using early termination"
+          );
+          profiler.end(profileId, { timedOut: true });
+          return false; // Early termination due to timeout
+        }
+
         const wordBoundaryStart = performance.now();
         const wordIndex2 = this.wordBoundaryService.getWordIndexFromCharIndex(
           index2,
@@ -609,58 +652,6 @@ export class NearOperatorService {
 
     profiler.end(profileId, { result: false });
     return false;
-  }
-
-  /**
-   * Finds the indices in a sorted array that are closest to a target value
-   * @param sortedIndices Sorted array of indices
-   * @param targetIndex The target index to find closest values to
-   * @returns Array of closest indices (limited to a reasonable number)
-   */
-  private findClosestIndices(
-    sortedIndices: number[],
-    targetIndex: number
-  ): number[] {
-    if (sortedIndices.length <= 10) {
-      return sortedIndices; // Just return all for small arrays
-    }
-
-    // Binary search to find the insertion point
-    let left = 0;
-    let right = sortedIndices.length - 1;
-
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      if (sortedIndices[mid] < targetIndex) {
-        left = mid + 1;
-      } else {
-        right = mid - 1;
-      }
-    }
-
-    // Now left is the insertion point
-    // Collect indices around the insertion point
-    const result: number[] = [];
-    const maxToCollect = 10; // Reasonable limit
-
-    // Collect indices before and after the insertion point
-    let before = right;
-    let after = left;
-
-    // Alternately add from before and after until we have enough
-    while (
-      result.length < maxToCollect &&
-      (before >= 0 || after < sortedIndices.length)
-    ) {
-      if (before >= 0) {
-        result.push(sortedIndices[before--]);
-      }
-      if (after < sortedIndices.length && result.length < maxToCollect) {
-        result.push(sortedIndices[after++]);
-      }
-    }
-
-    return result;
   }
 
   /**

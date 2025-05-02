@@ -19,6 +19,7 @@ export interface FileProcessingOptions {
   encoding?: BufferEncoding;
   earlyTermination?: boolean;
   maxFileSize?: number;
+  timeout?: number; // Timeout in milliseconds
 }
 
 export interface FileStats {
@@ -56,6 +57,7 @@ export class FileProcessingService {
   private readonly MAX_CACHE_FILE_SIZE = 1024 * 1024; // 1MB - only cache files smaller than this
   private readonly MAX_CONTENT_CACHE_MEMORY = 50 * 1024 * 1024; // 50MB max for content cache
   private readonly MAX_STATS_CACHE_MEMORY = 10 * 1024 * 1024; // 10MB max for stats cache
+  private readonly DEFAULT_TIMEOUT = 5000; // 5 seconds default timeout for file processing
 
   // Services
   private memoryMonitor: MemoryMonitor;
@@ -225,6 +227,15 @@ export class FileProcessingService {
     // Track memory usage before processing
     const memoryBefore = this.memoryMonitor.getMemoryStats().heapUsed;
 
+    // Track start time for timeout
+    const startTime = performance.now();
+    const timeout = options.timeout || this.DEFAULT_TIMEOUT;
+
+    // Create a function to check if we've exceeded the timeout
+    const isTimedOut = () => {
+      return performance.now() - startTime > timeout;
+    };
+
     try {
       // Get file stats first
       const stats = await this.getFileStats(filePath);
@@ -247,10 +258,28 @@ export class FileProcessingService {
 
       // For very small files, it's more efficient to read the whole file at once
       if (stats.size < this.DEFAULT_CHUNK_SIZE) {
+        // Check for timeout before reading the file
+        if (isTimedOut()) {
+          this.logger.warn(
+            `File processing timed out for ${filePath} before reading`
+          );
+          result.error = new Error(`Processing timed out after ${timeout}ms`);
+          return result;
+        }
+
         const { content, error } = await this.readFile(filePath, options);
 
         if (error) {
           throw error;
+        }
+
+        // Check for timeout before matching
+        if (isTimedOut()) {
+          this.logger.warn(
+            `File processing timed out for ${filePath} before matching`
+          );
+          result.error = new Error(`Processing timed out after ${timeout}ms`);
+          return result;
         }
 
         if (content) {
@@ -283,6 +312,21 @@ export class FileProcessingService {
 
         // Helper function to process chunks asynchronously
         const processChunk = async (chunkStr: string) => {
+          // Check for timeout before processing
+          if (isTimedOut()) {
+            this.logger.warn(
+              `File processing timed out for ${filePath} during chunk processing`
+            );
+            matched = false;
+            readStream.destroy();
+            resolve({
+              matched: false,
+              error: new Error(`Processing timed out after ${timeout}ms`),
+              matchedChunks: options.earlyTermination ? undefined : [],
+            });
+            return;
+          }
+
           // Check if the chunk itself matches before adding to buffer
           if (!matched) {
             const isMatch = await Promise.resolve(matcher(chunkStr));
@@ -302,6 +346,21 @@ export class FileProcessingService {
 
         // Helper function to process buffer when it gets too large
         const processBuffer = async () => {
+          // Check for timeout before processing buffer
+          if (isTimedOut()) {
+            this.logger.warn(
+              `File processing timed out for ${filePath} during buffer processing`
+            );
+            matched = false;
+            readStream.destroy();
+            resolve({
+              matched: false,
+              error: new Error(`Processing timed out after ${timeout}ms`),
+              matchedChunks: options.earlyTermination ? undefined : [],
+            });
+            return;
+          }
+
           if (buffer.length > MAX_BUFFER_SIZE) {
             // Process complete lines
             const lastNewlineIndex = buffer.lastIndexOf("\n");
@@ -344,6 +403,20 @@ export class FileProcessingService {
         readStream.on("end", () => {
           // Use an IIFE to handle the async operations
           void (async () => {
+            // Check for timeout before processing remaining buffer
+            if (isTimedOut()) {
+              this.logger.warn(
+                `File processing timed out for ${filePath} at end of stream`
+              );
+              buffer = ""; // Clear buffer to free memory
+              resolve({
+                matched: false,
+                error: new Error(`Processing timed out after ${timeout}ms`),
+                matchedChunks: options.earlyTermination ? undefined : [],
+              });
+              return;
+            }
+
             // Check remaining buffer
             if (!matched && buffer.length > 0) {
               matched = await Promise.resolve(matcher(buffer));
