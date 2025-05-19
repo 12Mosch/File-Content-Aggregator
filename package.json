@@ -93,7 +93,7 @@
     "@types/react-window": "^1.8.8",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.4.1",
-    "commander": "^13.1.0",
+    "commander": "^14.0.0",
     "cross-env": "^7.0.3",
     "electron": "^36.0.1",
     "electron-builder": "^26.0.12",
