@@ -5,10 +5,10 @@
  */
 
 export {
-  FuzzySearchService,
+  OptimizedFuzzySearchService,
   type FuzzySearchOptions,
   type FuzzySearchResult,
-} from "./FuzzySearchService.js";
+} from "./OptimizedFuzzySearchService.js";
 export {
   WordBoundaryService,
   type WordBoundary,

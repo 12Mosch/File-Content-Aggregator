@@ -8,27 +8,21 @@
 import { ContentMatchingService } from "../../mocks/electron/ContentMatchingService.mock";
 
 // Partial mocks to allow some real functionality while controlling test conditions
-jest.mock("../../../src/electron/services/FuzzySearchService.js", () => {
-  const originalModule = jest.requireActual(
-    "../../../src/electron/services/FuzzySearchService.js"
-  );
+jest.mock("../../../src/electron/services/OptimizedFuzzySearchService.js", () => {
   return {
-    ...originalModule,
-    FuzzySearchService: {
-      getInstance: jest.fn().mockReturnValue({
-        search: jest.fn().mockImplementation((content, term, _options) => {
-          // Simplified implementation for testing
-          const isMatch = content.toLowerCase().includes(term.toLowerCase());
-          return {
-            isMatch,
-            score: isMatch ? 0.1 : 0.9,
-            matchPositions: isMatch
-              ? [content.toLowerCase().indexOf(term.toLowerCase())]
-              : [],
-          };
-        }),
+    OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
+      search: jest.fn().mockImplementation((content, term, _options) => {
+        // Simplified implementation for testing
+        const isMatch = content.toLowerCase().includes(term.toLowerCase());
+        return {
+          isMatch,
+          score: isMatch ? 0.1 : 0.9,
+          matchPositions: isMatch
+            ? [content.toLowerCase().indexOf(term.toLowerCase())]
+            : [],
+        };
       }),
-    },
+    })),
   };
 });
 
@@ -58,33 +52,46 @@ jest.mock("../../../src/electron/utils/booleanExpressionUtils.js", () => {
   const originalModule = jest.requireActual(
     "../../../src/electron/utils/booleanExpressionUtils.js"
   );
+
+  interface AstNode {
+    type: string;
+    value?: string;
+    left?: AstNode;
+    right?: AstNode;
+    operator?: string;
+    argument?: AstNode;
+  }
+
+  const mockEvaluateBooleanAst = (ast: AstNode, content: string, caseSensitive: boolean): boolean => {
+    // Simplified implementation for testing
+    if (ast.type === "Literal") {
+      if (!ast.value) return false;
+      if (caseSensitive) {
+        return content.includes(ast.value);
+      } else {
+        return content.toLowerCase().includes(ast.value.toLowerCase());
+      }
+    } else if (ast.type === "BinaryExpression") {
+      if (!ast.left || !ast.right) return false;
+      const left = mockEvaluateBooleanAst(ast.left, content, caseSensitive);
+      const right = mockEvaluateBooleanAst(ast.right, content, caseSensitive);
+
+      if (ast.operator === "&&" || ast.operator === "AND") {
+        return left && right;
+      } else if (ast.operator === "||" || ast.operator === "OR") {
+        return left || right;
+      }
+    } else if (ast.type === "UnaryExpression" && ast.operator === "!") {
+      if (!ast.argument) return false;
+      return !mockEvaluateBooleanAst(ast.argument, content, caseSensitive);
+    }
+
+    return false;
+  };
+
   return {
     ...originalModule,
-    evaluateBooleanAst: jest
-      .fn()
-      .mockImplementation((ast, content, caseSensitive) => {
-        // Simplified implementation for testing
-        if (ast.type === "Literal") {
-          if (caseSensitive) {
-            return content.includes(ast.value);
-          } else {
-            return content.toLowerCase().includes(ast.value.toLowerCase());
-          }
-        } else if (ast.type === "BinaryExpression") {
-          const left = evaluateBooleanAst(ast.left, content, caseSensitive);
-          const right = evaluateBooleanAst(ast.right, content, caseSensitive);
-
-          if (ast.operator === "&&" || ast.operator === "AND") {
-            return left && right;
-          } else if (ast.operator === "||" || ast.operator === "OR") {
-            return left || right;
-          }
-        } else if (ast.type === "UnaryExpression" && ast.operator === "!") {
-          return !evaluateBooleanAst(ast.argument, content, caseSensitive);
-        }
-
-        return false;
-      }),
+    evaluateBooleanAst: jest.fn().mockImplementation(mockEvaluateBooleanAst),
   };
 });
 

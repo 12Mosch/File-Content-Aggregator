@@ -2,12 +2,10 @@
  * Test script for comparing the performance of the original and optimized fuzzy search implementations
  */
 
-import { FuzzySearchService } from "../dist-electron/electron/services/FuzzySearchService.js";
-import { OptimizedFuzzySearchService } from "../dist-electron/electron/services/OptimizedFuzzySearchService.js";
+import { OptimizedFuzzySearchService } from "../dist-electron/electron/services/index.js";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
 
 // Get the current directory
 const __filename = fileURLToPath(import.meta.url);

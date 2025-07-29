@@ -8,18 +8,16 @@
 import { ContentMatchingService } from "../../mocks/electron/ContentMatchingService.mock";
 
 // Mock the dependencies
-jest.mock("../../../src/electron/services/FuzzySearchService.js", () => {
+jest.mock("../../../src/electron/services/OptimizedFuzzySearchService.js", () => {
   return {
-    FuzzySearchService: {
-      getInstance: jest.fn().mockReturnValue({
-        search: jest.fn().mockImplementation((content, term) => {
-          return {
-            isMatch: content.toLowerCase().includes(term.toLowerCase()),
-            score: 0.1,
-          };
-        }),
+    OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
+      search: jest.fn().mockImplementation((content, term) => {
+        return {
+          isMatch: content.toLowerCase().includes(term.toLowerCase()),
+          score: 0.1,
+        };
       }),
-    },
+    })),
   };
 });
 
@@ -146,9 +144,8 @@ describe("ContentMatchingService Boundary Tests", () => {
     });
 
     test("should handle null-like content", async () => {
-      // @ts-expect-error - Testing with invalid input
       const result = await contentMatchingService.matchContent(
-        null,
+        null as unknown as string,
         "test",
         "term"
       );

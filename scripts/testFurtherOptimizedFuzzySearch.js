@@ -2,8 +2,7 @@
  * Test script for comparing the performance of the original and further optimized fuzzy search implementations
  */
 
-import { FuzzySearchService } from "../dist-electron/electron/services/FuzzySearchService.js";
-import { OptimizedFuzzySearchService } from "../dist-electron/electron/services/OptimizedFuzzySearchService.js";
+import { OptimizedFuzzySearchService } from "../dist-electron/electron/services/index.js";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -144,7 +143,6 @@ async function runTests() {
   console.log("=================================================");
 
   // Create service instances
-  const originalService = new FuzzySearchService();
   const optimizedService = new OptimizedFuzzySearchService();
 
   // Results storage

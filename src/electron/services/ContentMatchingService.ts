@@ -6,7 +6,7 @@
  */
 
 import {
-  FuzzySearchService,
+  OptimizedFuzzySearchService,
   NearOperatorService,
   WordBoundaryService,
 } from "./index.js";
@@ -39,13 +39,13 @@ export class ContentMatchingService {
   private static instance: ContentMatchingService;
 
   // Services
-  private fuzzySearchService: FuzzySearchService;
+  private fuzzySearchService: OptimizedFuzzySearchService;
   private nearOperatorService: NearOperatorService;
   private wordBoundaryService: WordBoundaryService;
 
   // Private constructor for singleton pattern
   private constructor() {
-    this.fuzzySearchService = FuzzySearchService.getInstance();
+    this.fuzzySearchService = new OptimizedFuzzySearchService();
     this.nearOperatorService = NearOperatorService.getInstance();
     this.wordBoundaryService = WordBoundaryService.getInstance();
   }
@@ -79,9 +79,6 @@ export class ContentMatchingService {
     const {
       caseSensitive = false,
       wholeWordMatching = false,
-      // Unused options, but kept for API compatibility
-      _fuzzySearchEnabled = true,
-      _fuzzySearchNearEnabled = true,
     } = options;
 
     // If no search term, return null matcher

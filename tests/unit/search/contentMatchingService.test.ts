@@ -8,18 +8,16 @@
 import { ContentMatchingService } from "../../mocks/electron/ContentMatchingService.mock";
 
 // Mock the dependencies
-jest.mock("../../../src/electron/services/FuzzySearchService.js", () => {
+jest.mock("../../../src/electron/services/OptimizedFuzzySearchService.js", () => {
   return {
-    FuzzySearchService: {
-      getInstance: jest.fn().mockReturnValue({
-        search: jest.fn().mockImplementation((content, term) => {
-          return {
-            isMatch: content.toLowerCase().includes(term.toLowerCase()),
-            score: 0.1,
-          };
-        }),
+    OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
+      search: jest.fn().mockImplementation((content, term) => {
+        return {
+          isMatch: content.toLowerCase().includes(term.toLowerCase()),
+          score: 0.1,
+        };
       }),
-    },
+    })),
   };
 });
 

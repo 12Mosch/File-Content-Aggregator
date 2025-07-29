@@ -9,7 +9,7 @@ import jsep from "jsep";
 
 // Import services
 import {
-  FuzzySearchService,
+  OptimizedFuzzySearchService,
   WordBoundaryService,
   NearOperatorService,
 } from "../services/index.js";
@@ -211,9 +211,9 @@ export async function evaluateBooleanAst(
           // Apply fuzzy search when no match was found and fuzzy search is enabled
           if (!found && searchTerm.length >= 3 && fuzzySearchBooleanEnabled) {
             // Use the optimized FuzzySearchService
-            const fuzzySearchService = FuzzySearchService.getInstance();
+            const fuzzySearchService = new OptimizedFuzzySearchService();
 
-            const fuzzyResult = await fuzzySearchService.search(
+            const fuzzyResult = fuzzySearchService.search(
               content,
               searchTerm,
               {
@@ -260,10 +260,8 @@ export async function evaluateBooleanAst(
       node
     );
     // Clean up any cached data if evaluation fails
-    if (typeof content === "string") {
-      const wordBoundaryService = WordBoundaryService.getInstance();
-      wordBoundaryService.removeFromCache(content);
-    }
+    const wordBoundaryService = WordBoundaryService.getInstance();
+    wordBoundaryService.removeFromCache(content);
     return false;
   }
 }

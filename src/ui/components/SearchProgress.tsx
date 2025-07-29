@@ -19,7 +19,6 @@ interface SearchProgressProps {
 }
 
 export function SearchProgress({
-  _searchId,
   onCancel,
   progress,
 }: SearchProgressProps) {
