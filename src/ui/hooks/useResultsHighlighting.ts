@@ -114,10 +114,10 @@ export function useResultsHighlighting() {
   /**
    * Clear all caches
    */
-  const clearCache = useCallback(() => {
+  const clearCache = useCallback(async () => {
     highlightCacheRef.current.clear();
     activeRequestsRef.current.clear();
-    workerPoolRef.current.clearCache();
+    await workerPoolRef.current.clearCache();
     setHighlightUpdateCounter((prev) => prev + 1);
   }, []);
 
@@ -141,130 +141,5 @@ export function useResultsHighlighting() {
     requestHighlighting,
     getStats,
     clearCache,
-  };
-}
-
-/**
- * Hook for batch highlighting operations in results
- */
-export function useResultsBatchHighlighting() {
-  const workerPoolRef = useRef(getHighlightWorkerPool());
-
-  const highlightBatch = useCallback(
-    async (
-      requests: Array<{
-        filePath: string;
-        code: string;
-        language: string;
-        isVisible?: boolean;
-      }>
-    ): Promise<void> => {
-      const currentTheme = getCurrentTheme();
-
-      const highlightRequests = requests.map((req) => ({
-        ...req,
-        theme: currentTheme,
-        priority: req.isVisible ? ("high" as const) : ("normal" as const),
-      }));
-
-      try {
-        await workerPoolRef.current.highlightBatch(highlightRequests);
-      } catch (error) {
-        console.error(
-          "[useResultsBatchHighlighting] Batch highlighting failed:",
-          error
-        );
-      }
-    },
-    []
-  );
-
-  return { highlightBatch };
-}
-
-/**
- * Hook for monitoring highlighting performance in results
- */
-export function useResultsHighlightingPerformance() {
-  const workerPoolRef = useRef(getHighlightWorkerPool());
-  const [metrics, setMetrics] = useState<Record<string, unknown>>({});
-
-  const updateMetrics = useCallback(() => {
-    const stats = workerPoolRef.current.getStats();
-    const performance = workerPoolRef.current.getPerformanceMetrics();
-    setMetrics({ ...stats, ...performance });
-  }, []);
-
-  useEffect(() => {
-    // Update metrics every 10 seconds
-    const interval = setInterval(updateMetrics, 10000);
-
-    // Initial update
-    updateMetrics();
-
-    return () => clearInterval(interval);
-  }, [updateMetrics]);
-
-  return { metrics, updateMetrics };
-}
-
-/**
- * Utility function to detect if enhanced highlighting is available
- */
-export function isEnhancedHighlightingAvailable(): boolean {
-  try {
-    // Check if the enhanced highlighting system is available
-    const workerPool = getHighlightWorkerPool();
-    return !!workerPool;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Migration helper to gradually replace legacy highlighting
- */
-export function createLegacyCompatibleHighlighter() {
-  const workerPool = getHighlightWorkerPool();
-
-  return {
-    postMessage: async (data: {
-      filePath: string;
-      code: string;
-      language: string;
-    }) => {
-      try {
-        const currentTheme = getCurrentTheme();
-        const result = await workerPool.highlight({
-          ...data,
-          theme: currentTheme,
-          priority: "normal",
-        });
-
-        // Simulate legacy worker message format
-        const legacyMessage = {
-          filePath: data.filePath,
-          status: result.status,
-          highlightedHtml: result.highlightedHtml,
-          error: result.error,
-        };
-
-        // Return promise that resolves with legacy format
-        return Promise.resolve(legacyMessage);
-      } catch (error) {
-        return Promise.resolve({
-          filePath: data.filePath,
-          status: "error",
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    },
-
-    terminate: () => {
-      // Enhanced system handles termination automatically
-      console.log(
-        "[Legacy Highlighter] Termination requested - handled by enhanced system"
-      );
-    },
   };
 }

@@ -5,7 +5,7 @@ import i18n, { i18nOptions } from "./i18n";
 import { ThemeHandler } from "./ThemeManager";
 import { applyTheme } from "./themeUtils";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { getErrorHandler } from "../lib/services/ErrorHandlingService";
+import { getErrorHandler } from "@/lib/services";
 import "./index.css";
 import "highlight.js/styles/github-dark.css";
 import "./styles/highlight-themes.css";

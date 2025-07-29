@@ -1,14 +1,14 @@
 import React, {
-  useState,
-  useMemo,
-  useRef,
-  useEffect,
   useCallback,
+  useEffect,
+  useMemo,
   useReducer,
+  useRef,
+  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { VariableSizeList, ListChildComponentProps } from "react-window";
+import { ListChildComponentProps, VariableSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 // Correctly import Fuse class and IFuseOptions type
 import Fuse, { type IFuseOptions } from "fuse.js";
@@ -31,29 +31,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type {
-  StructuredItem,
   ExportFormat,
-  QueryStructure, // Import QueryStructure
+  QueryStructure,
+  StructuredItem,
 } from "./vite-env.d";
 import { extractSearchTermsFromQuery } from "./queryBuilderUtils"; // Import the new utility
-import { highlightTermsInHtml } from "./highlightHtmlUtils"; // Import the new HTML highlighting utility
+
 import { useResultsHighlighting } from "./hooks/useResultsHighlighting"; // Enhanced highlighting system
 import { getFileTypeIcon } from "./utils/fileTypeIcons"; // Import file type icons utility
+import { EnhancedCodeBlock } from "./components/EnhancedCodeBlock"; // Enhanced code block component
+import { getCurrentTheme } from "./utils/themeDetection"; // Theme detection utility
 import {
-  Copy,
   AlertTriangle,
-  Save,
-  Loader2,
   ArrowDown,
   ArrowUp,
+  Check,
+  ChevronDown,
+  ClipboardCopy,
+  Copy,
+  Download,
   ExternalLink,
   FolderOpen,
-  Check,
-  X,
-  Download,
-  ClipboardCopy,
+  Loader2,
+  Save,
   Upload,
-  ChevronDown,
+  X,
 } from "lucide-react";
 
 // Constants
@@ -342,13 +344,7 @@ const TreeRow = React.memo(
         // Depend on cached content and showFull state
       }, [contentInfo.content, showFull]);
 
-    const highlightInfo: HighlightCacheEntry = item
-      ? (highlightCache.get(item.filePath) ?? {
-          status: "idle",
-          html: undefined,
-          error: undefined,
-        })
-      : { status: "idle", html: undefined, error: undefined };
+    // highlightInfo is no longer needed since EnhancedCodeBlock manages its own highlighting state
 
     // Effect for requesting highlighting (now depends on contentPreview)
     useEffect(() => {
@@ -585,80 +581,27 @@ const TreeRow = React.memo(
               </span>
             ) : contentInfo.status === "loaded" &&
               typeof contentPreview === "string" ? (
-              // Content loaded, handle highlighting
+              // Content loaded, use EnhancedCodeBlock for highlighting
               <>
-                <pre className="m-0 w-full text-left font-mono text-xs leading-normal break-all whitespace-pre-wrap text-foreground">
-                  {language === "plaintext" ? (
-                    // For plaintext, use HighlightMatches with content terms
-                    <code>
-                      <HighlightMatches
-                        text={contentPreview}
-                        terms={
-                          contentHighlightTerms &&
-                          contentHighlightTerms.length > 0
-                            ? contentHighlightTerms
-                            : []
-                        } // Use content terms if available
-                        caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                        wholeWordMatching={wholeWordMatching} // Use whole word matching setting
-                      />
-                    </code>
-                  ) : highlightInfo.status === "pending" ? (
-                    <code className="hljs">{t("results:highlighting")}</code>
-                  ) : highlightInfo.status === "error" ? (
-                    // Show error and fallback to plaintext highlighting
-                    <>
-                      <span className="mb-1 block text-destructive italic">
-                        {t("results:highlightError")}: {highlightInfo.error}
-                      </span>
-                      <code>
-                        <HighlightMatches
-                          text={contentPreview}
-                          terms={
-                            contentHighlightTerms &&
-                            contentHighlightTerms.length > 0
-                              ? contentHighlightTerms
-                              : []
-                          } // Use content terms if available
-                          caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                          wholeWordMatching={wholeWordMatching} // Use whole word matching setting
-                        />
-                      </code>
-                    </>
-                  ) : highlightInfo.status === "done" && highlightInfo.html ? (
-                    // Syntax highlighted: Apply content term highlighting *after* syntax highlighting
-                    // Use our new utility function to highlight search terms within the HTML
-                    <code
-                      className={`language-${language} hljs block`}
-                      dangerouslySetInnerHTML={{
-                        __html: highlightTermsInHtml(
-                          highlightInfo.html,
-                          contentHighlightTerms &&
-                            contentHighlightTerms.length > 0
-                            ? contentHighlightTerms
-                            : [],
-                          contentHighlightCaseSensitive,
-                          wholeWordMatching
-                        ),
-                      }}
-                    />
-                  ) : (
-                    // Fallback: Plaintext highlighting
-                    <code>
-                      <HighlightMatches
-                        text={contentPreview}
-                        terms={
-                          contentHighlightTerms &&
-                          contentHighlightTerms.length > 0
-                            ? contentHighlightTerms
-                            : []
-                        } // Use content terms if available
-                        caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                        wholeWordMatching={wholeWordMatching} // Use whole word matching setting
-                      />
-                    </code>
-                  )}
-                </pre>
+                <EnhancedCodeBlock
+                  filePath={item.filePath}
+                  code={contentPreview}
+                  language={language}
+                  theme={getCurrentTheme()}
+                  searchTerms={
+                    contentHighlightTerms && contentHighlightTerms.length > 0
+                      ? contentHighlightTerms
+                      : []
+                  }
+                  caseSensitive={contentHighlightCaseSensitive}
+                  wholeWordMatching={wholeWordMatching}
+                  priority="normal"
+                  isVisible={isExpanded}
+                  maxHeight="400px"
+                  onHighlightError={(error) => {
+                    console.error("EnhancedCodeBlock highlighting error:", error);
+                  }}
+                />
                 {showShowMoreButton && (
                   <Button
                     onClick={handleShowMore}
@@ -861,7 +804,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             cond &&
             "type" in cond &&
             cond.type === "term" &&
-            typeof cond.value === "string" &&
+            true &&
             cond.value.trim().length > 0
         )
         .map((cond) => ("value" in cond ? cond.value.trim() : ""))
@@ -916,8 +859,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     if (!structuredItems) return null;
     // Filter if a content query was performed
     if (hasContentQuery) {
-      const filtered = structuredItems.filter((item) => item.matched);
-      return filtered;
+      return structuredItems.filter((item) => item.matched);
     }
     // If no content query, show all items that passed initial filters
     return structuredItems;
@@ -974,7 +916,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     try {
       if (!window.electronAPI?.invokeGetFileContent) {
-        throw new Error("API function invokeGetFileContent not available.");
+        console.error(`API function invokeGetFileContent not available for ${filePath}`);
+        contentCacheRef.current.set(filePath, {
+          status: "error",
+          error: "ipcError",
+        });
+        return;
       }
       const result = await window.electronAPI.invokeGetFileContent(filePath);
       contentCacheRef.current.set(filePath, {
@@ -1101,7 +1048,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       requestContent: requestContent,
       selectedFiles: selectedFiles, // Pass selection state
       toggleSelection: (filePath: string) =>
-        dispatchSelection({ type: "toggle", filePath }), // Pass toggle function
+        dispatchSelection({ type: "toggle", filePath }), // Pass toggle function - used in TreeRow component
     };
   }, [
     sortedItems, // Depend on sortedItems
@@ -1138,7 +1085,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       // Calculate size based on cached content or loading/error state
       const contentInfo =
         contentCacheRef.current.get(item.filePath) ?? defaultContentEntry;
-      let contentLineCount = 0;
+      let contentLineCount: number;
 
       if (item.readError) {
         contentLineCount = 1; // Space for the initial read error message
@@ -1246,7 +1193,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         );
 
       if (error || content === null) {
-        throw new Error(error || "Failed to generate content for copying.");
+        console.error("Error generating export content:", error || "Content is null");
+        setCopyStatus(t("copyButtonFailed"));
+        return;
       }
 
       // Copy the generated content to clipboard

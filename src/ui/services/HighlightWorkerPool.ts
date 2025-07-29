@@ -37,7 +37,7 @@ export interface HighlightStats {
 
 export class HighlightWorkerPool {
   private workerPool: WorkerPool;
-  private stats: HighlightStats;
+  private readonly stats: HighlightStats;
   private requestQueue: Map<string, HighlightRequest>;
   private activeRequests: Set<string>;
 
@@ -109,16 +109,6 @@ export class HighlightWorkerPool {
   }
 
   /**
-   * Request highlighting with priority
-   */
-  async highlightWithPriority(
-    request: HighlightRequest,
-    priority: "high" | "normal" | "low" = "normal"
-  ): Promise<HighlightResult> {
-    return this.highlight({ ...request, priority });
-  }
-
-  /**
    * Batch highlight multiple files
    */
   async highlightBatch(
@@ -154,9 +144,14 @@ export class HighlightWorkerPool {
   /**
    * Clear all caches (sends message to all workers)
    */
-  clearCache(): void {
-    // This would require implementing a cache clear message in the worker
-    console.log("[HighlightWorkerPool] Cache clear requested");
+  async clearCache(): Promise<void> {
+    try {
+      // Send clearCache action to all workers
+      await this.workerPool.execute("clearCache", {});
+      console.log("[HighlightWorkerPool] Cache cleared successfully");
+    } catch (error) {
+      console.error("[HighlightWorkerPool] Failed to clear cache:", error);
+    }
   }
 
   /**
@@ -209,22 +204,5 @@ export function getHighlightWorkerPool(): HighlightWorkerPool {
   if (!highlightWorkerPoolInstance) {
     highlightWorkerPoolInstance = new HighlightWorkerPool();
   }
-  return highlightWorkerPoolInstance;
-}
-
-/**
- * Initialize the highlight worker pool with custom settings
- */
-export function initializeHighlightWorkerPool(
-  initialWorkers = 2,
-  maxWorkers = 4
-): HighlightWorkerPool {
-  if (highlightWorkerPoolInstance) {
-    highlightWorkerPoolInstance.terminate();
-  }
-  highlightWorkerPoolInstance = new HighlightWorkerPool(
-    initialWorkers,
-    maxWorkers
-  );
   return highlightWorkerPoolInstance;
 }

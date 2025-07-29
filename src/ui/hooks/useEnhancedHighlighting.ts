@@ -40,7 +40,7 @@ export interface UseEnhancedHighlightingReturn {
       forceUpdate?: boolean;
     }
   ) => Promise<void>;
-  clearCache: () => void;
+  clearCache: () => Promise<void>;
   getStats: () => Record<string, unknown>;
   cancelHighlight: (filePath: string) => void;
 }
@@ -176,10 +176,10 @@ export function useEnhancedHighlighting(
   /**
    * Clear all caches
    */
-  const clearCache = useCallback(() => {
+  const clearCache = useCallback(async () => {
     setHighlightCache(new Map());
     activeRequestsRef.current.clear();
-    void workerPoolRef.current.clearCache();
+    await workerPoolRef.current.clearCache();
   }, []);
 
   /**
@@ -215,56 +215,4 @@ export function useEnhancedHighlighting(
     getStats,
     cancelHighlight,
   };
-}
-
-/**
- * Hook for batch highlighting operations
- */
-export function useBatchHighlighting(
-  options: UseEnhancedHighlightingOptions = {}
-) {
-  const workerPoolRef = useRef(getHighlightWorkerPool());
-
-  const highlightBatch = useCallback(
-    async (
-      requests: Array<{
-        filePath: string;
-        code: string;
-        language: string;
-        priority?: "high" | "normal" | "low";
-      }>
-    ): Promise<HighlightResult[]> => {
-      const highlightRequests: HighlightRequest[] = requests.map((req) => ({
-        ...req,
-        theme: options.theme,
-        priority: req.priority || "normal",
-      }));
-
-      return workerPoolRef.current.highlightBatch(highlightRequests);
-    },
-    [options.theme]
-  );
-
-  return { highlightBatch };
-}
-
-/**
- * Hook for highlighting performance monitoring
- */
-export function useHighlightingPerformance() {
-  const workerPoolRef = useRef(getHighlightWorkerPool());
-  const [metrics, setMetrics] = useState<Record<string, unknown>>({});
-
-  const updateMetrics = useCallback(() => {
-    const stats = workerPoolRef.current.getStats();
-    const performance = workerPoolRef.current.getPerformanceMetrics();
-    setMetrics({ ...stats, ...performance });
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(updateMetrics, 5000); // Update every 5 seconds
-    return () => clearInterval(interval);
-  }, [updateMetrics]);
-
-  return { metrics, updateMetrics };
 }

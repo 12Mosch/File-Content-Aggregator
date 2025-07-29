@@ -20,33 +20,6 @@ interface CacheEntry {
   priority: "high" | "medium" | "low";
 }
 
-// Worker Pool message interfaces
-interface _WorkerMessageData {
-  id?: string;
-  action?: string;
-  status?: string;
-  error?: string;
-  [key: string]: unknown;
-}
-
-interface _HighlightRequest {
-  filePath: string;
-  code: string;
-  language: string;
-  theme?: "light" | "dark" | "high-contrast";
-  priority?: "high" | "normal" | "low";
-  isVisible?: boolean;
-}
-
-interface _HighlightResponse {
-  filePath: string;
-  highlightedHtml?: string;
-  status: "done" | "error" | "partial";
-  error?: string;
-  progress?: number;
-  processingTimeMs?: number;
-}
-
 const highlightCache = new Map<string, CacheEntry>();
 
 // Enhanced configuration
@@ -103,33 +76,12 @@ const languageLoaders = {
   properties: () => import("highlight.js/lib/languages/properties"),
   makefile: () => import("highlight.js/lib/languages/makefile"),
   cmake: () => import("highlight.js/lib/languages/cmake"),
-  nginx: () => import("highlight.js/lib/languages/nginx"),
   apache: () => import("highlight.js/lib/languages/apache"),
   diff: () => import("highlight.js/lib/languages/diff"),
   patch: () => import("highlight.js/lib/languages/diff"), // Use diff for patch files
 };
 
 // --- Enhanced Helper Functions ---
-
-/**
- * Generate a proper hash-based cache key for better distribution (unused - kept for future use)
- */
-async function _getCacheKey(
-  code: string,
-  language: string,
-  theme?: string
-): Promise<string> {
-  const input = `${language}:${theme || "default"}:${code}`;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .substring(0, 16);
-}
-
 /**
  * Fallback synchronous cache key for when crypto is not available
  */
@@ -369,7 +321,7 @@ function enhanceHighlightedHtml(
   accessibleHtml += `<div id="${descId}" class="sr-only">This is a ${language} code block${fileName ? ` from ${fileName}` : ""} with ${totalLines} lines. Use arrow keys to navigate through the code.</div>`;
 
   // Main code content with enhanced tokens
-  accessibleHtml += `<code role="code" aria-describedby="${descId}" class="hljs-content">`;
+  accessibleHtml += `<code role="note" aria-describedby="${descId}" class="hljs-content">`;
   accessibleHtml += enhanceTokensWithAccessibility(html, language);
   accessibleHtml += "</code>";
 
@@ -433,10 +385,7 @@ function enhanceTokensWithAccessibility(
       regex,
       (match: string, classes: string, attributes: string) => {
         // Only add aria-label if it doesn't already exist and the content is significant
-        if (
-          typeof attributes === "string" &&
-          !attributes.includes("aria-label")
-        ) {
+        if (!attributes.includes("aria-label")) {
           return `<span class="${classes}" aria-label="${description}"${attributes}>`;
         }
         return match;
@@ -569,8 +518,24 @@ async function handleWorkerPoolMessage(data: WorkerPoolMessage): Promise<void> {
         });
         break;
 
+      case "clearCache":
+        // Clear the highlight cache
+        highlightCache.clear();
+        self.postMessage({
+          id,
+          status: "done",
+          message: "Cache cleared successfully",
+        });
+        break;
+
       default:
-        throw new Error(`Unknown action: ${action}`);
+        // Handle unknown action directly without throwing
+        self.postMessage({
+          id,
+          status: "error",
+          error: `Unknown action: ${action}`,
+        });
+        return;
     }
   } catch (error) {
     self.postMessage({

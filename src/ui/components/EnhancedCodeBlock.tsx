@@ -255,7 +255,3 @@ export const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
     </div>
   );
 };
-
-// Utility functions moved to src/ui/utils/codeBlockUtils.ts
-
-export default EnhancedCodeBlock;
