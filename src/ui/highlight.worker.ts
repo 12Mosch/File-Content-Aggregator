@@ -677,7 +677,9 @@ async function processHighlightRequest(request: {
     };
   } catch (error) {
     console.error(
-      `[Highlight Worker] Error highlighting ${filePath} (lang: ${language}):`,
+      "[Highlight Worker] Error highlighting %s (lang: %s):",
+      filePath,
+      language,
       error
     );
 
