@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { CacheMetricsHistory } from "../../lib/CacheManager";
+import { CacheMetricsHistory } from "@/lib/CacheManager";
 import {
   Card,
   CardContent,
@@ -77,8 +77,8 @@ export function CacheMetricsChart({
               <div className="relative h-full w-full">
                 {/* X-axis labels */}
                 <div className="absolute right-0 bottom-0 left-0 flex justify-between text-xs text-muted-foreground">
-                  {recentMetrics.map((metric, i) => (
-                    <div key={i} className="text-center">
+                  {recentMetrics.map((metric) => (
+                    <div key={metric.timestamp} className="text-center">
                       {formatTime(metric.timestamp)}
                     </div>
                   ))}
@@ -103,10 +103,12 @@ export function CacheMetricsChart({
                   >
                     <polyline
                       points={recentMetrics
-                        .map(
-                          (metric, i) =>
-                            `${(i / (recentMetrics.length - 1)) * 100},${100 - metric.hitRate * 100}`
-                        )
+                        .map((metric, i) => {
+                          const denom = Math.max(recentMetrics.length - 1, 1);
+                          const x = (i / denom) * 100;
+                          const y = 100 - metric.hitRate * 100;
+                          return `${x},${y}`;
+                        })
                         .join(" ")}
                       fill="none"
                       stroke="hsl(var(--primary))"
@@ -126,8 +128,8 @@ export function CacheMetricsChart({
               <div className="relative h-full w-full">
                 {/* X-axis labels */}
                 <div className="absolute right-0 bottom-0 left-0 flex justify-between text-xs text-muted-foreground">
-                  {recentMetrics.map((metric, i) => (
-                    <div key={i} className="text-center">
+                  {recentMetrics.map((metric) => (
+                    <div key={metric.timestamp} className="text-center">
                       {formatTime(metric.timestamp)}
                     </div>
                   ))}
@@ -135,9 +137,9 @@ export function CacheMetricsChart({
 
                 {/* Chart area */}
                 <div className="absolute top-0 right-0 bottom-8 left-8 flex items-end justify-between">
-                  {recentMetrics.map((metric, i) => (
+                  {recentMetrics.map((metric) => (
                     <div
-                      key={i}
+                      key={metric.timestamp}
                       className="w-6 rounded-t bg-primary/80"
                       style={{ height: `${metric.hitRate * 100}%` }}
                       title={`Hit Rate: ${(metric.hitRate * 100).toFixed(1)}%`}
@@ -198,9 +200,9 @@ export function CacheMetricsChart({
             {recentMetrics
               .slice()
               .reverse()
-              .map((metric, index) => (
+              .map((metric) => (
                 <div
-                  key={index}
+                  key={metric.timestamp}
                   className="flex justify-between rounded-md bg-muted/20 p-2"
                 >
                   <span>{formatTime(metric.timestamp)}</span>

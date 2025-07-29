@@ -9,6 +9,7 @@
 import { LRUCache } from "../../lib/LRUCache.js";
 import { CacheManager } from "../../lib/CacheManager.js";
 import { Logger } from "../../lib/services/Logger.js";
+import * as crypto from "crypto";
 
 export interface WordBoundary {
   word: string;
@@ -436,8 +437,16 @@ export class WordBoundaryService {
    * @returns A fingerprint string
    */
   private getContentFingerprint(content: string): string {
-    // Check if we already have a fingerprint for this content
-    const cachedFingerprint = this.contentFingerprintCache.get(content);
+    // Generate a hash of the content to use as cache key instead of raw content
+    // This prevents large content strings from being retained in memory by the cache
+    const contentKey = crypto
+      .createHash("md5")
+      .update(content)
+      .digest("hex")
+      .substring(0, 16);
+
+    // Check if we already have a fingerprint for this content using the hashed key
+    const cachedFingerprint = this.contentFingerprintCache.get(contentKey);
     if (cachedFingerprint) {
       return cachedFingerprint;
     }
@@ -445,7 +454,7 @@ export class WordBoundaryService {
     // For small content, use the full content as fingerprint
     if (content.length <= 100) {
       const fingerprint = this.hashString(content);
-      this.contentFingerprintCache.set(content, fingerprint);
+      this.contentFingerprintCache.set(contentKey, fingerprint);
       return fingerprint;
     }
 
@@ -461,7 +470,7 @@ export class WordBoundaryService {
     const sample = start + middle + end + content.length.toString();
     const fingerprint = this.hashString(sample);
 
-    this.contentFingerprintCache.set(content, fingerprint);
+    this.contentFingerprintCache.set(contentKey, fingerprint);
     return fingerprint;
   }
 

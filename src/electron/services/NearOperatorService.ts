@@ -944,8 +944,16 @@ export class NearOperatorService {
    * @returns A content fingerprint string
    */
   private getContentFingerprint(content: string): string {
-    // Check cache first
-    const cached = this.contentFingerprintCache.get(content);
+    // Generate a hash of the content to use as cache key instead of raw content
+    // This prevents large content strings from being retained in memory by the cache
+    const contentKey = crypto
+      .createHash("md5")
+      .update(content)
+      .digest("hex")
+      .substring(0, 16);
+
+    // Check cache first using the hashed key
+    const cached = this.contentFingerprintCache.get(contentKey);
     if (cached) {
       return cached;
     }
@@ -953,7 +961,7 @@ export class NearOperatorService {
     // For small content, use simple hash
     if (content.length < 1000) {
       const fingerprint = this.hashString(content);
-      this.contentFingerprintCache.set(content, fingerprint);
+      this.contentFingerprintCache.set(contentKey, fingerprint);
       return fingerprint;
     }
 
@@ -971,7 +979,7 @@ export class NearOperatorService {
       .update(sample)
       .digest("hex")
       .substring(0, 16);
-    this.contentFingerprintCache.set(content, fingerprint);
+    this.contentFingerprintCache.set(contentKey, fingerprint);
     return fingerprint;
   }
 
