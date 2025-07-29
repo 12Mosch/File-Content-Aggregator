@@ -123,7 +123,8 @@ async function loadLanguage(language: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error(
-      `[Highlight Worker] Failed to load language ${language}:`,
+      "[Highlight Worker] Failed to load language: %s",
+      language,
       error
     );
     return false;
@@ -578,7 +579,8 @@ async function processHighlightRequest(request: {
       const loaded = await loadLanguage(language);
       if (!loaded) {
         console.warn(
-          `[Highlight Worker] Language '${language}' not available, falling back to plaintext`
+          "[Highlight Worker] Language '%s' not available, falling back to plaintext",
+          language
         );
         return processHighlightRequest({
           ...request,
