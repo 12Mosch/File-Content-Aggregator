@@ -92,7 +92,7 @@ function getCacheKeySync(
 ): string {
   // FNV-1a hash implementation
   let hash = 2166136261;
-  const input = `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}`;
+  const input = `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}${code.substring(code.length - 500)}`;
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i);
     hash +=
@@ -466,6 +466,7 @@ function findSafeBoundary(
     }
   }
 
+  console.debug(`[Highlight Worker] Safe boundary: ideal=${idealPosition}, found=${bestBoundary}, distance=${Math.abs(bestBoundary - idealPosition)}`);
   return bestBoundary;
 }
 
@@ -566,6 +567,12 @@ function extractNewContentFromHighlighted(
     return highlightedHtml;
   }
 
+  // Validate input HTML structure
+  if (!highlightedHtml.startsWith("<")) {
+    console.warn('[Highlight Worker] Invalid HTML: Does not start with a tag, falling back to substring');
+    return highlightedHtml.substring(startOffset);
+  }
+
   // Parse HTML and track character positions
   let plainTextPos = 0;
   let htmlPos = 0;
@@ -628,7 +635,8 @@ function enhanceHighlightedHtml(
     : undefined;
 
   // Create comprehensive accessibility wrapper
-  const ariaLabel = `Code block in ${language}${fileName ? ` from ${fileName}` : ""}, ${totalLines} line${totalLines !== 1 ? "s" : ""}`;
+  const sanitizedLanguage = language.replace(/[^a-zA-Z0-9\-_]/g, '');
+  const ariaLabel = `Code block in ${sanitizedLanguage}${fileName ? ` from ${fileName}` : ""}, ${totalLines} line${totalLines !== 1 ? "s" : ""}`;
   const themeClass = theme ? ` hljs-theme-${theme}` : "";
 
   // Enhanced accessibility wrapper
@@ -638,7 +646,7 @@ function enhanceHighlightedHtml(
   const descId = `hljs-desc-${Math.random().toString(36).substring(2, 11)}`;
   const escapedFileName = fileName
     ? fileName.replace(
-        /[<>&"']/g,
+        /[<>&"'`]/g,
         (char) =>
           ({
             "<": "&lt;",
@@ -646,6 +654,7 @@ function enhanceHighlightedHtml(
             "&": "&amp;",
             '"': "&quot;",
             "'": "&#x27;",
+            "`": "&#x60;",
           })[char] || char
       )
     : "";
@@ -1013,7 +1022,16 @@ async function processHighlightRequest(request: {
       error
     );
 
-    throw error;
+    // Return error response instead of throwing to work with worker message system
+    const processingTime = performance.now() - startTime;
+    return {
+      filePath,
+      highlightedHtml: "",
+      status: "error",
+      error: error instanceof Error ? error.message : "Unknown error occurred during highlighting",
+      processingTimeMs: processingTime,
+      fromCache: false,
+    };
   } finally {
     // Clean up performance marks
     performance.clearMarks("highlight-start");
