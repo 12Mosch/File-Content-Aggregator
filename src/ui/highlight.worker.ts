@@ -90,15 +90,14 @@ function getCacheKeySync(
   language: string,
   theme?: string
 ): string {
-  // Simple hash function for fallback
-  let hash = 0;
-  const input = `${language}:${theme || "default"}:${code.length}:${code.substring(0, 200)}`;
+  // FNV-1a hash implementation
+  let hash = 2166136261;
+  const input = `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}`;
   for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash ^= input.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
   }
-  return Math.abs(hash).toString(16);
+  return hash.toString(16);
 }
 
 /**
@@ -319,7 +318,14 @@ function enhanceHighlightedHtml(
 
   // Add screen reader description
   const descId = `hljs-desc-${Math.random().toString(36).substring(2, 11)}`;
-  accessibleHtml += `<div id="${descId}" class="sr-only">This is a ${language} code block${fileName ? ` from ${fileName}` : ""} with ${totalLines} lines. Use arrow keys to navigate through the code.</div>`;
+  const escapedFileName = fileName ? fileName.replace(/[<>&"']/g, (char) => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    '"': '&quot;',
+    "'": '&#x27;'
+  }[char] || char)) : '';
+  accessibleHtml += `<div id="${descId}" class="sr-only">This is a ${language} code block${escapedFileName ? ` from ${escapedFileName}` : ""} with ${totalLines} lines. Use arrow keys to navigate through the code.</div>`;
 
   // Main code content with enhanced tokens
   accessibleHtml += `<code role="note" aria-describedby="${descId}" class="hljs-content">`;

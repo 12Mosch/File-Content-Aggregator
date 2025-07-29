@@ -23,6 +23,7 @@ export type LegacyHighlightCache = Map<string, LegacyHighlightInfo>;
  */
 export function useResultsHighlighting() {
   const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
+  const [visibilityMap] = useState(new Map<string, boolean>());
   const highlightCacheRef = useRef<LegacyHighlightCache>(new Map());
   const workerPoolRef = useRef(getHighlightWorkerPool());
   const activeRequestsRef = useRef<Set<string>>(new Set());
@@ -69,7 +70,7 @@ export function useResultsHighlighting() {
           language,
           theme: currentTheme,
           priority: "normal",
-          isVisible: true, // Assume visible for now
+          isVisible: visibilityMap.get(filePath) ?? true,
         });
 
         // Convert to legacy format
@@ -101,8 +102,15 @@ export function useResultsHighlighting() {
         activeRequestsRef.current.delete(filePath);
       }
     },
-    []
+    [visibilityMap]
   );
+
+  /**
+   * Update visibility status for a file
+   */
+  const updateVisibility = useCallback((filePath: string, isVisible: boolean) => {
+    visibilityMap.set(filePath, isVisible);
+  }, [visibilityMap]);
 
   /**
    * Get performance statistics
@@ -139,6 +147,7 @@ export function useResultsHighlighting() {
     highlightCache: highlightCacheRef.current,
     highlightUpdateCounter,
     requestHighlighting,
+    updateVisibility,
     getStats,
     clearCache,
   };

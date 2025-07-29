@@ -40,6 +40,7 @@ export class HighlightWorkerPool {
   private readonly stats: HighlightStats;
   private requestQueue: Map<string, HighlightRequest>;
   private activeRequests: Set<string>;
+  private filePathToTaskId: Map<string, string>;
 
   constructor(initialWorkers = 2, maxWorkers = 4) {
     // Create worker pool with highlight worker script
@@ -60,6 +61,7 @@ export class HighlightWorkerPool {
 
     this.requestQueue = new Map();
     this.activeRequests = new Set();
+    this.filePathToTaskId = new Map();
   }
 
   /**
@@ -73,11 +75,14 @@ export class HighlightWorkerPool {
     this.activeRequests.add(request.filePath);
 
     try {
-      // Execute highlighting task
-      const result = await this.workerPool.execute<HighlightResult>(
+      // Execute highlighting task and get task ID for cancellation tracking
+      const { result, taskId } = await this.workerPool.executeWithTaskId<HighlightResult>(
         "highlight",
         request
       );
+
+      // Store task ID for potential cancellation
+      this.filePathToTaskId.set(request.filePath, taskId);
 
       // Update stats
       if (result.fromCache) {
@@ -103,8 +108,9 @@ export class HighlightWorkerPool {
         processingTimeMs: performance.now() - startTime,
       };
     } finally {
-      // Remove from active requests
+      // Clean up tracking maps
       this.activeRequests.delete(request.filePath);
+      this.filePathToTaskId.delete(request.filePath);
     }
   }
 
@@ -123,9 +129,18 @@ export class HighlightWorkerPool {
    */
   cancelHighlight(filePath: string): void {
     if (this.activeRequests.has(filePath)) {
-      // Find and cancel the task - this would need task ID tracking
-      // For now, we'll just remove from our tracking
+      // Get the task ID for this file path
+      const taskId = this.filePathToTaskId.get(filePath);
+
+      if (taskId) {
+        // Cancel the actual worker task
+        this.workerPool.cancelTask(taskId);
+        console.log(`[HighlightWorkerPool] Cancelled highlighting task for ${filePath}`);
+      }
+
+      // Clean up tracking maps
       this.activeRequests.delete(filePath);
+      this.filePathToTaskId.delete(filePath);
     }
   }
 
@@ -161,6 +176,7 @@ export class HighlightWorkerPool {
     this.workerPool.terminate();
     this.requestQueue.clear();
     this.activeRequests.clear();
+    this.filePathToTaskId.clear();
   }
 
   /**

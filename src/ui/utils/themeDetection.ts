@@ -1,11 +1,3 @@
-/**
- * Theme Detection Utilities
- *
- * Utilities for detecting the current theme and converting between
- * application theme names and highlighting theme names.
- */
-
-export type AppTheme = "light" | "dark" | "system";
 export type HighlightTheme = "light" | "dark" | "high-contrast";
 
 /**
