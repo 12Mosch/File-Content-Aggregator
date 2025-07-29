@@ -9,19 +9,8 @@ import path from "path";
 import picomatch from "picomatch";
 import { FileProcessingService, FileStats } from "./index.js";
 
-// Import module and create a require function
-import module from "node:module";
-const require = module.createRequire(import.meta.url);
-
-// Use the created require function to load fast-glob
-import type { Options as FastGlobOptions } from "fast-glob";
-// Properly type the fast-glob module
-type FastGlobFunction = (
-  patterns: string | readonly string[],
-  options?: FastGlobOptions
-) => Promise<string[]>;
-// Use type assertion to avoid unsafe assignment warning
-const fg = require("fast-glob") as FastGlobFunction;
+// Import fast-glob with proper typing
+import fg from "fast-glob";
 
 // Define interfaces for the service
 export type FolderExclusionMode =

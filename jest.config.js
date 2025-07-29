@@ -1,13 +1,13 @@
 /** @type {import('jest').Config} */
 const config = {
-  preset: "ts-jest/presets/js-with-ts-esm",
+  preset: "ts-jest",
   testEnvironment: "jsdom",
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
         tsconfig: "tsconfig.json",
-        useESM: true,
+        useESM: false, // Disable ESM for now to avoid conflicts
       },
     ],
   },
@@ -24,25 +24,24 @@ const config = {
   testTimeout: 10000,
   // Configure setup files
   setupFilesAfterEnv: ["./tests/setup.js"],
-  // Handle ES modules
-  extensionsToTreatAsEsm: [".ts", ".tsx"],
+  // Handle module resolution
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
     // Mock import.meta.url for tests
     "\\.\\.(css|less|scss|sass)$": "identity-obj-proxy",
   },
   transformIgnorePatterns: [
-    "/node_modules/(?!(.+\\\\.mjs$)|p-limit|electron-store)",
+    "/node_modules/(?!(.+\\\\.mjs$)|p-limit|electron-store|fast-glob)",
   ],
-  // Mock environment variables
+  // Mock environment variables and globals
   globals: {
+    // Mock import.meta for Jest compatibility
     "import.meta": {
       url: "file:///mock/url",
     },
-    // Add __filename and __dirname for ESM compatibility
-    __filename: "mock-filename",
-    __dirname: "mock-dirname",
   },
+  // Set up environment variables for ESM compatibility
+  setupFiles: ["<rootDir>/tests/jest.setup.js"],
 };
 
 export default config;

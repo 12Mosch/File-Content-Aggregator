@@ -1,5 +1,5 @@
 // Import jest-dom for DOM element assertions
-import "@testing-library/jest-dom";
+require("@testing-library/jest-dom");
 
 /* global window, jest, beforeEach, console, global */
 
