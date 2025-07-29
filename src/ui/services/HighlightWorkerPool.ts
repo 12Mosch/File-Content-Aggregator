@@ -75,15 +75,18 @@ export class HighlightWorkerPool {
     this.activeRequests.add(request.filePath);
 
     try {
-      // Execute highlighting task and get task ID for cancellation tracking
-      const { result, taskId } =
-        await this.workerPool.executeWithTaskId<HighlightResult>(
+      // Execute highlighting task and get task ID immediately for cancellation tracking
+      const { taskId, resultPromise } =
+        await this.workerPool.executeWithImmediateTaskId<HighlightResult>(
           "highlight",
           request
         );
 
-      // Store task ID for potential cancellation
+      // Store task ID immediately for potential cancellation during execution
       this.filePathToTaskId.set(request.filePath, taskId);
+
+      // Await the result
+      const result = await resultPromise;
 
       // Update stats
       if (result.fromCache) {

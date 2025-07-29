@@ -123,7 +123,7 @@ async function loadLanguage(language: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error(
-      "[Highlight Worker] Failed to load language: %s",
+      "[Highlight Worker] Failed to load language:",
       language,
       error
     );
@@ -131,77 +131,79 @@ async function loadLanguage(language: string): Promise<boolean> {
   }
 }
 
+// Extension to language mapping
+const EXTENSION_MAP: Record<string, string> = {
+  js: "javascript",
+  mjs: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  tsx: "tsx",
+  py: "python",
+  pyw: "python",
+  java: "java",
+  cs: "csharp",
+  rs: "rust",
+  go: "go",
+  php: "php",
+  rb: "ruby",
+  swift: "swift",
+  kt: "kotlin",
+  scala: "scala",
+  cpp: "cpp",
+  cxx: "cpp",
+  cc: "cpp",
+  c: "c",
+  h: "c",
+  hpp: "cpp",
+  sh: "shell",
+  bash: "bash",
+  zsh: "shell",
+  fish: "shell",
+  ps1: "powershell",
+  sql: "sql",
+  yaml: "yaml",
+  yml: "yaml",
+  json: "json",
+  css: "css",
+  scss: "css",
+  sass: "css",
+  less: "css",
+  html: "html",
+  htm: "html",
+  xml: "xml",
+  dockerfile: "dockerfile",
+  md: "markdown",
+  markdown: "markdown",
+  lua: "lua",
+  pl: "perl",
+  r: "r",
+  m: "matlab",
+  hs: "haskell",
+  ex: "elixir",
+  exs: "elixir",
+  erl: "erlang",
+  clj: "clojure",
+  dart: "dart",
+  vim: "vim",
+  ini: "ini",
+  cfg: "ini",
+  conf: "ini",
+  properties: "properties",
+  makefile: "makefile",
+  cmake: "cmake",
+  diff: "diff",
+  patch: "patch",
+  log: "log",
+  txt: "txt",
+};
+
 /**
  * Detect language from file extension
  */
 function detectLanguageFromPath(filePath: string): string {
   const ext = filePath.split(".").pop()?.toLowerCase();
-  const extensionMap: Record<string, string> = {
-    js: "javascript",
-    mjs: "javascript",
-    jsx: "jsx",
-    ts: "typescript",
-    tsx: "tsx",
-    py: "python",
-    pyw: "python",
-    java: "java",
-    cs: "csharp",
-    rs: "rust",
-    go: "go",
-    php: "php",
-    rb: "ruby",
-    swift: "swift",
-    kt: "kotlin",
-    scala: "scala",
-    cpp: "cpp",
-    cxx: "cpp",
-    cc: "cpp",
-    c: "c",
-    h: "c",
-    hpp: "cpp",
-    sh: "shell",
-    bash: "bash",
-    zsh: "shell",
-    fish: "shell",
-    ps1: "powershell",
-    sql: "sql",
-    yaml: "yaml",
-    yml: "yaml",
-    json: "json",
-    css: "css",
-    scss: "css",
-    sass: "css",
-    less: "css",
-    html: "html",
-    htm: "html",
-    xml: "xml",
-    dockerfile: "dockerfile",
-    md: "markdown",
-    markdown: "markdown",
-    lua: "lua",
-    pl: "perl",
-    r: "r",
-    m: "matlab",
-    hs: "haskell",
-    ex: "elixir",
-    exs: "elixir",
-    erl: "erlang",
-    clj: "clojure",
-    dart: "dart",
-    vim: "vim",
-    ini: "ini",
-    cfg: "ini",
-    conf: "ini",
-    properties: "properties",
-    makefile: "makefile",
-    cmake: "cmake",
-    diff: "diff",
-    patch: "patch",
-    log: "log",
-    txt: "txt",
-  };
 
-  return extensionMap[ext || ""] || "plaintext";
+  return EXTENSION_MAP[ext || ""] || "plaintext";
 }
 
 /**
@@ -1005,8 +1007,8 @@ async function processHighlightRequest(request: {
     };
   } catch (error) {
     console.error(
-      "[Highlight Worker] Error highlighting %s (lang: %s):",
-      filePath,
+      "[Highlight Worker] Error highlighting file (lang:",
+      filePath + "):",
       language,
       error
     );
