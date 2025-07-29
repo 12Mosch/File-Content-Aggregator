@@ -92,9 +92,10 @@ function getCacheKeySync(
 ): string {
   // FNV-1a hash implementation
   let hash = 2166136261;
-  const input = code.length <= 1000
-    ? `${language}:${theme || "default"}:${code.length}:${code}`
-    : `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}${code.substring(code.length - 500)}`;
+  const input =
+    code.length <= 1000
+      ? `${language}:${theme || "default"}:${code.length}:${code}`
+      : `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}${code.substring(code.length - 500)}`;
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i);
     hash +=
@@ -468,7 +469,9 @@ function findSafeBoundary(
     }
   }
 
-  console.debug(`[Highlight Worker] Safe boundary: ideal=${idealPosition}, found=${bestBoundary}, distance=${Math.abs(bestBoundary - idealPosition)}`);
+  console.debug(
+    `[Highlight Worker] Safe boundary: ideal=${idealPosition}, found=${bestBoundary}, distance=${Math.abs(bestBoundary - idealPosition)}`
+  );
   return bestBoundary;
 }
 
@@ -479,7 +482,8 @@ function processInChunks(
   code: string,
   language: string,
   filePath: string,
-  _theme?: string
+  _theme?: string,
+  id?: string
 ): string {
   const config = getLanguageChunkConfig(language);
   const chunks: string[] = [];
@@ -530,12 +534,25 @@ function processInChunks(
 
       // Send progress updates for very large files
       if (totalChunks > 10 && processedChunks % 5 === 0) {
-        self.postMessage({
+        const progressMessage: {
+          filePath: string;
+          status: string;
+          progress: number;
+          partialHtml: string;
+          id?: string;
+        } = {
           filePath,
           status: "partial",
           progress: processedChunks / totalChunks,
           partialHtml: chunks.join(""),
-        });
+        };
+
+        // Include ID for WorkerPool messages to ensure proper routing
+        if (id) {
+          progressMessage.id = id;
+        }
+
+        self.postMessage(progressMessage);
       }
 
       // Update position for next chunk
@@ -571,7 +588,9 @@ function extractNewContentFromHighlighted(
 
   // Validate input HTML structure
   if (!highlightedHtml.startsWith("<")) {
-    console.warn('[Highlight Worker] Invalid HTML: Does not start with a tag, falling back to substring');
+    console.warn(
+      "[Highlight Worker] Invalid HTML: Does not start with a tag, falling back to substring"
+    );
     return highlightedHtml.substring(startOffset);
   }
 
@@ -637,7 +656,7 @@ function enhanceHighlightedHtml(
     : undefined;
 
   // Create comprehensive accessibility wrapper
-  const sanitizedLanguage = language.replace(/[^a-zA-Z0-9\-_]/g, '');
+  const sanitizedLanguage = language.replace(/[^a-zA-Z0-9\-_]/g, "");
   const ariaLabel = `Code block in ${sanitizedLanguage}${fileName ? ` from ${fileName}` : ""}, ${totalLines} line${totalLines !== 1 ? "s" : ""}`;
   const themeClass = theme ? ` hljs-theme-${theme}` : "";
 
@@ -843,7 +862,7 @@ async function handleWorkerPoolMessage(data: WorkerPoolMessage): Promise<void> {
   try {
     switch (action) {
       case "highlight": {
-        const result = await processHighlightRequest(payload);
+        const result = await processHighlightRequest(payload, id);
         self.postMessage({
           id,
           ...result,
@@ -891,14 +910,17 @@ async function handleWorkerPoolMessage(data: WorkerPoolMessage): Promise<void> {
 /**
  * Process a highlight request with all enhancements
  */
-async function processHighlightRequest(request: {
-  filePath: string;
-  code: string;
-  language: string;
-  theme?: string;
-  priority?: string;
-  isVisible?: boolean;
-}): Promise<{
+async function processHighlightRequest(
+  request: {
+    filePath: string;
+    code: string;
+    language: string;
+    theme?: string;
+    priority?: string;
+    isVisible?: boolean;
+  },
+  id?: string
+): Promise<{
   filePath: string;
   highlightedHtml: string;
   status: string;
@@ -962,7 +984,7 @@ async function processHighlightRequest(request: {
       console.log(
         `[Highlight Worker] Processing large file (${code.length} chars) in chunks`
       );
-      highlightedHtml = processInChunks(code, language, filePath, theme);
+      highlightedHtml = processInChunks(code, language, filePath, theme, id);
     } else {
       // Standard highlighting
       const result = hljs.highlight(code, { language, ignoreIllegals: true });
@@ -1019,8 +1041,10 @@ async function processHighlightRequest(request: {
   } catch (error) {
     console.error(
       "[Highlight Worker] Error highlighting file (lang:",
-      filePath + "):",
+      filePath,
+      "(language:",
       language,
+      "):",
       error
     );
 
@@ -1030,7 +1054,10 @@ async function processHighlightRequest(request: {
       filePath,
       highlightedHtml: "",
       status: "error",
-      error: error instanceof Error ? error.message : "Unknown error occurred during highlighting",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred during highlighting",
       processingTimeMs: processingTime,
       fromCache: false,
     };
