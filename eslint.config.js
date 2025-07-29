@@ -1,8 +1,10 @@
 // eslint.config.js
 import eslintJs from "@eslint/js";
 import tseslint from "typescript-eslint";
+import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 import eslintConfigPrettier from "eslint-config-prettier";
 
@@ -84,8 +86,10 @@ export default tseslint.config(
       },
     },
     plugins: {
+      "react": react,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "jsx-a11y": jsxA11y,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -93,6 +97,7 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+      "jsx-a11y/alt-text": "warn",
       // Override specific TS rules for React if needed
       "@typescript-eslint/explicit-function-return-type": "off", // Often verbose for components
     },

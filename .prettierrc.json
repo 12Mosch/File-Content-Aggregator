@@ -8,5 +8,7 @@
   "trailingComma": "es5",
   "bracketSpacing": true,
   "arrowParens": "always",
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "tailwindStylesheet": "src/ui/index.css",
+  "plugins": ["prettier-plugin-tailwindcss"]
 }
