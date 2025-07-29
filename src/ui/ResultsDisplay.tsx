@@ -37,6 +37,7 @@ import type {
 } from "./vite-env.d";
 import { extractSearchTermsFromQuery } from "./queryBuilderUtils"; // Import the new utility
 import { highlightTermsInHtml } from "./highlightHtmlUtils"; // Import the new HTML highlighting utility
+import { useResultsHighlighting } from "./hooks/useResultsHighlighting"; // Enhanced highlighting system
 import { getFileTypeIcon } from "./utils/fileTypeIcons"; // Import file type icons utility
 import {
   Copy,
@@ -798,9 +799,13 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [batchStatus, setBatchStatus] = useState<string>("");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("txt");
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
-  const workerRef = useRef<Worker | null>(null);
-  const highlightCacheRef = useRef<HighlightCache>(new Map());
-  const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
+
+  // Enhanced highlighting system
+  const {
+    highlightCache,
+    highlightUpdateCounter,
+    requestHighlighting: enhancedRequestHighlighting,
+  } = useResultsHighlighting();
   const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
   const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
   // Selection state using reducer
@@ -988,30 +993,13 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
   }, []);
 
+  // Use the enhanced highlighting system
   const requestHighlighting = useCallback(
     (filePath: string, code: string, language: string, forceUpdate = false) => {
-      const currentCache = highlightCacheRef.current.get(filePath);
-      if (!forceUpdate && currentCache?.status === "done") return;
-      if (currentCache?.status === "pending") return;
-
-      if (workerRef.current) {
-        highlightCacheRef.current.set(filePath, { status: "pending" });
-        setHighlightUpdateCounter((prev) => prev + 1);
-        // console.log(`[RequestHighlighting] Posting message for ${filePath} (Force: ${forceUpdate})`);
-        workerRef.current.postMessage({ filePath, code, language });
-      } else {
-        console.warn(
-          "Highlight worker not available to process request for:",
-          filePath
-        );
-        highlightCacheRef.current.set(filePath, {
-          status: "error",
-          error: "Worker not available",
-        });
-        setHighlightUpdateCounter((prev) => prev + 1);
-      }
+      // Use the enhanced highlighting system with async handling
+      void enhancedRequestHighlighting(filePath, code, language, forceUpdate);
     },
-    []
+    [enhancedRequestHighlighting]
   );
 
   const handleCopyFileContent = useCallback(
@@ -1106,7 +1094,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       contentHighlightTerms: contentHighlightTerms, // Pass extracted terms for content
       contentHighlightCaseSensitive: searchQueryCaseSensitive, // Pass query case sensitivity for content
       wholeWordMatching: wholeWordMatching, // Pass whole word matching setting
-      highlightCache: highlightCacheRef.current,
+      highlightCache: highlightCache,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
       contentCache: contentCacheRef.current,
@@ -1130,6 +1118,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     handleCopyFileContent,
     requestContent,
     selectedFiles, // Depend on selection state
+    highlightCache, // Add missing dependency
   ]);
 
   const getTreeItemSize = useCallback(
@@ -1169,7 +1158,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       }
 
       // Add extra line for highlight status if needed
-      const highlightInfo = highlightCacheRef.current.get(item.filePath);
+      const highlightInfo = highlightCache.get(item.filePath);
       if (
         highlightInfo?.status === "pending" ||
         highlightInfo?.status === "error"
@@ -1195,63 +1184,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         TREE_ITEM_PADDING_Y
       );
     },
-    [sortedItems, itemDisplayStates] // Depend on sortedItems
+    [sortedItems, itemDisplayStates, highlightCache] // Depend on sortedItems and highlightCache
   );
 
-  // Effect for initializing and terminating the worker
-  useEffect(() => {
-    workerRef.current = new Worker(
-      new URL("./highlight.worker.ts", import.meta.url),
-      {
-        type: "module",
-      }
-    );
-
-    const handleWorkerMessage = (event: MessageEvent) => {
-      // Type the expected structure of event.data
-      const data = event.data as {
-        filePath: string;
-        status: HighlightStatus;
-        highlightedHtml?: string;
-        error?: string;
-      };
-
-      if (data.filePath) {
-        highlightCacheRef.current.set(data.filePath, {
-          status: data.status,
-          html: data.highlightedHtml,
-          error: data.error,
-        });
-        setHighlightUpdateCounter((prev) => prev + 1);
-      }
-    };
-
-    const handleWorkerError = (event: ErrorEvent) => {
-      console.error("[Highlight Worker Error]", event.message, event);
-    };
-
-    const currentWorker = workerRef.current;
-    currentWorker.addEventListener("message", handleWorkerMessage);
-    currentWorker.addEventListener("error", handleWorkerError);
-
-    // Capture the ref's current value *inside* the effect for cleanup
-    const cacheRefForCleanup = highlightCacheRef.current;
-    return () => {
-      console.log("[Highlight Worker] Terminating.");
-      currentWorker.removeEventListener("message", handleWorkerMessage);
-      currentWorker.removeEventListener("error", handleWorkerError);
-      currentWorker.terminate();
-      workerRef.current = null;
-      // Use the captured cache ref value here
-      cacheRefForCleanup.clear();
-    };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
+  // Enhanced highlighting system is initialized in the useResultsHighlighting hook
+  // No need for manual worker management
 
   // Effect to clear highlight and content caches when results change
   useEffect(() => {
-    highlightCacheRef.current.clear();
+    // The enhanced highlighting system manages its own cache clearing
     contentCacheRef.current.clear(); // Clear content cache too
-    setHighlightUpdateCounter(0);
     setContentUpdateCounter(0); // Reset content counter
     // No need to clear fuseInstanceRef here, it's handled in useMemo
   }, [structuredItems]); // Depend on the original results structure

@@ -8,6 +8,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import { getErrorHandler } from "../lib/services/ErrorHandlingService";
 import "./index.css";
 import "highlight.js/styles/github-dark.css";
+import "./styles/highlight-themes.css";
 import type { ThemePreference } from "./vite-env.d";
 
 const rootElement = document.getElementById("root");
