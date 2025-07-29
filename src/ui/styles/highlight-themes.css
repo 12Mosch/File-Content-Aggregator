@@ -1,0 +1,393 @@
+/**
+ * Enhanced Highlight.js Themes
+ * 
+ * Custom theme support for syntax highlighting with accessibility improvements
+ */
+
+/* Base enhanced highlighting styles */
+.hljs-enhanced {
+  display: block;
+  overflow-x: auto;
+  padding: 0.5em;
+  border-radius: 4px;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+}
+
+/* Light theme */
+.hljs-theme-light {
+  background: #f8f9fa;
+  color: #24292e;
+  border: 1px solid #e1e4e8;
+}
+
+.hljs-theme-light .hljs-comment,
+.hljs-theme-light .hljs-quote {
+  color: #6a737d;
+  font-style: italic;
+}
+
+.hljs-theme-light .hljs-keyword,
+.hljs-theme-light .hljs-selector-tag,
+.hljs-theme-light .hljs-subst {
+  color: #d73a49;
+  font-weight: 600;
+}
+
+.hljs-theme-light .hljs-number,
+.hljs-theme-light .hljs-literal,
+.hljs-theme-light .hljs-variable,
+.hljs-theme-light .hljs-template-variable,
+.hljs-theme-light .hljs-tag .hljs-attr {
+  color: #005cc5;
+}
+
+.hljs-theme-light .hljs-string,
+.hljs-theme-light .hljs-doctag {
+  color: #032f62;
+}
+
+.hljs-theme-light .hljs-title,
+.hljs-theme-light .hljs-section,
+.hljs-theme-light .hljs-selector-id {
+  color: #6f42c1;
+  font-weight: 600;
+}
+
+.hljs-theme-light .hljs-type,
+.hljs-theme-light .hljs-class .hljs-title {
+  color: #445588;
+  font-weight: 600;
+}
+
+.hljs-theme-light .hljs-tag,
+.hljs-theme-light .hljs-name,
+.hljs-theme-light .hljs-attribute {
+  color: #22863a;
+  font-weight: normal;
+}
+
+.hljs-theme-light .hljs-regexp,
+.hljs-theme-light .hljs-link {
+  color: #032f62;
+}
+
+.hljs-theme-light .hljs-symbol,
+.hljs-theme-light .hljs-bullet {
+  color: #e36209;
+}
+
+.hljs-theme-light .hljs-built_in,
+.hljs-theme-light .hljs-builtin-name {
+  color: #005cc5;
+}
+
+.hljs-theme-light .hljs-meta {
+  color: #6a737d;
+}
+
+.hljs-theme-light .hljs-deletion {
+  background: #ffeef0;
+  color: #b31d28;
+}
+
+.hljs-theme-light .hljs-addition {
+  background: #f0fff4;
+  color: #22863a;
+}
+
+/* Dark theme */
+.hljs-theme-dark {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid #3c3c3c;
+}
+
+.hljs-theme-dark .hljs-comment,
+.hljs-theme-dark .hljs-quote {
+  color: #6a9955;
+  font-style: italic;
+}
+
+.hljs-theme-dark .hljs-keyword,
+.hljs-theme-dark .hljs-selector-tag,
+.hljs-theme-dark .hljs-subst {
+  color: #569cd6;
+  font-weight: 600;
+}
+
+.hljs-theme-dark .hljs-number,
+.hljs-theme-dark .hljs-literal,
+.hljs-theme-dark .hljs-variable,
+.hljs-theme-dark .hljs-template-variable,
+.hljs-theme-dark .hljs-tag .hljs-attr {
+  color: #b5cea8;
+}
+
+.hljs-theme-dark .hljs-string,
+.hljs-theme-dark .hljs-doctag {
+  color: #ce9178;
+}
+
+.hljs-theme-dark .hljs-title,
+.hljs-theme-dark .hljs-section,
+.hljs-theme-dark .hljs-selector-id {
+  color: #dcdcaa;
+  font-weight: 600;
+}
+
+.hljs-theme-dark .hljs-type,
+.hljs-theme-dark .hljs-class .hljs-title {
+  color: #4ec9b0;
+  font-weight: 600;
+}
+
+.hljs-theme-dark .hljs-tag,
+.hljs-theme-dark .hljs-name,
+.hljs-theme-dark .hljs-attribute {
+  color: #92c5f8;
+  font-weight: normal;
+}
+
+.hljs-theme-dark .hljs-regexp,
+.hljs-theme-dark .hljs-link {
+  color: #ce9178;
+}
+
+.hljs-theme-dark .hljs-symbol,
+.hljs-theme-dark .hljs-bullet {
+  color: #d7ba7d;
+}
+
+.hljs-theme-dark .hljs-built_in,
+.hljs-theme-dark .hljs-builtin-name {
+  color: #4fc1ff;
+}
+
+.hljs-theme-dark .hljs-meta {
+  color: #9cdcfe;
+}
+
+.hljs-theme-dark .hljs-deletion {
+  background: #4b1818;
+  color: #f85149;
+}
+
+.hljs-theme-dark .hljs-addition {
+  background: #1a4f1a;
+  color: #56d364;
+}
+
+/* High contrast theme for accessibility */
+.hljs-theme-high-contrast {
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-weight: 500;
+}
+
+.hljs-theme-high-contrast .hljs-comment,
+.hljs-theme-high-contrast .hljs-quote {
+  color: #00ff00;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.hljs-theme-high-contrast .hljs-keyword,
+.hljs-theme-high-contrast .hljs-selector-tag,
+.hljs-theme-high-contrast .hljs-subst {
+  color: #ffff00;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.hljs-theme-high-contrast .hljs-number,
+.hljs-theme-high-contrast .hljs-literal,
+.hljs-theme-high-contrast .hljs-variable,
+.hljs-theme-high-contrast .hljs-template-variable,
+.hljs-theme-high-contrast .hljs-tag .hljs-attr {
+  color: #00ffff;
+  font-weight: 600;
+}
+
+.hljs-theme-high-contrast .hljs-string,
+.hljs-theme-high-contrast .hljs-doctag {
+  color: #ff00ff;
+  font-weight: 600;
+}
+
+.hljs-theme-high-contrast .hljs-title,
+.hljs-theme-high-contrast .hljs-section,
+.hljs-theme-high-contrast .hljs-selector-id {
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.hljs-theme-high-contrast .hljs-type,
+.hljs-theme-high-contrast .hljs-class .hljs-title {
+  color: #ffa500;
+  font-weight: 700;
+}
+
+.hljs-theme-high-contrast .hljs-tag,
+.hljs-theme-high-contrast .hljs-name,
+.hljs-theme-high-contrast .hljs-attribute {
+  color: #00ff00;
+  font-weight: 600;
+}
+
+.hljs-theme-high-contrast .hljs-regexp,
+.hljs-theme-high-contrast .hljs-link {
+  color: #ff00ff;
+  text-decoration: underline;
+}
+
+.hljs-theme-high-contrast .hljs-symbol,
+.hljs-theme-high-contrast .hljs-bullet {
+  color: #ffff00;
+  font-weight: 700;
+}
+
+.hljs-theme-high-contrast .hljs-built_in,
+.hljs-theme-high-contrast .hljs-builtin-name {
+  color: #00ffff;
+  font-weight: 600;
+}
+
+.hljs-theme-high-contrast .hljs-meta {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.hljs-theme-high-contrast .hljs-deletion {
+  background: #ff0000;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.hljs-theme-high-contrast .hljs-addition {
+  background: #00ff00;
+  color: #000000;
+  font-weight: 700;
+}
+
+/* Focus and hover states for accessibility */
+.hljs-enhanced:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+.hljs-enhanced:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.hljs-theme-dark:hover {
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+.hljs-theme-high-contrast:hover {
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hljs-enhanced {
+    font-size: 0.75rem;
+    padding: 0.25em;
+  }
+}
+
+/* Accessibility utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0.25rem 0.5rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  background: #007acc;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.25rem;
+}
+
+.hljs-skip-link {
+  display: block;
+  padding: 0.5rem;
+  background: #007acc;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.hljs-skip-target {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 1px;
+  height: 1px;
+}
+
+.hljs-line-numbers {
+  float: left;
+  margin-right: 1em;
+  padding-right: 0.5em;
+  border-right: 1px solid #ccc;
+  color: #999;
+  user-select: none;
+}
+
+.hljs-line-number {
+  display: block;
+  text-align: right;
+  min-width: 2em;
+  padding-right: 0.5em;
+}
+
+.hljs-content {
+  display: block;
+  overflow-x: auto;
+}
+
+.hljs-keyboard-hints {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+/* Print styles */
+@media print {
+  .hljs-enhanced {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+
+  .hljs-enhanced * {
+    color: black !important;
+    background: transparent !important;
+  }
+
+  .sr-only,
+  .hljs-keyboard-hints {
+    display: none !important;
+  }
+}

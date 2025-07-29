@@ -216,6 +216,86 @@ export class WorkerPool {
   }
 
   /**
+   * Execute a task on an available worker and return both the result and task ID
+   * @param action The action to perform
+   * @param payload The payload for the action
+   * @returns A promise that resolves with an object containing the result and task ID
+   */
+  public async executeWithTaskId<T>(
+    action: string,
+    payload: unknown
+  ): Promise<{ result: T; taskId: string }> {
+    // Wait for initialization if needed
+    if (!this.isInitialized && this.initPromise) {
+      await this.initPromise;
+    }
+
+    return new Promise<{ result: T; taskId: string }>((resolve, reject) => {
+      // Create a type-safe wrapper for the resolve function
+      const typedResolve = (value: unknown): void => {
+        resolve({ result: value as T, taskId: task.id });
+      };
+
+      const task: WorkerTask = {
+        id: uuidv4(),
+        action,
+        payload,
+        resolve: typedResolve,
+        reject,
+        startTime: performance.now(),
+      };
+
+      // Add task to queue
+      this.taskQueue.push(task);
+
+      // Process queue
+      this.processQueue();
+    });
+  }
+
+  /**
+   * Execute a task on an available worker and return the task ID immediately with a promise for the result
+   * @param action The action to perform
+   * @param payload The payload for the action
+   * @returns An object containing the task ID and a promise that resolves with the result
+   */
+  public async executeWithImmediateTaskId<T>(
+    action: string,
+    payload: unknown
+  ): Promise<{ taskId: string; resultPromise: Promise<T> }> {
+    // Wait for initialization if needed
+    if (!this.isInitialized && this.initPromise) {
+      await this.initPromise;
+    }
+
+    const taskId = uuidv4();
+
+    const resultPromise = new Promise<T>((resolve, reject) => {
+      // Create a type-safe wrapper for the resolve function
+      const typedResolve = (value: unknown): void => {
+        resolve(value as T);
+      };
+
+      const task: WorkerTask = {
+        id: taskId,
+        action,
+        payload,
+        resolve: typedResolve,
+        reject,
+        startTime: performance.now(),
+      };
+
+      // Add task to queue
+      this.taskQueue.push(task);
+
+      // Process queue
+      this.processQueue();
+    });
+
+    return { taskId, resultPromise };
+  }
+
+  /**
    * Cancel a specific task
    * @param taskId The ID of the task to cancel
    */

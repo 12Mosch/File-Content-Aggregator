@@ -1,14 +1,14 @@
 import React, {
-  useState,
-  useMemo,
-  useRef,
-  useEffect,
   useCallback,
+  useEffect,
+  useMemo,
   useReducer,
+  useRef,
+  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { VariableSizeList, ListChildComponentProps } from "react-window";
+import { ListChildComponentProps, VariableSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 // Correctly import Fuse class and IFuseOptions type
 import Fuse, { type IFuseOptions } from "fuse.js";
@@ -31,28 +31,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type {
-  StructuredItem,
   ExportFormat,
-  QueryStructure, // Import QueryStructure
+  QueryStructure,
+  StructuredItem,
 } from "./vite-env.d";
 import { extractSearchTermsFromQuery } from "./queryBuilderUtils"; // Import the new utility
-import { highlightTermsInHtml } from "./highlightHtmlUtils"; // Import the new HTML highlighting utility
+
+import { useResultsHighlighting } from "./hooks/useResultsHighlighting"; // Enhanced highlighting system
 import { getFileTypeIcon } from "./utils/fileTypeIcons"; // Import file type icons utility
+import { EnhancedCodeBlock } from "./components/EnhancedCodeBlock"; // Enhanced code block component
+import { getCurrentTheme } from "./utils/themeDetection"; // Theme detection utility
 import {
-  Copy,
   AlertTriangle,
-  Save,
-  Loader2,
   ArrowDown,
   ArrowUp,
+  Check,
+  ChevronDown,
+  ClipboardCopy,
+  Copy,
+  Download,
   ExternalLink,
   FolderOpen,
-  Check,
-  X,
-  Download,
-  ClipboardCopy,
+  Loader2,
+  Save,
   Upload,
-  ChevronDown,
+  X,
 } from "lucide-react";
 
 // Constants
@@ -341,13 +344,7 @@ const TreeRow = React.memo(
         // Depend on cached content and showFull state
       }, [contentInfo.content, showFull]);
 
-    const highlightInfo: HighlightCacheEntry = item
-      ? (highlightCache.get(item.filePath) ?? {
-          status: "idle",
-          html: undefined,
-          error: undefined,
-        })
-      : { status: "idle", html: undefined, error: undefined };
+    // highlightInfo is no longer needed since EnhancedCodeBlock manages its own highlighting state
 
     // Effect for requesting highlighting (now depends on contentPreview)
     useEffect(() => {
@@ -584,80 +581,30 @@ const TreeRow = React.memo(
               </span>
             ) : contentInfo.status === "loaded" &&
               typeof contentPreview === "string" ? (
-              // Content loaded, handle highlighting
+              // Content loaded, use EnhancedCodeBlock for highlighting
               <>
-                <pre className="m-0 w-full text-left font-mono text-xs leading-normal break-all whitespace-pre-wrap text-foreground">
-                  {language === "plaintext" ? (
-                    // For plaintext, use HighlightMatches with content terms
-                    <code>
-                      <HighlightMatches
-                        text={contentPreview}
-                        terms={
-                          contentHighlightTerms &&
-                          contentHighlightTerms.length > 0
-                            ? contentHighlightTerms
-                            : []
-                        } // Use content terms if available
-                        caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                        wholeWordMatching={wholeWordMatching} // Use whole word matching setting
-                      />
-                    </code>
-                  ) : highlightInfo.status === "pending" ? (
-                    <code className="hljs">{t("results:highlighting")}</code>
-                  ) : highlightInfo.status === "error" ? (
-                    // Show error and fallback to plaintext highlighting
-                    <>
-                      <span className="mb-1 block text-destructive italic">
-                        {t("results:highlightError")}: {highlightInfo.error}
-                      </span>
-                      <code>
-                        <HighlightMatches
-                          text={contentPreview}
-                          terms={
-                            contentHighlightTerms &&
-                            contentHighlightTerms.length > 0
-                              ? contentHighlightTerms
-                              : []
-                          } // Use content terms if available
-                          caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                          wholeWordMatching={wholeWordMatching} // Use whole word matching setting
-                        />
-                      </code>
-                    </>
-                  ) : highlightInfo.status === "done" && highlightInfo.html ? (
-                    // Syntax highlighted: Apply content term highlighting *after* syntax highlighting
-                    // Use our new utility function to highlight search terms within the HTML
-                    <code
-                      className={`language-${language} hljs block`}
-                      dangerouslySetInnerHTML={{
-                        __html: highlightTermsInHtml(
-                          highlightInfo.html,
-                          contentHighlightTerms &&
-                            contentHighlightTerms.length > 0
-                            ? contentHighlightTerms
-                            : [],
-                          contentHighlightCaseSensitive,
-                          wholeWordMatching
-                        ),
-                      }}
-                    />
-                  ) : (
-                    // Fallback: Plaintext highlighting
-                    <code>
-                      <HighlightMatches
-                        text={contentPreview}
-                        terms={
-                          contentHighlightTerms &&
-                          contentHighlightTerms.length > 0
-                            ? contentHighlightTerms
-                            : []
-                        } // Use content terms if available
-                        caseSensitive={contentHighlightCaseSensitive} // Use content case sensitivity
-                        wholeWordMatching={wholeWordMatching} // Use whole word matching setting
-                      />
-                    </code>
-                  )}
-                </pre>
+                <EnhancedCodeBlock
+                  filePath={item.filePath}
+                  code={contentPreview}
+                  language={language}
+                  theme={getCurrentTheme()}
+                  searchTerms={
+                    contentHighlightTerms && contentHighlightTerms.length > 0
+                      ? contentHighlightTerms
+                      : []
+                  }
+                  caseSensitive={contentHighlightCaseSensitive}
+                  wholeWordMatching={wholeWordMatching}
+                  priority="normal"
+                  isVisible={isExpanded}
+                  maxHeight="400px"
+                  onHighlightError={(error) => {
+                    console.error(
+                      "EnhancedCodeBlock highlighting error:",
+                      error
+                    );
+                  }}
+                />
                 {showShowMoreButton && (
                   <Button
                     onClick={handleShowMore}
@@ -798,9 +745,13 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const [batchStatus, setBatchStatus] = useState<string>("");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("txt");
   const treeListRef = useRef<VariableSizeList<TreeRowData>>(null);
-  const workerRef = useRef<Worker | null>(null);
-  const highlightCacheRef = useRef<HighlightCache>(new Map());
-  const [highlightUpdateCounter, setHighlightUpdateCounter] = useState(0);
+
+  // Enhanced highlighting system
+  const {
+    highlightCache,
+    highlightUpdateCounter,
+    requestHighlighting: enhancedRequestHighlighting,
+  } = useResultsHighlighting();
   const contentCacheRef = useRef<ContentCache>(new Map()); // Added content cache ref
   const [contentUpdateCounter, setContentUpdateCounter] = useState(0); // State to trigger re-render on content cache update
   // Selection state using reducer
@@ -856,7 +807,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             cond &&
             "type" in cond &&
             cond.type === "term" &&
-            typeof cond.value === "string" &&
+            true &&
             cond.value.trim().length > 0
         )
         .map((cond) => ("value" in cond ? cond.value.trim() : ""))
@@ -911,8 +862,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     if (!structuredItems) return null;
     // Filter if a content query was performed
     if (hasContentQuery) {
-      const filtered = structuredItems.filter((item) => item.matched);
-      return filtered;
+      return structuredItems.filter((item) => item.matched);
     }
     // If no content query, show all items that passed initial filters
     return structuredItems;
@@ -969,7 +919,14 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     try {
       if (!window.electronAPI?.invokeGetFileContent) {
-        throw new Error("API function invokeGetFileContent not available.");
+        console.error(
+          `API function invokeGetFileContent not available for ${filePath}`
+        );
+        contentCacheRef.current.set(filePath, {
+          status: "error",
+          error: "ipcError",
+        });
+        return;
       }
       const result = await window.electronAPI.invokeGetFileContent(filePath);
       contentCacheRef.current.set(filePath, {
@@ -988,30 +945,13 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     }
   }, []);
 
+  // Use the enhanced highlighting system
   const requestHighlighting = useCallback(
     (filePath: string, code: string, language: string, forceUpdate = false) => {
-      const currentCache = highlightCacheRef.current.get(filePath);
-      if (!forceUpdate && currentCache?.status === "done") return;
-      if (currentCache?.status === "pending") return;
-
-      if (workerRef.current) {
-        highlightCacheRef.current.set(filePath, { status: "pending" });
-        setHighlightUpdateCounter((prev) => prev + 1);
-        // console.log(`[RequestHighlighting] Posting message for ${filePath} (Force: ${forceUpdate})`);
-        workerRef.current.postMessage({ filePath, code, language });
-      } else {
-        console.warn(
-          "Highlight worker not available to process request for:",
-          filePath
-        );
-        highlightCacheRef.current.set(filePath, {
-          status: "error",
-          error: "Worker not available",
-        });
-        setHighlightUpdateCounter((prev) => prev + 1);
-      }
+      // Use the enhanced highlighting system with async handling
+      void enhancedRequestHighlighting(filePath, code, language, forceUpdate);
     },
-    []
+    [enhancedRequestHighlighting]
   );
 
   const handleCopyFileContent = useCallback(
@@ -1106,14 +1046,14 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       contentHighlightTerms: contentHighlightTerms, // Pass extracted terms for content
       contentHighlightCaseSensitive: searchQueryCaseSensitive, // Pass query case sensitivity for content
       wholeWordMatching: wholeWordMatching, // Pass whole word matching setting
-      highlightCache: highlightCacheRef.current,
+      highlightCache: highlightCache,
       requestHighlighting: requestHighlighting,
       onCopyContent: handleCopyFileContent,
       contentCache: contentCacheRef.current,
       requestContent: requestContent,
       selectedFiles: selectedFiles, // Pass selection state
       toggleSelection: (filePath: string) =>
-        dispatchSelection({ type: "toggle", filePath }), // Pass toggle function
+        dispatchSelection({ type: "toggle", filePath }), // Pass toggle function - used in TreeRow component
     };
   }, [
     sortedItems, // Depend on sortedItems
@@ -1130,6 +1070,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     handleCopyFileContent,
     requestContent,
     selectedFiles, // Depend on selection state
+    highlightCache, // Add missing dependency
   ]);
 
   const getTreeItemSize = useCallback(
@@ -1149,7 +1090,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       // Calculate size based on cached content or loading/error state
       const contentInfo =
         contentCacheRef.current.get(item.filePath) ?? defaultContentEntry;
-      let contentLineCount = 0;
+      let contentLineCount: number;
 
       if (item.readError) {
         contentLineCount = 1; // Space for the initial read error message
@@ -1169,7 +1110,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       }
 
       // Add extra line for highlight status if needed
-      const highlightInfo = highlightCacheRef.current.get(item.filePath);
+      const highlightInfo = highlightCache.get(item.filePath);
       if (
         highlightInfo?.status === "pending" ||
         highlightInfo?.status === "error"
@@ -1195,63 +1136,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         TREE_ITEM_PADDING_Y
       );
     },
-    [sortedItems, itemDisplayStates] // Depend on sortedItems
+    [sortedItems, itemDisplayStates, highlightCache] // Depend on sortedItems and highlightCache
   );
 
-  // Effect for initializing and terminating the worker
-  useEffect(() => {
-    workerRef.current = new Worker(
-      new URL("./highlight.worker.ts", import.meta.url),
-      {
-        type: "module",
-      }
-    );
-
-    const handleWorkerMessage = (event: MessageEvent) => {
-      // Type the expected structure of event.data
-      const data = event.data as {
-        filePath: string;
-        status: HighlightStatus;
-        highlightedHtml?: string;
-        error?: string;
-      };
-
-      if (data.filePath) {
-        highlightCacheRef.current.set(data.filePath, {
-          status: data.status,
-          html: data.highlightedHtml,
-          error: data.error,
-        });
-        setHighlightUpdateCounter((prev) => prev + 1);
-      }
-    };
-
-    const handleWorkerError = (event: ErrorEvent) => {
-      console.error("[Highlight Worker Error]", event.message, event);
-    };
-
-    const currentWorker = workerRef.current;
-    currentWorker.addEventListener("message", handleWorkerMessage);
-    currentWorker.addEventListener("error", handleWorkerError);
-
-    // Capture the ref's current value *inside* the effect for cleanup
-    const cacheRefForCleanup = highlightCacheRef.current;
-    return () => {
-      console.log("[Highlight Worker] Terminating.");
-      currentWorker.removeEventListener("message", handleWorkerMessage);
-      currentWorker.removeEventListener("error", handleWorkerError);
-      currentWorker.terminate();
-      workerRef.current = null;
-      // Use the captured cache ref value here
-      cacheRefForCleanup.clear();
-    };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
+  // Enhanced highlighting system is initialized in the useResultsHighlighting hook
+  // No need for manual worker management
 
   // Effect to clear highlight and content caches when results change
   useEffect(() => {
-    highlightCacheRef.current.clear();
+    // The enhanced highlighting system manages its own cache clearing
     contentCacheRef.current.clear(); // Clear content cache too
-    setHighlightUpdateCounter(0);
     setContentUpdateCounter(0); // Reset content counter
     // No need to clear fuseInstanceRef here, it's handled in useMemo
   }, [structuredItems]); // Depend on the original results structure
@@ -1304,7 +1198,12 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         );
 
       if (error || content === null) {
-        throw new Error(error || "Failed to generate content for copying.");
+        console.error(
+          "Error generating export content:",
+          error || "Content is null"
+        );
+        setCopyStatus(t("copyButtonFailed"));
+        return;
       }
 
       // Copy the generated content to clipboard
