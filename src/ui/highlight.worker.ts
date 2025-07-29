@@ -92,7 +92,9 @@ function getCacheKeySync(
 ): string {
   // FNV-1a hash implementation
   let hash = 2166136261;
-  const input = `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}${code.substring(code.length - 500)}`;
+  const input = code.length <= 1000
+    ? `${language}:${theme || "default"}:${code.length}:${code}`
+    : `${language}:${theme || "default"}:${code.length}:${code.substring(0, 500)}${code.substring(code.length - 500)}`;
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i);
     hash +=
