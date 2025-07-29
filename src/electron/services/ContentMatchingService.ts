@@ -76,10 +76,7 @@ export class ContentMatchingService {
     matcher: ((content: string) => Promise<boolean>) | null;
     error: string | null;
   } {
-    const {
-      caseSensitive = false,
-      wholeWordMatching = false,
-    } = options;
+    const { caseSensitive = false, wholeWordMatching = false } = options;
 
     // If no search term, return null matcher
     if (!searchTerm) {

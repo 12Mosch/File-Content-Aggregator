@@ -213,14 +213,10 @@ export async function evaluateBooleanAst(
             // Use the optimized FuzzySearchService
             const fuzzySearchService = new OptimizedFuzzySearchService();
 
-            const fuzzyResult = fuzzySearchService.search(
-              content,
-              searchTerm,
-              {
-                isCaseSensitive: caseSensitive,
-                useWholeWordMatching: wholeWordMatchingEnabled,
-              }
-            );
+            const fuzzyResult = fuzzySearchService.search(content, searchTerm, {
+              isCaseSensitive: caseSensitive,
+              useWholeWordMatching: wholeWordMatchingEnabled,
+            });
 
             found = fuzzyResult.isMatch;
             console.log(

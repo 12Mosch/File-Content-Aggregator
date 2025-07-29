@@ -28,9 +28,9 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
   return (
     // Main container with vertical spacing
-    <div className="w-full my-4 space-y-2">
+    <div className="my-4 w-full space-y-2">
       {/* Container for the text labels (message and error) */}
-      <div className="flex justify-between items-center flex-wrap gap-x-4 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 text-sm text-muted-foreground">
         {/* Display message and percentage */}
         <span>
           {displayMessage} ({percentage}%)

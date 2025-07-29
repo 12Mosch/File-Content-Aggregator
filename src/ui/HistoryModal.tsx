@@ -105,7 +105,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
         {/* Add DialogDescription inside DialogHeader */}
         <DialogHeader className="pr-12">
           <DialogTitle>{t("historyTitle")}</DialogTitle>
@@ -124,13 +124,13 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
         </DialogHeader>
 
         {/* Scrollable Body Area */}
-        <div className="flex-grow overflow-y-auto py-4 px-1 -mx-1">
+        <div className="-mx-1 flex-grow overflow-y-auto px-1 py-4">
           {history.length === 0 ? (
-            <p className="text-center text-muted-foreground text-sm">
+            <p className="text-center text-sm text-muted-foreground">
               {t("historyEmpty")}
             </p>
           ) : filteredAndSortedHistory.length === 0 ? (
-            <p className="text-center text-muted-foreground text-sm">
+            <p className="text-center text-sm text-muted-foreground">
               {t("historyNoResults")}
             </p>
           ) : (
@@ -149,7 +149,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
         </div>
 
         {/* DialogFooter with AlertDialog */}
-        <DialogFooter className="sm:justify-between gap-2">
+        <DialogFooter className="gap-2 sm:justify-between">
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -168,9 +168,9 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
                 {/* Use the specific AlertDialogDesc component here */}
                 <AlertDialogDesc>
                   {t("historyClearConfirmMessage")} <br />
-                  <span className="text-destructive font-medium">
+                  <span className="font-medium text-destructive">
                     This action{" "}
-                    <strong className="font-bold text-lg uppercase tracking-tight">
+                    <strong className="text-lg font-bold tracking-tight uppercase">
                       cannot
                     </strong>{" "}
                     be undone.

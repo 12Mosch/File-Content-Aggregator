@@ -9,11 +9,13 @@ This document provides solutions for common issues you might encounter when usin
 This error occurs when the IPC communication between the renderer process and the main process times out or fails.
 
 **Possible causes:**
+
 - Large search operations that exceed memory limits
 - Complex regex patterns that take too long to process
 - Too many files being processed simultaneously
 
 **Solutions:**
+
 - Narrow your search scope by specifying more targeted search paths
 - Use simpler search terms or regex patterns
 - Increase the memory allocated to the application (if running from source)

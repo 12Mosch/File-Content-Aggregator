@@ -10,18 +10,21 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Mock the dependencies
-jest.mock("../../../src/electron/services/OptimizedFuzzySearchService.js", () => {
-  return {
-    OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
-      search: jest.fn().mockImplementation((content, term) => {
-        return {
-          isMatch: content.toLowerCase().includes(term.toLowerCase()),
-          score: 0.1,
-        };
-      }),
-    })),
-  };
-});
+jest.mock(
+  "../../../src/electron/services/OptimizedFuzzySearchService.js",
+  () => {
+    return {
+      OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
+        search: jest.fn().mockImplementation((content, term) => {
+          return {
+            isMatch: content.toLowerCase().includes(term.toLowerCase()),
+            score: 0.1,
+          };
+        }),
+      })),
+    };
+  }
+);
 
 jest.mock("../../../src/electron/services/NearOperatorService.js", () => {
   return {

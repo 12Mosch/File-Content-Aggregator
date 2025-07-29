@@ -90,11 +90,11 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
     <div
       className={cn(
         "flex flex-col gap-2", // Vertical layout with gap
-        !isRoot && "ml-4 pl-4 border-l-2 border-border/60" // Indentation for nested groups
+        !isRoot && "ml-4 border-l-2 border-border/60 pl-4" // Indentation for nested groups
       )}
     >
       {/* Controls Section */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         {" "}
         {/* Flex layout for controls */}
         {/* Operator Select */}
@@ -103,7 +103,7 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
           onValueChange={handleOperatorChange} // Use onValueChange
           disabled={disabled || group.conditions.length < 2}
         >
-          <SelectTrigger className="w-[80px] h-8 text-xs shrink-0">
+          <SelectTrigger className="h-8 w-[80px] shrink-0 text-xs">
             {" "}
             {/* Smaller trigger */}
             <SelectValue placeholder="Operator" />
@@ -122,7 +122,7 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
           disabled={disabled}
           className="h-8 px-2 text-xs" // Adjust padding/height
         >
-          <Plus className="h-3 w-3 mr-1" /> {/* Icon */}
+          <Plus className="mr-1 h-3 w-3" /> {/* Icon */}
           {t("queryBuilderAddCondition")}
         </Button>
         {/* Add Group Button */}
@@ -134,7 +134,7 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
           disabled={disabled}
           className="h-8 px-2 text-xs"
         >
-          <Group className="h-3 w-3 mr-1" /> {/* Icon */}
+          <Group className="mr-1 h-3 w-3" /> {/* Icon */}
           {t("queryBuilderAddGroup")}
         </Button>
         {/* Remove Group Button (Conditional) */}
@@ -145,7 +145,7 @@ const QueryGroup: React.FC<QueryGroupProps> = ({
             size="icon" // Icon only button
             onClick={onRemove}
             disabled={disabled}
-            className="ml-auto h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" // Push right, specific styling
+            className="ml-auto h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" // Push right, specific styling
             aria-label="Remove group"
           >
             <Trash2 className="h-3.5 w-3.5" />

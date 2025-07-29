@@ -18,10 +18,7 @@ interface SearchProgressProps {
   progress: SearchProgressType;
 }
 
-export function SearchProgress({
-  onCancel,
-  progress,
-}: SearchProgressProps) {
+export function SearchProgress({ onCancel, progress }: SearchProgressProps) {
   const { t } = useTranslation();
   const [elapsedTime, setElapsedTime] = useState<string>("0:00");
 
@@ -51,8 +48,8 @@ export function SearchProgress({
       : 0;
 
   return (
-    <div className="bg-background border rounded-md p-4 mb-4 shadow-sm">
-      <div className="flex justify-between items-center mb-2">
+    <div className="mb-4 rounded-md border bg-background p-4 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
         <h3 className="text-lg font-medium">{t("search:searchInProgress")}</h3>
         <Button
           variant="ghost"
@@ -64,7 +61,7 @@ export function SearchProgress({
         </Button>
       </div>
 
-      <Progress value={progressPercent} className="h-2 mb-2" />
+      <Progress value={progressPercent} className="mb-2 h-2" />
 
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>

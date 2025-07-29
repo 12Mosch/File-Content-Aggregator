@@ -68,14 +68,14 @@ export class WordBoundaryService {
       }
     );
 
-    this.contentFingerprintCache = cacheManager.getOrCreateCache<string, string>(
-      "contentFingerprints",
-      {
-        maxSize: 200,
-        timeToLive: WORD_INDEX_CACHE_TTL,
-        name: "Content Fingerprints",
-      }
-    );
+    this.contentFingerprintCache = cacheManager.getOrCreateCache<
+      string,
+      string
+    >("contentFingerprints", {
+      maxSize: 200,
+      timeToLive: WORD_INDEX_CACHE_TTL,
+      name: "Content Fingerprints",
+    });
 
     this.logger.debug("WordBoundaryService initialized with optimized caching");
   }

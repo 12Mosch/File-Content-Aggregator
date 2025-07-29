@@ -164,7 +164,7 @@ const HighlightMatches: React.FC<HighlightMatchesProps> = ({
         elements.push(
           <mark
             key={`mark-${match.start}-${i}`}
-            className="bg-primary/80 text-primary-foreground px-0.5 rounded-[0.2rem] font-medium cursor-help inline-block"
+            className="inline-block cursor-help rounded-[0.2rem] bg-primary/80 px-0.5 font-medium text-primary-foreground"
             title={tooltipText}
             style={{
               display: "inline-block",

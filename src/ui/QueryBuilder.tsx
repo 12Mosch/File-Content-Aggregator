@@ -101,9 +101,9 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   return (
     <div
       className={cn(
-        "border border-border rounded-md p-3 bg-muted/30", // Base styles
+        "rounded-md border border-border bg-muted/30 p-3", // Base styles
         "flex flex-col gap-3", // Layout
-        disabled && "opacity-60 pointer-events-none" // Disabled state
+        disabled && "pointer-events-none opacity-60" // Disabled state
       )}
     >
       <QueryGroup
@@ -114,7 +114,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         disabled={disabled}
       />
       {showCaseSensitiveCheckbox && (
-        <div className="mt-2 pt-3 border-t border-border/60">
+        <div className="mt-2 border-t border-border/60 pt-3">
           <div className="flex items-center space-x-2">
             <Checkbox
               id="queryBuilderCaseSensitive"
@@ -125,7 +125,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             />
             <Label
               htmlFor="queryBuilderCaseSensitive"
-              className="text-sm font-medium leading-none text-muted-foreground cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="cursor-pointer text-sm leading-none font-medium text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               {t("caseSensitiveLabel")}
             </Label>

@@ -475,11 +475,11 @@ const TreeRow = React.memo(
     return (
       <div
         style={style}
-        className="border-b border-border overflow-hidden box-border"
+        className="box-border overflow-hidden border-b border-border"
       >
         {/* Header */}
         <div
-          className="flex items-center px-2 py-1 cursor-pointer bg-muted/50 hover:bg-muted h-[32px] box-border transition-colors"
+          className="box-border flex h-[32px] cursor-pointer items-center bg-muted/50 px-2 py-1 transition-colors hover:bg-muted"
           onClick={handleToggle}
           title={item.filePath}
         >
@@ -493,14 +493,14 @@ const TreeRow = React.memo(
               }
             />
           </div>
-          <span className="inline-block w-6 text-xs mr-1 text-center text-muted-foreground shrink-0">
+          <span className="mr-1 inline-block w-6 shrink-0 text-center text-xs text-muted-foreground">
             {isExpanded ? "▼" : "▶"}
           </span>
           {/* File type icon */}
-          <span className="inline-flex items-center justify-center w-6 mr-1 text-muted-foreground shrink-0">
+          <span className="mr-1 inline-flex w-6 shrink-0 items-center justify-center text-muted-foreground">
             {getFileTypeIcon(item.filePath)}
           </span>
-          <span className="font-mono text-sm text-foreground whitespace-nowrap overflow-hidden text-ellipsis flex-grow text-left">
+          <span className="flex-grow overflow-hidden text-left font-mono text-sm text-ellipsis whitespace-nowrap text-foreground">
             {/* Use HighlightMatches for the file path with pathFilterTerm */}
             <HighlightMatches
               text={item.filePath}
@@ -550,14 +550,14 @@ const TreeRow = React.memo(
         </div>
         {/* Content Area */}
         {isExpanded && (
-          <div className="pl-[2.1rem] pr-2 py-1 bg-background text-left box-border">
+          <div className="box-border bg-background py-1 pr-2 pl-[2.1rem] text-left">
             {/* Skip complex content rendering during scrolling for better performance */}
             {isScrolling ? (
-              <div className="font-mono text-xs text-muted-foreground italic py-2">
+              <div className="py-2 font-mono text-xs text-muted-foreground italic">
                 {t("results:scrollingPlaceholder")}
               </div>
             ) : item.readError ? (
-              <span className="block font-mono text-xs text-destructive italic whitespace-pre-wrap break-all">
+              <span className="block font-mono text-xs break-all whitespace-pre-wrap text-destructive italic">
                 {/* Highlight error message if filter term matches */}
                 <HighlightMatches
                   text={t(`errors:${item.readError}`, {
@@ -571,12 +571,12 @@ const TreeRow = React.memo(
             ) : // Handle content loading states
             contentInfo.status === "loading" ? (
               <span className="flex items-center font-mono text-xs text-muted-foreground italic">
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                 {t("results:loadingContent")}
               </span>
             ) : contentInfo.status === "error" ? (
               <span className="flex items-center font-mono text-xs text-destructive italic">
-                <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
+                <AlertTriangle className="mr-1 h-3 w-3 shrink-0" />
                 {t("results:contentError")}:{" "}
                 {t(`errors:${contentInfo.error}`, {
                   defaultValue: contentInfo.error ?? "Unknown error",
@@ -586,7 +586,7 @@ const TreeRow = React.memo(
               typeof contentPreview === "string" ? (
               // Content loaded, handle highlighting
               <>
-                <pre className="m-0 text-left w-full font-mono text-xs leading-normal text-foreground whitespace-pre-wrap break-all">
+                <pre className="m-0 w-full text-left font-mono text-xs leading-normal break-all whitespace-pre-wrap text-foreground">
                   {language === "plaintext" ? (
                     // For plaintext, use HighlightMatches with content terms
                     <code>
@@ -607,7 +607,7 @@ const TreeRow = React.memo(
                   ) : highlightInfo.status === "error" ? (
                     // Show error and fallback to plaintext highlighting
                     <>
-                      <span className="block text-destructive italic mb-1">
+                      <span className="mb-1 block text-destructive italic">
                         {t("results:highlightError")}: {highlightInfo.error}
                       </span>
                       <code>
@@ -1528,15 +1528,15 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const summaryCount = sortedItems?.length ?? 0;
 
   return (
-    <div className="mt-6 p-4 border border-border rounded-lg bg-card flex flex-col flex-grow min-h-[300px] overflow-hidden">
-      <h3 className="mt-0 mb-4 text-xl font-semibold text-card-foreground shrink-0">
+    <div className="mt-6 flex min-h-[300px] flex-grow flex-col overflow-hidden rounded-lg border border-border bg-card p-4">
+      <h3 className="mt-0 mb-4 shrink-0 text-xl font-semibold text-card-foreground">
         {t("heading")}
       </h3>
-      <div className="flex gap-x-6 gap-y-1 mb-4 text-sm text-muted-foreground flex-wrap shrink-0">
+      <div className="mb-4 flex shrink-0 flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
         <span>{t("summaryFound", { count: summary.filesFound })}</span>
         <span>{t("summaryProcessed", { count: summary.filesProcessed })}</span>
         {summary.errorsEncountered > 0 && (
-          <span className="text-destructive font-semibold">
+          <span className="font-semibold text-destructive">
             {t("summaryReadErrors", { count: summary.errorsEncountered })}
           </span>
         )}
@@ -1550,21 +1550,21 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       {isCopyLarge && (
         <p
           className={cn(
-            "p-3 rounded-md border text-sm mb-4 shrink-0 flex items-center",
-            "bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-300"
+            "mb-4 flex shrink-0 items-center rounded-md border p-3 text-sm",
+            "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/30 dark:text-amber-300"
           )}
         >
-          <AlertTriangle className="inline h-4 w-4 mr-2 shrink-0" />
+          <AlertTriangle className="mr-2 inline h-4 w-4 shrink-0" />
           <span>{t("clipboardWarning")}</span>
         </p>
       )}
 
       {/* --- Results List Container (Now includes Sorting) --- */}
-      <div className="flex-grow flex flex-col border border-border rounded-md bg-background overflow-hidden min-h-[200px]">
+      <div className="flex min-h-[200px] flex-grow flex-col overflow-hidden rounded-md border border-border bg-background">
         {/* --- Sorting Controls (Moved Inside) --- */}
-        <div className="flex flex-wrap gap-4 items-center p-2 border-b border-border shrink-0 bg-muted/30">
+        <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-border bg-muted/30 p-2">
           <div className="flex items-center gap-2">
-            <Label htmlFor="sortKeySelect" className="text-sm shrink-0">
+            <Label htmlFor="sortKeySelect" className="shrink-0 text-sm">
               {t("sortLabel")}
             </Label>
             <Select
@@ -1572,7 +1572,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               onValueChange={(value) => setSortKey(value as SortKey)}
               disabled={!sortedItems || sortedItems.length === 0} // Disable if no items
             >
-              <SelectTrigger id="sortKeySelect" className="w-[180px] h-9">
+              <SelectTrigger id="sortKeySelect" className="h-9 w-[180px]">
                 <SelectValue placeholder={t("sortLabel")} />
               </SelectTrigger>
               <SelectContent>
@@ -1588,7 +1588,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="sortDirectionSelect" className="text-sm shrink-0">
+            <Label htmlFor="sortDirectionSelect" className="shrink-0 text-sm">
               {t("sortDirectionLabel")}
             </Label>
             <Select
@@ -1598,16 +1598,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               }
               disabled={!sortedItems || sortedItems.length === 0} // Disable if no items
             >
-              <SelectTrigger id="sortDirectionSelect" className="w-[120px] h-9">
+              <SelectTrigger id="sortDirectionSelect" className="h-9 w-[120px]">
                 <SelectValue placeholder={t("sortDirectionLabel")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="asc">
-                  <ArrowUp className="inline h-4 w-4 mr-1" />
+                  <ArrowUp className="mr-1 inline h-4 w-4" />
                   {t("sortAsc")}
                 </SelectItem>
                 <SelectItem value="desc">
-                  <ArrowDown className="inline h-4 w-4 mr-1" />
+                  <ArrowDown className="mr-1 inline h-4 w-4" />
                   {t("sortDesc")}
                 </SelectItem>
               </SelectContent>
@@ -1644,19 +1644,19 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 </VariableSizeList>
               ) : structuredItems === null ? (
                 // Loading skeleton when results are being fetched
-                <div className="h-full w-full p-4 space-y-4">
+                <div className="h-full w-full space-y-4 p-4">
                   {/* Skeleton items */}
                   {Array.from({ length: 10 }).map((_, i) => (
                     <div key={i} className="animate-pulse">
-                      <div className="h-8 bg-muted/50 rounded-md mb-2 flex items-center">
-                        <div className="w-4 h-4 ml-2 bg-muted rounded-sm"></div>
-                        <div className="h-4 bg-muted rounded-md ml-4 w-3/4"></div>
+                      <div className="mb-2 flex h-8 items-center rounded-md bg-muted/50">
+                        <div className="ml-2 h-4 w-4 rounded-sm bg-muted"></div>
+                        <div className="ml-4 h-4 w-3/4 rounded-md bg-muted"></div>
                       </div>
                       {i % 3 === 0 && (
-                        <div className="pl-10 space-y-2">
-                          <div className="h-3 bg-muted/30 rounded-md w-full"></div>
-                          <div className="h-3 bg-muted/30 rounded-md w-5/6"></div>
-                          <div className="h-3 bg-muted/30 rounded-md w-4/6"></div>
+                        <div className="space-y-2 pl-10">
+                          <div className="h-3 w-full rounded-md bg-muted/30"></div>
+                          <div className="h-3 w-5/6 rounded-md bg-muted/30"></div>
+                          <div className="h-3 w-4/6 rounded-md bg-muted/30"></div>
                         </div>
                       )}
                     </div>
@@ -1664,7 +1664,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 </div>
               ) : (
                 // Display a message when no results match filters
-                <div className="flex items-center justify-center h-full text-muted-foreground italic">
+                <div className="flex h-full items-center justify-center text-muted-foreground italic">
                   {/* Check if initial search yielded results before filtering */}
                   {structuredItems && structuredItems.length > 0
                     ? hasContentQuery
@@ -1683,7 +1683,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       {/* ---------------------------------------------------- */}
 
       {/* --- Selection Controls --- */}
-      <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0 border-b border-border pb-4">
+      <div className="mt-4 flex shrink-0 flex-wrap items-center gap-4 border-b border-border pb-4">
         {/* Selection Count */}
         <div className="text-sm text-muted-foreground">
           {selectedFiles.size > 0
@@ -1720,10 +1720,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       </div>
 
       {/* --- Export/Copy Area --- */}
-      <div className="mt-4 flex flex-wrap gap-4 items-center shrink-0">
+      <div className="mt-4 flex shrink-0 flex-wrap items-center gap-4">
         {/* Format Select */}
         <div className="flex items-center gap-2">
-          <Label htmlFor="exportFormatSelect" className="text-sm shrink-0">
+          <Label htmlFor="exportFormatSelect" className="shrink-0 text-sm">
             {t("exportFormatLabel")}
           </Label>
           <Select
@@ -1736,7 +1736,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               !!copyStatus
             }
           >
-            <SelectTrigger id="exportFormatSelect" className="w-[100px] h-9">
+            <SelectTrigger id="exportFormatSelect" className="h-9 w-[100px]">
               <SelectValue placeholder={t("exportFormatLabel")} />
             </SelectTrigger>
             <SelectContent>

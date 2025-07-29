@@ -86,7 +86,7 @@ export default tseslint.config(
       },
     },
     plugins: {
-      "react": react,
+      react: react,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
       "jsx-a11y": jsxA11y,

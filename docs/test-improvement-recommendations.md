@@ -274,7 +274,6 @@ describe("Regex Utilities", () => {
 While unit tests are important, integration tests ensure components work together correctly:
 
 1. **Search Pipeline Integration**:
-
    - Test the complete search pipeline from user input to results display
    - Test with real-world file structures and content
    - Test performance with large file sets
@@ -289,7 +288,6 @@ While unit tests are important, integration tests ensure components work togethe
 The current performance tests are good but could be enhanced:
 
 1. **Benchmark Against Baselines**:
-
    - Establish baseline performance metrics
    - Compare new implementations against baselines
    - Alert on performance regressions
@@ -316,18 +314,15 @@ Based on the application's complexity and critical nature, we recommend the foll
 To achieve these goals efficiently:
 
 1. **Prioritize Critical Paths**:
-
    - Focus first on the search functionality core path
    - Then address file discovery and processing
    - Finally cover UI components and edge cases
 
 2. **Use Test-Driven Development**:
-
    - Write tests before implementing new features
    - Fix bugs by first writing a test that reproduces the issue
 
 3. **Automate Coverage Reporting**:
-
    - Add coverage reporting to CI/CD pipeline
    - Set minimum coverage thresholds for new code
 

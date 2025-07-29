@@ -136,14 +136,14 @@ export class NearOperatorService {
       }
     );
 
-    this.contentFingerprintCache = cacheManager.getOrCreateCache<string, string>(
-      "nearOperatorContentFingerprints",
-      {
-        maxSize: CONTENT_FINGERPRINT_CACHE_SIZE,
-        timeToLive: CONTENT_FINGERPRINT_CACHE_TTL,
-        name: "NEAR Operator Content Fingerprints",
-      }
-    );
+    this.contentFingerprintCache = cacheManager.getOrCreateCache<
+      string,
+      string
+    >("nearOperatorContentFingerprints", {
+      maxSize: CONTENT_FINGERPRINT_CACHE_SIZE,
+      timeToLive: CONTENT_FINGERPRINT_CACHE_TTL,
+      name: "NEAR Operator Content Fingerprints",
+    });
 
     // Initialize memory pools
     this.initializeMemoryPools();
@@ -183,7 +183,9 @@ export class NearOperatorService {
     // If a file times out 3 times, mark it as problematic
     if (newCount >= 3) {
       this.problematicFiles.add(filePath);
-      this.logger.warn(`File marked as problematic due to repeated timeouts: ${filePath}`);
+      this.logger.warn(
+        `File marked as problematic due to repeated timeouts: ${filePath}`
+      );
     }
   }
 
@@ -202,7 +204,7 @@ export class NearOperatorService {
     this.logger.info("Cleared NEAR operator caches due to memory pressure", {
       termIndicesCleared,
       proximityCleared,
-      fingerprintCleared
+      fingerprintCleared,
     });
   }
 
@@ -630,7 +632,12 @@ export class NearOperatorService {
 
     // For very large content, use chunked processing
     if (content.length > MAX_FULL_CONTENT_SIZE) {
-      const result = this.checkProximityChunked(indices1, indices2, maxDistance, content);
+      const result = this.checkProximityChunked(
+        indices1,
+        indices2,
+        maxDistance,
+        content
+      );
       profiler.end(profileId, { chunkedProcessing: true, result });
       return result;
     }
@@ -640,7 +647,9 @@ export class NearOperatorService {
       const avgWordLength = 6;
       const maxCharDistance = maxDistance * avgWordLength * 2;
 
-      if (!this.areAnyIndicesWithinDistance(indices1, indices2, maxCharDistance)) {
+      if (
+        !this.areAnyIndicesWithinDistance(indices1, indices2, maxCharDistance)
+      ) {
         this.metrics.earlyTerminations++;
         profiler.end(profileId, { earlyTermination: true });
         return false;
@@ -648,12 +657,19 @@ export class NearOperatorService {
     }
 
     // Use optimized two-pointer algorithm for better performance
-    const result = this.checkProximityTwoPointer(indices1, indices2, maxDistance, content, startTime, filePath);
+    const result = this.checkProximityTwoPointer(
+      indices1,
+      indices2,
+      maxDistance,
+      content,
+      startTime,
+      filePath
+    );
 
     profiler.end(profileId, {
       result,
       algorithm: "two-pointer",
-      executionTime: performance.now() - startTime
+      executionTime: performance.now() - startTime,
     });
 
     return result;
@@ -727,7 +743,8 @@ export class NearOperatorService {
       }
 
       // Two-pointer algorithm for proximity checking
-      let i = 0, j = 0;
+      let i = 0,
+        j = 0;
       while (i < validIndices1 && j < validIndices2) {
         if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
           // Record timeout for circuit breaker if filePath is provided
@@ -773,13 +790,21 @@ export class NearOperatorService {
     content: string
   ): boolean {
     // For very large content, process in chunks to avoid memory issues
-    for (let start = 0; start < content.length; start += CHUNK_SIZE - CHUNK_OVERLAP) {
+    for (
+      let start = 0;
+      start < content.length;
+      start += CHUNK_SIZE - CHUNK_OVERLAP
+    ) {
       const end = Math.min(start + CHUNK_SIZE, content.length);
       const chunk = content.substring(start, end);
 
       // Filter indices that fall within this chunk
-      const chunkIndices1 = indices1.filter(idx => idx >= start && idx < end).map(idx => idx - start);
-      const chunkIndices2 = indices2.filter(idx => idx >= start && idx < end).map(idx => idx - start);
+      const chunkIndices1 = indices1
+        .filter((idx) => idx >= start && idx < end)
+        .map((idx) => idx - start);
+      const chunkIndices2 = indices2
+        .filter((idx) => idx >= start && idx < end)
+        .map((idx) => idx - start);
 
       if (chunkIndices1.length > 0 && chunkIndices2.length > 0) {
         const chunkResult = this.checkProximityTwoPointer(
@@ -798,8 +823,6 @@ export class NearOperatorService {
 
     return false;
   }
-
-
 
   /**
    * Checks if any pair of indices from two sets are within the specified distance
@@ -841,8 +864,6 @@ export class NearOperatorService {
     profiler.end(profileId);
     return false;
   }
-
-
 
   /**
    * Checks if an array is already sorted in ascending order
@@ -937,11 +958,19 @@ export class NearOperatorService {
     }
 
     // For larger content, use crypto hash of a sample
-    const sample = content.substring(0, 500) +
-                  content.substring(Math.floor(content.length / 2), Math.floor(content.length / 2) + 500) +
-                  content.substring(content.length - 500);
+    const sample =
+      content.substring(0, 500) +
+      content.substring(
+        Math.floor(content.length / 2),
+        Math.floor(content.length / 2) + 500
+      ) +
+      content.substring(content.length - 500);
 
-    const fingerprint = crypto.createHash('md5').update(sample).digest('hex').substring(0, 16);
+    const fingerprint = crypto
+      .createHash("md5")
+      .update(sample)
+      .digest("hex")
+      .substring(0, 16);
     this.contentFingerprintCache.set(content, fingerprint);
     return fingerprint;
   }
@@ -1118,11 +1147,13 @@ export class NearOperatorService {
       contentFingerprintCache: this.contentFingerprintCache.getStats(),
       memoryPoolStats: {
         totalPools: this.pooledArraySizes.size,
-        poolSizes: Array.from(this.pooledArraySizes.entries()).map(([size, pool]) => ({
-          size,
-          available: pool.length
-        }))
-      }
+        poolSizes: Array.from(this.pooledArraySizes.entries()).map(
+          ([size, pool]) => ({
+            size,
+            available: pool.length,
+          })
+        ),
+      },
     };
   }
 
@@ -1193,7 +1224,11 @@ export class NearOperatorService {
     const commonSizes = [10, 50, 100, 200, 500];
     for (const size of commonSizes) {
       const pool: number[][] = [];
-      for (let i = 0; i < Math.min(ARRAY_POOL_SIZE / commonSizes.length, 10); i++) {
+      for (
+        let i = 0;
+        i < Math.min(ARRAY_POOL_SIZE / commonSizes.length, 10);
+        i++
+      ) {
         pool.push(new Array<number>(size).fill(0));
       }
       this.pooledArraySizes.set(size, pool);

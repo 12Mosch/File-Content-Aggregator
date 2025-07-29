@@ -32,18 +32,14 @@ export const mockElectronAPI = {
   openFileLocation: jest.fn().mockResolvedValue({ success: true }),
   saveFile: jest.fn().mockResolvedValue(undefined),
   copyFilePaths: jest.fn().mockResolvedValue({ success: true }),
-  copyFilesToFolder: jest
-    .fn()
-    .mockResolvedValue({
-      success: true,
-      destinationFolder: "/mock/destination",
-    }),
-  moveFilesToFolder: jest
-    .fn()
-    .mockResolvedValue({
-      success: true,
-      destinationFolder: "/mock/destination",
-    }),
+  copyFilesToFolder: jest.fn().mockResolvedValue({
+    success: true,
+    destinationFolder: "/mock/destination",
+  }),
+  moveFilesToFolder: jest.fn().mockResolvedValue({
+    success: true,
+    destinationFolder: "/mock/destination",
+  }),
 
   // Search operations
   searchFiles: jest.fn().mockResolvedValue({

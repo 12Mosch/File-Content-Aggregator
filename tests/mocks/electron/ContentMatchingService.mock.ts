@@ -52,10 +52,7 @@ export class ContentMatchingService {
     matcher: ((content: string) => Promise<boolean>) | null;
     error: string | null;
   } {
-    const {
-      caseSensitive = false,
-      wholeWordMatching = false,
-    } = options;
+    const { caseSensitive = false, wholeWordMatching = false } = options;
 
     // If no search term, return null matcher
     if (!searchTerm) {
@@ -114,7 +111,10 @@ export class ContentMatchingService {
           error: null,
         };
       } catch (_error) {
-        return { matcher: null, error: `Invalid regular expression pattern: ${searchTerm}` };
+        return {
+          matcher: null,
+          error: `Invalid regular expression pattern: ${searchTerm}`,
+        };
       }
     } else if (searchMode === "boolean") {
       // Simple boolean implementation for testing

@@ -7,13 +7,11 @@ The File Content Aggregator application uses Shadcn UI's Accordion component to 
 The following optional/advanced search criteria are organized into accordion sections:
 
 1. **Exclude Options**
-
    - Exclude Files (Glob/Regex patterns)
    - Exclude Folders (Wildcard patterns)
    - Folder Exclusion Mode (Contains, Exact, Starts With, Ends With)
 
 2. **Date Options**
-
    - Modified After (Optional)
    - Modified Before (Optional)
 
@@ -42,7 +40,7 @@ The implementation uses the Shadcn UI Accordion component, which is built on top
 ### Example Usage
 
 ```tsx
-<Accordion type="single" collapsible className="w-full border rounded-md">
+<Accordion type="single" collapsible className="w-full rounded-md border">
   <AccordionItem value="exclude-options" className="border-0">
     <AccordionTrigger className="px-4">
       {t("excludeOptionsLabel")}

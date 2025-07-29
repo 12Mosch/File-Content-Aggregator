@@ -158,7 +158,7 @@ export function CacheSettings() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">{t("cache:cacheSettings")}</h2>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
@@ -170,7 +170,7 @@ export function CacheSettings() {
             onClick={handleClearAllCaches}
             title={t("cache:clearAllCaches")}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="mr-2 h-4 w-4" />
             {t("cache:clearAll")}
           </Button>
         </div>
@@ -200,18 +200,18 @@ export function CacheSettings() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <div className="flex justify-between items-center mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <TabsList>
                   <TabsTrigger value="stats">
-                    <BarChart className="h-4 w-4 mr-2" />
+                    <BarChart className="mr-2 h-4 w-4" />
                     {t("cache:basicStats")}
                   </TabsTrigger>
                   <TabsTrigger value="advanced">
-                    <Award className="h-4 w-4 mr-2" />
+                    <Award className="mr-2 h-4 w-4" />
                     {t("cache:advancedStats")}
                   </TabsTrigger>
                   <TabsTrigger value="history">
-                    <Clock className="h-4 w-4 mr-2" />
+                    <Clock className="mr-2 h-4 w-4" />
                     {t("cache:history")}
                   </TabsTrigger>
                 </TabsList>
@@ -221,7 +221,7 @@ export function CacheSettings() {
                   size="sm"
                   onClick={() => handleClearCache(cache.name)}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="mr-2 h-4 w-4" />
                   {t("cache:clearCache")}
                 </Button>
               </div>
@@ -238,7 +238,7 @@ export function CacheSettings() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>{t("cache:size")}</Label>
-                        <div className="flex justify-between items-center mt-1">
+                        <div className="mt-1 flex items-center justify-between">
                           <span className="text-sm">
                             {cache.size} / {cache.capacity}
                           </span>
@@ -251,7 +251,7 @@ export function CacheSettings() {
 
                       <div>
                         <Label>{t("cache:hitRate")}</Label>
-                        <div className="flex justify-between items-center mt-1">
+                        <div className="mt-1 flex items-center justify-between">
                           <span className="text-sm">
                             {(cache.hitRate * 100).toFixed(1)}%
                           </span>
@@ -264,22 +264,22 @@ export function CacheSettings() {
 
                       <div>
                         <Label>{t("cache:hits")}</Label>
-                        <div className="text-sm mt-1">{cache.hits}</div>
+                        <div className="mt-1 text-sm">{cache.hits}</div>
                       </div>
 
                       <div>
                         <Label>{t("cache:misses")}</Label>
-                        <div className="text-sm mt-1">{cache.misses}</div>
+                        <div className="mt-1 text-sm">{cache.misses}</div>
                       </div>
 
                       <div>
                         <Label>{t("cache:evictions")}</Label>
-                        <div className="text-sm mt-1">{cache.evictions}</div>
+                        <div className="mt-1 text-sm">{cache.evictions}</div>
                       </div>
 
                       <div>
                         <Label>{t("cache:timeToLive")}</Label>
-                        <div className="text-sm mt-1">
+                        <div className="mt-1 text-sm">
                           {formatTime(cache.timeToLive)}
                         </div>
                       </div>
@@ -287,7 +287,7 @@ export function CacheSettings() {
                       {cache.cacheEfficiencyScore !== undefined && (
                         <div className="col-span-2">
                           <Label>{t("cache:efficiencyScore")}</Label>
-                          <div className="flex justify-between items-center mt-1">
+                          <div className="mt-1 flex items-center justify-between">
                             <Badge
                               variant={
                                 cache.cacheEfficiencyScore > 80
@@ -324,7 +324,7 @@ export function CacheSettings() {
                       {cache.averageAccessTime !== undefined && (
                         <div>
                           <Label>{t("cache:averageAccessTime")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {cache.averageAccessTime.toFixed(2)} ms
                           </div>
                         </div>
@@ -333,7 +333,7 @@ export function CacheSettings() {
                       {cache.accessCount !== undefined && (
                         <div>
                           <Label>{t("cache:accessCount")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {cache.accessCount}
                           </div>
                         </div>
@@ -342,7 +342,7 @@ export function CacheSettings() {
                       {cache.averageEntrySize !== undefined && (
                         <div>
                           <Label>{t("cache:averageEntrySize")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {formatBytes(cache.averageEntrySize)}
                           </div>
                         </div>
@@ -351,7 +351,7 @@ export function CacheSettings() {
                       {cache.estimatedMemoryUsage !== undefined && (
                         <div>
                           <Label>{t("cache:memoryUsage")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {formatBytes(cache.estimatedMemoryUsage)}
                           </div>
                         </div>
@@ -360,7 +360,7 @@ export function CacheSettings() {
                       {cache.expiredEvictions !== undefined && (
                         <div>
                           <Label>{t("cache:expiredEvictions")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {cache.expiredEvictions}
                           </div>
                         </div>
@@ -369,7 +369,7 @@ export function CacheSettings() {
                       {cache.memoryEvictions !== undefined && (
                         <div>
                           <Label>{t("cache:memoryEvictions")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {cache.memoryEvictions}
                           </div>
                         </div>
@@ -378,7 +378,7 @@ export function CacheSettings() {
                       {cache.capacityEvictions !== undefined && (
                         <div>
                           <Label>{t("cache:capacityEvictions")}</Label>
-                          <div className="text-sm mt-1">
+                          <div className="mt-1 text-sm">
                             {cache.capacityEvictions}
                           </div>
                         </div>
@@ -388,7 +388,7 @@ export function CacheSettings() {
                         cache.lastEvictionTimestamp > 0 && (
                           <div>
                             <Label>{t("cache:lastEviction")}</Label>
-                            <div className="text-sm mt-1">
+                            <div className="mt-1 text-sm">
                               {new Date(
                                 cache.lastEvictionTimestamp
                               ).toLocaleTimeString()}
@@ -418,7 +418,7 @@ export function CacheSettings() {
                           <>
                             {metricsHistory[metricsHistory.length - 1].hitRate <
                               0.5 && (
-                              <div className="flex items-center p-2 bg-muted/20 rounded-md">
+                              <div className="flex items-center rounded-md bg-muted/20 p-2">
                                 <Badge variant="outline" className="mr-2">
                                   Tip
                                 </Badge>
@@ -428,7 +428,7 @@ export function CacheSettings() {
 
                             {metricsHistory[metricsHistory.length - 1]
                               .memoryUsage > 10000000 && (
-                              <div className="flex items-center p-2 bg-muted/20 rounded-md">
+                              <div className="flex items-center rounded-md bg-muted/20 p-2">
                                 <Badge variant="outline" className="mr-2">
                                   Tip
                                 </Badge>
@@ -440,7 +440,7 @@ export function CacheSettings() {
                               0.8 &&
                               metricsHistory[metricsHistory.length - 1]
                                 .evictions > 0 && (
-                                <div className="flex items-center p-2 bg-muted/20 rounded-md">
+                                <div className="flex items-center rounded-md bg-muted/20 p-2">
                                   <Badge variant="outline" className="mr-2">
                                     Tip
                                   </Badge>
@@ -449,7 +449,7 @@ export function CacheSettings() {
                               )}
                           </>
                         ) : (
-                          <div className="text-center py-4 text-muted-foreground">
+                          <div className="py-4 text-center text-muted-foreground">
                             {t("cache:noMetricsHistory")}
                           </div>
                         )}
@@ -502,7 +502,7 @@ export function CacheSettings() {
                   </div>
 
                   {enableTTL && (
-                    <div className="space-y-2 mt-2">
+                    <div className="mt-2 space-y-2">
                       <Label htmlFor="timeToLive">
                         {t("cache:timeToLive")}
                       </Label>
@@ -555,7 +555,7 @@ export function CacheSettings() {
                         </Button>
                       </div>
 
-                      <div className="flex items-center gap-4 mt-2">
+                      <div className="mt-2 flex items-center gap-4">
                         <Input
                           type="number"
                           value={

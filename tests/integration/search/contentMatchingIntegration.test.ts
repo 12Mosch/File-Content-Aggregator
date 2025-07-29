@@ -8,23 +8,26 @@
 import { ContentMatchingService } from "../../mocks/electron/ContentMatchingService.mock";
 
 // Partial mocks to allow some real functionality while controlling test conditions
-jest.mock("../../../src/electron/services/OptimizedFuzzySearchService.js", () => {
-  return {
-    OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
-      search: jest.fn().mockImplementation((content, term, _options) => {
-        // Simplified implementation for testing
-        const isMatch = content.toLowerCase().includes(term.toLowerCase());
-        return {
-          isMatch,
-          score: isMatch ? 0.1 : 0.9,
-          matchPositions: isMatch
-            ? [content.toLowerCase().indexOf(term.toLowerCase())]
-            : [],
-        };
-      }),
-    })),
-  };
-});
+jest.mock(
+  "../../../src/electron/services/OptimizedFuzzySearchService.js",
+  () => {
+    return {
+      OptimizedFuzzySearchService: jest.fn().mockImplementation(() => ({
+        search: jest.fn().mockImplementation((content, term, _options) => {
+          // Simplified implementation for testing
+          const isMatch = content.toLowerCase().includes(term.toLowerCase());
+          return {
+            isMatch,
+            score: isMatch ? 0.1 : 0.9,
+            matchPositions: isMatch
+              ? [content.toLowerCase().indexOf(term.toLowerCase())]
+              : [],
+          };
+        }),
+      })),
+    };
+  }
+);
 
 jest.mock("../../../src/electron/services/NearOperatorService.js", () => {
   const originalModule = jest.requireActual(
@@ -62,7 +65,11 @@ jest.mock("../../../src/electron/utils/booleanExpressionUtils.js", () => {
     argument?: AstNode;
   }
 
-  const mockEvaluateBooleanAst = (ast: AstNode, content: string, caseSensitive: boolean): boolean => {
+  const mockEvaluateBooleanAst = (
+    ast: AstNode,
+    content: string,
+    caseSensitive: boolean
+  ): boolean => {
     // Simplified implementation for testing
     if (ast.type === "Literal") {
       if (!ast.value) return false;

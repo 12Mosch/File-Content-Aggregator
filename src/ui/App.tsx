@@ -287,7 +287,7 @@ function App() {
   );
 
   // Handle worker search (currently unused but kept for future use)
-   
+
   const _handleWorkerSearch = useCallback(
     (
       files: Array<{ filePath: string; content: string }>,
@@ -720,9 +720,9 @@ function App() {
   // Removed: filteredStructuredResults useMemo hook is no longer needed here
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 max-w-screen-xl flex flex-col gap-6">
-      <header className="flex justify-between items-center pb-4 border-b border-border">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+    <div className="container mx-auto flex max-w-screen-xl flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <header className="flex items-center justify-between border-b border-border pb-4">
+        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
           {t("common:appName")}
         </h1>
         <div className="flex items-center gap-2">
@@ -766,7 +766,7 @@ function App() {
         )}
 
         {generalError && (
-          <div className="p-4 rounded-md bg-destructive/10 border border-destructive/30 text-destructive">
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
             <p>
               <span className="font-medium">
                 {t("errors:generalErrorPrefix")}
@@ -776,11 +776,11 @@ function App() {
           </div>
         )}
         {pathErrors.length > 0 && (
-          <div className="p-4 rounded-md bg-yellow-900/10 border border-yellow-700/30 text-yellow-200">
-            <h4 className="font-medium mb-2">
+          <div className="rounded-md border border-yellow-700/30 bg-yellow-900/10 p-4 text-yellow-200">
+            <h4 className="mb-2 font-medium">
               {t("errors:pathErrorsHeading")}
             </h4>
-            <ul className="list-disc list-inside space-y-1 text-sm">
+            <ul className="list-inside list-disc space-y-1 text-sm">
               {pathErrors.map((err, i) => (
                 <li key={`path-err-${i}`}>{err}</li>
               ))}
@@ -788,8 +788,8 @@ function App() {
           </div>
         )}
         {fileReadErrors.length > 0 && (
-          <div className="p-4 rounded-md bg-destructive/10 border border-destructive/30 text-destructive">
-            <h4 className="font-medium mb-2">
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+            <h4 className="mb-2 font-medium">
               {t("errors:fileReadErrorsHeading", {
                 count: fileReadErrors.length,
               })}
@@ -797,16 +797,16 @@ function App() {
             {Object.entries(groupedFileReadErrors).map(([key, paths]) => (
               <div
                 key={key}
-                className="mt-2 pl-2 border-l-2 border-destructive/50"
+                className="mt-2 border-l-2 border-destructive/50 pl-2"
               >
-                <h5 className="font-medium text-sm mb-1">
+                <h5 className="mb-1 text-sm font-medium">
                   {t(`errors:${key}`, {
                     defaultValue: key,
                     count: paths.length,
                   })}
                   :
                 </h5>
-                <ul className="list-disc list-inside space-y-1 text-xs break-all">
+                <ul className="list-inside list-disc space-y-1 text-xs break-all">
                   {paths.map((p, i) => (
                     <li key={`${key}-${i}`}>{p}</li>
                   ))}
@@ -820,12 +820,12 @@ function App() {
 
         {/* Filter controls are now part of the results section */}
         {!isLoading && structuredResults !== null && searchSummary && (
-          <section className="flex flex-col gap-4 mt-4">
+          <section className="mt-4 flex flex-col gap-4">
             {/* Filter Input Section */}
-            <div className="flex flex-wrap items-center gap-4 p-3 bg-card border border-border rounded-lg">
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-3">
               <Label
                 htmlFor="resultsFilterInput"
-                className="text-sm font-medium text-muted-foreground shrink-0"
+                className="shrink-0 text-sm font-medium text-muted-foreground"
               >
                 {t("results:filterResultsLabel")}
               </Label>
@@ -835,9 +835,9 @@ function App() {
                 value={resultsFilterTerm} // Use the raw input value here
                 onChange={(e) => setResultsFilterTerm(e.target.value)}
                 placeholder={t("results:filterResultsPlaceholder")}
-                className="flex-grow min-w-[200px] h-9"
+                className="h-9 min-w-[200px] flex-grow"
               />
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex shrink-0 items-center space-x-2">
                 <Checkbox
                   id="resultsFilterCaseSensitive"
                   checked={resultsFilterCaseSensitive}
@@ -847,12 +847,12 @@ function App() {
                 />
                 <Label
                   htmlFor="resultsFilterCaseSensitive"
-                  className="text-sm text-muted-foreground cursor-pointer"
+                  className="cursor-pointer text-sm text-muted-foreground"
                 >
                   {t("results:filterCaseSensitiveLabel")}
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex shrink-0 items-center space-x-2">
                 <Checkbox
                   id="wholeWordMatching"
                   checked={wholeWordMatchingEnabled}
@@ -862,7 +862,7 @@ function App() {
                 />
                 <Label
                   htmlFor="wholeWordMatching"
-                  className="text-sm text-muted-foreground cursor-pointer"
+                  className="cursor-pointer text-sm text-muted-foreground"
                 >
                   {t(
                     "results:wholeWordMatchingLabel",

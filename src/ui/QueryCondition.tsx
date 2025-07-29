@@ -103,13 +103,13 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap bg-background p-2 rounded border border-border/50">
+    <div className="flex flex-wrap items-center gap-2 rounded border border-border/50 bg-background p-2">
       <Select
         value={condition.type}
         onValueChange={handleTypeChange}
         disabled={disabled}
       >
-        <SelectTrigger className="w-[110px] h-8 text-xs shrink-0">
+        <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
           <SelectValue placeholder={t("queryBuilderTypeTerm")} />
         </SelectTrigger>
         <SelectContent>
@@ -119,7 +119,7 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
         </SelectContent>
       </Select>
 
-      <div className="flex items-center gap-1 flex-grow flex-wrap">
+      <div className="flex flex-grow flex-wrap items-center gap-1">
         {condition.type === "term" && (
           <Input
             type="text"
@@ -127,29 +127,29 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
             onChange={handleValueChange}
             placeholder={t("queryBuilderTermPlaceholder")}
             disabled={disabled}
-            className="h-8 text-sm flex-grow min-w-[150px]"
+            className="h-8 min-w-[150px] flex-grow text-sm"
           />
         )}
 
         {condition.type === "regex" && (
           <>
-            <span className="text-muted-foreground text-lg mx-0.5">/</span>
+            <span className="mx-0.5 text-lg text-muted-foreground">/</span>
             <Input
               type="text"
               value={condition.value} // Access value safely
               onChange={handleValueChange}
               placeholder={t("queryBuilderRegexPlaceholder")}
               disabled={disabled}
-              className="h-8 text-sm flex-grow min-w-[150px] font-mono"
+              className="h-8 min-w-[150px] flex-grow font-mono text-sm"
             />
-            <span className="text-muted-foreground text-lg mx-0.5">/</span>
+            <span className="mx-0.5 text-lg text-muted-foreground">/</span>
             <Input
               type="text"
               value={condition.flags} // Access flags safely
               onChange={handleFlagsChange}
               placeholder={t("queryBuilderFlagsPlaceholder")}
               disabled={disabled}
-              className="h-8 w-[70px] text-sm font-mono text-center shrink-0"
+              className="h-8 w-[70px] shrink-0 text-center font-mono text-sm"
               maxLength={6}
             />
           </>
@@ -163,9 +163,9 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
               onChange={handleNearTerm1Change}
               placeholder={t("queryBuilderNearTerm1Placeholder")}
               disabled={disabled}
-              className="h-8 text-sm flex-grow min-w-[120px]"
+              className="h-8 min-w-[120px] flex-grow text-sm"
             />
-            <span className="text-xs text-muted-foreground mx-1 shrink-0">
+            <span className="mx-1 shrink-0 text-xs text-muted-foreground">
               {t("queryBuilderNearDistanceLabel")}
             </span>
             <Input
@@ -173,11 +173,11 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
               value={condition.distance} // Access distance safely
               onChange={handleNearDistanceChange}
               disabled={disabled}
-              className="h-8 w-[60px] text-sm text-right shrink-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="h-8 w-[60px] shrink-0 [appearance:textfield] text-right text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               min="0"
               step="1"
             />
-            <span className="text-xs text-muted-foreground mx-1 shrink-0">
+            <span className="mx-1 shrink-0 text-xs text-muted-foreground">
               {t("queryBuilderNearWordsLabel")}
             </span>
             <Input
@@ -186,7 +186,7 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
               onChange={handleNearTerm2Change}
               placeholder={t("queryBuilderNearTerm2Placeholder")}
               disabled={disabled}
-              className="h-8 text-sm flex-grow min-w-[120px]"
+              className="h-8 min-w-[120px] flex-grow text-sm"
             />
           </>
         )}
@@ -198,7 +198,7 @@ const QueryCondition: React.FC<QueryConditionProps> = ({
         size="icon"
         onClick={onRemove}
         disabled={disabled}
-        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+        className="h-7 w-7 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
         aria-label="Remove condition"
       >
         <Trash2 className="h-3.5 w-3.5" />

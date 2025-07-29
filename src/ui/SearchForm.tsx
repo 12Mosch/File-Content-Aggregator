@@ -854,7 +854,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {/* Search Paths */}
       <div className="space-y-1.5">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <Label htmlFor="searchPaths">{t("searchPathLabel")}</Label>
           <Button
             type="button"
@@ -862,7 +862,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
             size="sm"
             onClick={handleBrowseClick}
             disabled={isLoading}
-            className="h-8 px-3 text-xs flex items-center gap-1"
+            className="flex h-8 items-center gap-1 px-3 text-xs"
             aria-label={t("browseButtonAriaLabel")}
           >
             <FolderOpen className="h-3.5 w-3.5" />
@@ -878,7 +878,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
           required
           placeholder={t("searchPathPlaceholder")}
           disabled={isLoading}
-          className="resize-y min-h-[60px]"
+          className="min-h-[60px] resize-y"
         />
       </div>
       {/* Extensions */}
@@ -896,7 +896,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         />
       </div>
       {/* Exclude Files/Folders Accordion */}
-      <Accordion type="single" collapsible className="w-full border rounded-md">
+      <Accordion type="single" collapsible className="w-full rounded-md border">
         <AccordionItem value="exclude-options" className="border-0">
           <AccordionTrigger className="px-4">
             {t("excludeOptionsLabel")}
@@ -916,19 +916,19 @@ const SearchForm: React.FC<SearchFormProps> = ({
                   rows={2}
                   placeholder={t("excludeFilesPlaceholderRegex")}
                   disabled={isLoading}
-                  className="resize-y min-h-[40px]"
+                  className="min-h-[40px] resize-y"
                 />
               </div>
               {/* Exclude Folders */}
               <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <Label htmlFor="excludeFolders">
                     {t("excludeFoldersLabelRegex")}
                   </Label>
                   <div className="flex items-center gap-2">
                     <Label
                       htmlFor="folderExclusionMode"
-                      className="text-xs text-muted-foreground whitespace-nowrap"
+                      className="text-xs whitespace-nowrap text-muted-foreground"
                     >
                       {t("folderExclusionModeLabel")}
                     </Label>
@@ -971,7 +971,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                   rows={2}
                   placeholder={t("excludeFoldersPlaceholderRegex")}
                   disabled={isLoading}
-                  className="resize-y min-h-[40px] w-full"
+                  className="min-h-[40px] w-full resize-y"
                 />
               </div>
             </div>
@@ -979,7 +979,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         </AccordionItem>
       </Accordion>
       {/* Max Depth */}
-      <div className="space-y-1.5 max-w-[250px]">
+      <div className="max-w-[250px] space-y-1.5">
         <Label htmlFor="maxDepthValue">{t("maxDepthLabel")}</Label>
         <Input
           type="number"
@@ -991,12 +991,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
           placeholder={t("maxDepthPlaceholder")}
           min="1"
           step="1"
-          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
       </div>
       {/* Query Builder */}
       <div className="space-y-1.5">
-        <div className="flex flex-col sm:flex-row gap-4 items-start">
+        <div className="flex flex-col items-start gap-4 sm:flex-row">
           <div className="flex-grow">
             <Label>{t("contentQueryBuilderLabel")}</Label>
             <QueryBuilder
@@ -1009,7 +1009,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
               disabled={isLoading}
             />
           </div>
-          <div className="space-y-1.5 shrink-0 w-full sm:w-auto">
+          <div className="w-full shrink-0 space-y-1.5 sm:w-auto">
             <div className="flex flex-col space-y-1">
               <Label
                 htmlFor="contentSearchMode"
@@ -1042,14 +1042,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="relative w-[120px] h-5 overflow-hidden">
+                <div className="relative h-5 w-[120px] overflow-hidden">
                   {/* Badge when whole word matching is enabled */}
                   <div
-                    className={`absolute inset-0 transition-all duration-300 ease-in-out transform ${wholeWordMatchingEnabled ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
+                    className={`absolute inset-0 transform transition-all duration-300 ease-in-out ${wholeWordMatchingEnabled ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"}`}
                   >
                     <Badge
                       variant="outline"
-                      className={`py-0 h-5 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20 flex items-center gap-1 transition-colors duration-200 shadow-sm cursor-pointer ${wholeWordMatchingEnabled ? "animate-pulse-subtle" : ""}`}
+                      className={`flex h-5 cursor-pointer items-center gap-1 border-primary/20 bg-primary/10 py-0 text-primary shadow-sm transition-colors duration-200 hover:bg-primary/20 ${wholeWordMatchingEnabled ? "animate-pulse-subtle" : ""}`}
                       title={t("common:wholeWordMatchingEnabledLabel")}
                       onClick={() => void toggleWholeWordMatching()}
                       role="button"
@@ -1070,11 +1070,11 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
                   {/* Badge when whole word matching is disabled */}
                   <div
-                    className={`absolute inset-0 transition-all duration-300 ease-in-out transform ${!wholeWordMatchingEnabled ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
+                    className={`absolute inset-0 transform transition-all duration-300 ease-in-out ${!wholeWordMatchingEnabled ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"}`}
                   >
                     <Badge
                       variant="outline"
-                      className="py-0 h-5 bg-muted/30 hover:bg-muted/50 text-muted-foreground border-muted/30 flex items-center gap-1 transition-colors duration-200 cursor-pointer"
+                      className="flex h-5 cursor-pointer items-center gap-1 border-muted/30 bg-muted/30 py-0 text-muted-foreground transition-colors duration-200 hover:bg-muted/50"
                       title={t(
                         "common:wholeWordMatchingDisabledLabel",
                         "Enable Whole Word Matching"
@@ -1103,13 +1103,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
       </div>
 
       {/* Date Options Accordion */}
-      <Accordion type="single" collapsible className="w-full border rounded-md">
+      <Accordion type="single" collapsible className="w-full rounded-md border">
         <AccordionItem value="date-options" className="border-0">
           <AccordionTrigger className="px-4">
             {t("dateOptionsLabel")}
           </AccordionTrigger>
           <AccordionContent className="px-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* Modified After */}
               <div className="space-y-1.5">
                 <Label htmlFor="modifiedAfterInput">
@@ -1134,9 +1134,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           }
                           placeholder={DISPLAY_DATE_FORMAT}
                           disabled={isLoading}
-                          className="pl-8 h-9 pr-8" // Padding for icons
+                          className="h-9 pr-8 pl-8" // Padding for icons
                         />
-                        <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <CalendarIcon className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         {/* Clear button */}
                         {formData.modifiedAfter && !isLoading && (
                           <Button
@@ -1147,7 +1147,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                               e.stopPropagation();
                               clearDate("modifiedAfter");
                             }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            className="absolute top-1/2 right-1 h-7 w-7 shrink-0 -translate-y-1/2 text-muted-foreground hover:text-destructive"
                             aria-label="Clear modified after date"
                           >
                             <X className="h-4 w-4" />
@@ -1192,9 +1192,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           }
                           placeholder={DISPLAY_DATE_FORMAT}
                           disabled={isLoading}
-                          className="pl-8 h-9 pr-8" // Padding for icons
+                          className="h-9 pr-8 pl-8" // Padding for icons
                         />
-                        <CalendarIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <CalendarIcon className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         {/* Clear button */}
                         {formData.modifiedBefore && !isLoading && (
                           <Button
@@ -1205,7 +1205,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                               e.stopPropagation();
                               clearDate("modifiedBefore");
                             }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            className="absolute top-1/2 right-1 h-7 w-7 shrink-0 -translate-y-1/2 text-muted-foreground hover:text-destructive"
                             aria-label="Clear modified before date"
                           >
                             <X className="h-4 w-4" />
@@ -1232,13 +1232,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
       </Accordion>
 
       {/* Size Options Accordion */}
-      <Accordion type="single" collapsible className="w-full border rounded-md">
+      <Accordion type="single" collapsible className="w-full rounded-md border">
         <AccordionItem value="size-options" className="border-0">
           <AccordionTrigger className="px-4">
             {t("sizeOptionsLabel")}
           </AccordionTrigger>
           <AccordionContent className="px-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* Min Size */}
               <div className="space-y-1.5">
                 <Label htmlFor="minSizeValue">{t("minSizeLabel")}</Label>
@@ -1253,7 +1253,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     placeholder="e.g., 100"
                     min="0"
                     step="any"
-                    className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-grow [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <Select
                     name="minSizeUnit"
@@ -1291,7 +1291,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     placeholder="e.g., 50"
                     min="0"
                     step="any"
-                    className="flex-grow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-grow [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <Select
                     name="maxSizeUnit"
@@ -1321,7 +1321,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
       </Accordion>
 
       {/* Submit/Cancel Button Area */}
-      <div className="pt-2 flex gap-4 items-center">
+      <div className="flex items-center gap-4 pt-2">
         <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
           {isLoading ? (
             <>

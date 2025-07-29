@@ -70,7 +70,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
             {t("settings:performanceDashboard")}
@@ -149,7 +149,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
 
       {performanceSummary ? (
         <>
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">
               {t("settings:performanceMetrics")}
             </h3>
@@ -177,8 +177,8 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <TabsContent value="overview" className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">
@@ -246,7 +246,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               </Card>
             </TabsContent>
 
-            <TabsContent value="operations" className="space-y-4 mt-4">
+            <TabsContent value="operations" className="mt-4 space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>{t("settings:operationDetails")}</CardTitle>
@@ -259,19 +259,19 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                     <table className="w-full">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 px-4">
+                          <th className="px-4 py-2 text-left">
                             {t("settings:operation")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:calls")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:totalTime")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:avgTime")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:percentage")}
                           </th>
                         </tr>
@@ -284,17 +284,17 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                               index % 2 === 0 ? "bg-muted/50" : undefined
                             }
                           >
-                            <td className="py-2 px-4 text-left">{op.name}</td>
-                            <td className="py-2 px-4 text-right">
+                            <td className="px-4 py-2 text-left">{op.name}</td>
+                            <td className="px-4 py-2 text-right">
                               {op.callCount.toLocaleString()}
                             </td>
-                            <td className="py-2 px-4 text-right">
+                            <td className="px-4 py-2 text-right">
                               {formatDuration(op.duration)}
                             </td>
-                            <td className="py-2 px-4 text-right">
+                            <td className="px-4 py-2 text-right">
                               {formatDuration(op.averageDuration)}
                             </td>
-                            <td className="py-2 px-4 text-right">
+                            <td className="px-4 py-2 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <Progress
                                   value={op.percentage}
@@ -311,7 +311,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                 </CardContent>
               </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
                     <CardTitle>{t("settings:callCounts")}</CardTitle>
@@ -364,8 +364,8 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               </div>
             </TabsContent>
 
-            <TabsContent value="search" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <TabsContent value="search" className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">
@@ -497,16 +497,16 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                     <table className="w-full">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 px-4">
+                          <th className="px-4 py-2 text-left">
                             {t("settings:searchOperation")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:calls")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:avgTime")}
                           </th>
-                          <th className="text-right py-2 px-4">
+                          <th className="px-4 py-2 text-right">
                             {t("settings:percentage")}
                           </th>
                         </tr>
@@ -526,14 +526,14 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                                 index % 2 === 0 ? "bg-muted/50" : undefined
                               }
                             >
-                              <td className="py-2 px-4 text-left">{op.name}</td>
-                              <td className="py-2 px-4 text-right">
+                              <td className="px-4 py-2 text-left">{op.name}</td>
+                              <td className="px-4 py-2 text-right">
                                 {op.callCount.toLocaleString()}
                               </td>
-                              <td className="py-2 px-4 text-right">
+                              <td className="px-4 py-2 text-right">
                                 {formatDuration(op.averageDuration)}
                               </td>
-                              <td className="py-2 px-4 text-right">
+                              <td className="px-4 py-2 text-right">
                                 <div className="flex items-center justify-end gap-2">
                                   <Progress
                                     value={op.percentage}
@@ -551,7 +551,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               </Card>
             </TabsContent>
 
-            <TabsContent value="memory" className="space-y-4 mt-4">
+            <TabsContent value="memory" className="mt-4 space-y-4">
               {isDetailedMemoryTrackingEnabled ? (
                 <>
                   <Card>
@@ -593,10 +593,10 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                         <table className="w-full">
                           <thead>
                             <tr className="border-b">
-                              <th className="text-left py-2 px-4">
+                              <th className="px-4 py-2 text-left">
                                 {t("settings:operation")}
                               </th>
-                              <th className="text-right py-2 px-4">
+                              <th className="px-4 py-2 text-right">
                                 {t("settings:memoryChange")}
                               </th>
                             </tr>
@@ -613,10 +613,10 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                                     index % 2 === 0 ? "bg-muted/50" : undefined
                                   }
                                 >
-                                  <td className="py-2 px-4 text-left">
+                                  <td className="px-4 py-2 text-left">
                                     {name}
                                   </td>
-                                  <td className="py-2 px-4 text-right">
+                                  <td className="px-4 py-2 text-right">
                                     <Badge
                                       variant={
                                         memoryDelta > 0
@@ -657,7 +657,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
               )}
             </TabsContent>
 
-            <TabsContent value="timeline" className="space-y-4 mt-4">
+            <TabsContent value="timeline" className="mt-4 space-y-4">
               {metricsHistory.length > 0 ? (
                 <>
                   <Card>
@@ -699,17 +699,17 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                         <table className="w-full">
                           <thead>
                             <tr className="border-b">
-                              <th className="text-left py-2 px-4">
+                              <th className="px-4 py-2 text-left">
                                 {t("settings:timestamp")}
                               </th>
-                              <th className="text-left py-2 px-4">
+                              <th className="px-4 py-2 text-left">
                                 {t("settings:operation")}
                               </th>
-                              <th className="text-right py-2 px-4">
+                              <th className="px-4 py-2 text-right">
                                 {t("settings:duration")}
                               </th>
                               {isDetailedMemoryTrackingEnabled && (
-                                <th className="text-right py-2 px-4">
+                                <th className="px-4 py-2 text-right">
                                   {t("settings:memoryChange")}
                                 </th>
                               )}
@@ -726,19 +726,19 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                                     index % 2 === 0 ? "bg-muted/50" : undefined
                                   }
                                 >
-                                  <td className="py-2 px-4 text-left">
+                                  <td className="px-4 py-2 text-left">
                                     {new Date(
                                       metric.timestamp
                                     ).toLocaleTimeString()}
                                   </td>
-                                  <td className="py-2 px-4 text-left">
+                                  <td className="px-4 py-2 text-left">
                                     {metric.operationName}
                                   </td>
-                                  <td className="py-2 px-4 text-right">
+                                  <td className="px-4 py-2 text-right">
                                     {formatDuration(metric.duration)}
                                   </td>
                                   {isDetailedMemoryTrackingEnabled && (
-                                    <td className="py-2 px-4 text-right">
+                                    <td className="px-4 py-2 text-right">
                                       {metric.memoryDelta !== undefined ? (
                                         <Badge
                                           variant={

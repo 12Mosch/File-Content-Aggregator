@@ -198,7 +198,6 @@ The application follows a structured approach to code organization to ensure mai
 The application uses a comprehensive error handling system with multiple components:
 
 1. **AppError Class**: Base error class that provides:
-
    - Consistent error types with error codes
    - Detailed error information
    - Factory methods for common error types
@@ -215,7 +214,6 @@ The application uses a comprehensive error handling system with multiple compone
    ```
 
 2. **ErrorHandlingService**: Centralized service for handling errors:
-
    - Standardized error logging and reporting
    - Error severity levels (LOW, MEDIUM, HIGH, CRITICAL)
    - Error context tracking (component, operation, data)
@@ -238,7 +236,6 @@ The application uses a comprehensive error handling system with multiple compone
    ```
 
 3. **Error Boundaries**: React components that catch JavaScript errors in their child component tree:
-
    - Prevent the entire application from crashing
    - Display fallback UI when errors occur
    - Log errors to the ErrorHandlingService
@@ -253,7 +250,6 @@ The application uses a comprehensive error handling system with multiple compone
    ```
 
 4. **IPC Error Handling**: Utilities for handling errors in IPC communication:
-
    - Standardized error responses
    - Sender validation
    - Error context tracking

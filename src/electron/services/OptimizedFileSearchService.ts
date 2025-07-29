@@ -389,7 +389,9 @@ export class OptimizedFileSearchService {
                 if (isNearOperator) {
                   const nearOperatorService = NearOperatorService.getInstance();
                   if (nearOperatorService.shouldSkipFile(filePath)) {
-                    this.logger.debug(`Skipping problematic file: ${displayFilePath}`);
+                    this.logger.debug(
+                      `Skipping problematic file: ${displayFilePath}`
+                    );
                     return {
                       filePath: displayFilePath,
                       matched: false,
@@ -413,15 +415,13 @@ export class OptimizedFileSearchService {
                 if (processResult.error) {
                   fileReadErrors.push({
                     filePath: displayFilePath,
-                    error:
-                      processResult.error.message,
+                    error: processResult.error.message,
                   });
 
                   return {
                     filePath: displayFilePath,
                     matched: false,
-                    readError:
-                      processResult.error.message,
+                    readError: processResult.error.message,
                     size: stats?.size,
                     mtime: stats?.mtime?.getTime(),
                   };

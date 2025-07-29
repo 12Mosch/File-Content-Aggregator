@@ -380,7 +380,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>{t("common:settingsTitle")}</DialogTitle>
           <DialogDescription>
@@ -389,7 +389,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         </DialogHeader>
 
         <Tabs defaultValue="general" className="py-4">
-          <TabsList className="grid grid-cols-4 mb-4">
+          <TabsList className="mb-4 grid grid-cols-4">
             <TabsTrigger value="general">
               {t("common:generalSettings")}
             </TabsTrigger>
@@ -520,7 +520,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     {t("common:fuzzySearchBooleanEnabledLabel")}
                   </Label>
                 </div>
-                <p className="text-sm text-muted-foreground pl-6">
+                <p className="pl-6 text-sm text-muted-foreground">
                   {t("common:fuzzySearchBooleanDescription")}
                 </p>
               </div>
@@ -540,7 +540,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     {t("common:fuzzySearchNearEnabledLabel")}
                   </Label>
                 </div>
-                <p className="text-sm text-muted-foreground pl-6">
+                <p className="pl-6 text-sm text-muted-foreground">
                   {t("common:fuzzySearchNearDescription")}
                 </p>
               </div>
@@ -560,7 +560,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     {t("common:wholeWordMatchingEnabledLabel")}
                   </Label>
                 </div>
-                <p className="text-sm text-muted-foreground pl-6">
+                <p className="pl-6 text-sm text-muted-foreground">
                   {t("common:wholeWordMatchingDescription")}
                 </p>
               </div>

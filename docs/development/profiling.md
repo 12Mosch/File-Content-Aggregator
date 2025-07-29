@@ -86,7 +86,6 @@ This script can:
   ```
 
   Options:
-
   - `-o, --output <file>`: Output file for the analysis report
   - `-f, --format <format>`: Output format (text, json, html)
 

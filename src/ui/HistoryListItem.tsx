@@ -125,8 +125,8 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
     // Apply Tailwind classes for list item layout, padding, border, and conditional favorite styling
     <li
       className={cn(
-        "flex items-center gap-2 px-2 py-2 border-b border-border", // Base layout and border
-        "hover:bg-muted/50 transition-colors duration-150", // Hover effect
+        "flex items-center gap-2 border-b border-border px-2 py-2", // Base layout and border
+        "transition-colors duration-150 hover:bg-muted/50", // Hover effect
         entry.isFavorite && "bg-primary/10 hover:bg-primary/20" // Favorite background
       )}
     >
@@ -149,7 +149,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
       </Button>
 
       {/* Main Content Area */}
-      <div className="flex-grow flex flex-col gap-0.5 overflow-hidden">
+      <div className="flex flex-grow flex-col gap-0.5 overflow-hidden">
         {/* Name Display/Input Area */}
         <div className="flex items-center gap-1">
           {isEditingName ? (
@@ -161,7 +161,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
                 onChange={handleNameChange}
                 onKeyDown={handleNameKeyDown}
                 // Removed onBlur auto-save in favor of explicit actions
-                className="h-6 px-1 py-0 text-sm font-medium flex-grow" // Compact input style
+                className="h-6 flex-grow px-1 py-0 text-sm font-medium" // Compact input style
                 placeholder={t("historyNamePlaceholder")}
               />
               <Button
@@ -187,8 +187,8 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
             // Display Name (Clickable to edit)
             <span
               className={cn(
-                "text-sm font-medium text-foreground truncate cursor-pointer hover:underline decoration-dotted", // Base style
-                !entry.name && "italic text-muted-foreground" // Style for untitled
+                "cursor-pointer truncate text-sm font-medium text-foreground decoration-dotted hover:underline", // Base style
+                !entry.name && "text-muted-foreground italic" // Style for untitled
               )}
               onClick={handleEditNameClick}
               title={t("historyEditNameTooltip")}
@@ -212,7 +212,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
 
         {/* Timestamp and Summary */}
         <span
-          className="text-xs text-muted-foreground truncate"
+          className="truncate text-xs text-muted-foreground"
           title={summaryText}
         >
           {formatTimestamp(entry.timestamp)} - {summaryText}
@@ -220,7 +220,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
       </div>
 
       {/* Action Buttons Area */}
-      <div className="flex gap-1 shrink-0">
+      <div className="flex shrink-0 gap-1">
         {/* Load Button */}
         <Button
           variant="ghost"
@@ -229,7 +229,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
           className="h-7 px-2"
           title={t("historyLoadButton")}
         >
-          <History className="h-3.5 w-3.5 mr-1" /> {/* Load icon */}
+          <History className="mr-1 h-3.5 w-3.5" /> {/* Load icon */}
           {t("historyLoadButton")}
         </Button>
         {/* Delete Button */}
@@ -237,7 +237,7 @@ const HistoryListItem: React.FC<HistoryListItemProps> = ({
           variant="ghost"
           size="icon"
           onClick={handleDeleteClick}
-          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
           title={t("historyDeleteButton")}
           aria-label={t("historyDeleteButton")}
         >

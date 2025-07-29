@@ -71,7 +71,6 @@ npm run test:complexity
 The refactoring plan defines the following success metrics:
 
 1. **Performance Improvements:**
-
    - 50% reduction in search time for large file sets
    - 30% reduction in memory usage
    - Smoother UI experience with no blocking operations

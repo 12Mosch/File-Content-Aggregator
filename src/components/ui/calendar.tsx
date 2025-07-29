@@ -51,7 +51,7 @@ function CustomCaption(props: CustomCaptionProps) {
   const handleNextYear = () => onMonthChange(addYears(displayMonth, 1));
 
   return (
-    <div className="flex justify-between items-center pt-1 relative w-full h-10 mb-2">
+    <div className="relative mb-2 flex h-10 w-full items-center justify-between pt-1">
       {/* Year Navigation */}
       <button
         type="button"
@@ -59,9 +59,9 @@ function CustomCaption(props: CustomCaptionProps) {
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute left-1",
+          "absolute left-1 size-7 bg-transparent p-0",
           currentView !== "days"
-            ? "opacity-30 cursor-not-allowed"
+            ? "cursor-not-allowed opacity-30"
             : "opacity-50 hover:opacity-100"
         )}
         aria-label="Previous year"
@@ -76,9 +76,9 @@ function CustomCaption(props: CustomCaptionProps) {
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute left-9",
+          "absolute left-9 size-7 bg-transparent p-0",
           currentView !== "days"
-            ? "opacity-30 cursor-not-allowed"
+            ? "cursor-not-allowed opacity-30"
             : "opacity-50 hover:opacity-100"
         )}
         aria-label="Previous month"
@@ -87,7 +87,7 @@ function CustomCaption(props: CustomCaptionProps) {
       </button>
 
       {/* Centered Month/Year Label Container */}
-      <div className="flex flex-grow justify-center items-center text-sm font-medium">
+      <div className="flex flex-grow items-center justify-center text-sm font-medium">
         {currentView === "years" ? (
           <button
             type="button"
@@ -132,9 +132,9 @@ function CustomCaption(props: CustomCaptionProps) {
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute right-9",
+          "absolute right-9 size-7 bg-transparent p-0",
           currentView !== "days"
-            ? "opacity-30 cursor-not-allowed"
+            ? "cursor-not-allowed opacity-30"
             : "opacity-50 hover:opacity-100"
         )}
         aria-label="Next month"
@@ -149,9 +149,9 @@ function CustomCaption(props: CustomCaptionProps) {
         disabled={currentView !== "days"}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
-          "size-7 bg-transparent p-0 absolute right-1",
+          "absolute right-1 size-7 bg-transparent p-0",
           currentView !== "days"
-            ? "opacity-30 cursor-not-allowed"
+            ? "cursor-not-allowed opacity-30"
             : "opacity-50 hover:opacity-100"
         )}
         aria-label="Next year"
@@ -308,7 +308,7 @@ function Calendar({
 
       {/* Month View */}
       {view === "months" && (
-        <div className="grid grid-cols-3 gap-2 mt-4">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           {monthNames.map((monthName, index) => (
             <button
               key={monthName}
@@ -316,7 +316,7 @@ function Calendar({
               onClick={() => handleMonthSelect(index)}
               className={cn(
                 buttonVariants({ variant: "ghost" }),
-                "w-full justify-center text-sm h-9",
+                "h-9 w-full justify-center text-sm",
                 displayDate.getMonth() === index &&
                   "bg-accent text-accent-foreground"
               )}
@@ -329,7 +329,7 @@ function Calendar({
 
       {/* Year View */}
       {view === "years" && (
-        <div className="grid grid-cols-4 gap-2 mt-4">
+        <div className="mt-4 grid grid-cols-4 gap-2">
           <button
             type="button"
             onClick={() => setDisplayDate(addYears(displayDate, -10))}
@@ -360,7 +360,7 @@ function Calendar({
               onClick={() => handleYearSelect(year)}
               className={cn(
                 buttonVariants({ variant: "ghost" }),
-                "w-full justify-center text-sm h-9",
+                "h-9 w-full justify-center text-sm",
                 displayDate.getFullYear() === year &&
                   "bg-accent text-accent-foreground"
               )}

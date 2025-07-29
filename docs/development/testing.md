@@ -9,7 +9,6 @@ This document outlines the testing strategy for the File Content Aggregator appl
 Unit tests verify that individual components and functions work as expected in isolation.
 
 - **UI Components**
-
   - [x] ErrorBoundary component
   - [x] HighlightMatches component
   - [x] HTML highlighting utilities
@@ -17,7 +16,6 @@ Unit tests verify that individual components and functions work as expected in i
   - [x] File operations
 
 - **Search Functionality**
-
   - [x] Search term parsing
   - [x] Search term evaluation
   - [x] File filtering
@@ -41,7 +39,6 @@ Unit tests verify that individual components and functions work as expected in i
 Integration tests verify that multiple components work together correctly.
 
 - **Search Pipeline**
-
   - [x] Regex in search pipeline
   - [x] NEAR in search pipeline
   - [x] Fuzzy search in search pipeline

@@ -106,16 +106,16 @@ function ErrorFallback({
   const { t } = useTranslation();
 
   return (
-    <Card className="p-6 bg-destructive/10 border-destructive/30 text-destructive">
-      <div className="flex flex-col items-center text-center gap-4">
+    <Card className="border-destructive/30 bg-destructive/10 p-6 text-destructive">
+      <div className="flex flex-col items-center gap-4 text-center">
         <AlertTriangle className="h-12 w-12" />
         <div>
-          <h2 className="text-xl font-semibold mb-2">
+          <h2 className="mb-2 text-xl font-semibold">
             {t("errors:componentError")}
           </h2>
           <p className="mb-4">{t("errors:componentErrorDescription")}</p>
           {error && (
-            <div className="p-4 bg-background/50 rounded-md mb-4 text-left overflow-auto max-h-32">
+            <div className="mb-4 max-h-32 overflow-auto rounded-md bg-background/50 p-4 text-left">
               <p className="font-mono text-sm break-all">{error.toString()}</p>
             </div>
           )}

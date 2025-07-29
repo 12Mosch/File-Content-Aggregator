@@ -179,17 +179,14 @@ beforeEach(() => {
 When writing new tests, follow these guidelines:
 
 1. **Place tests in the appropriate directory**
-
    - Unit tests go in `tests/unit/[module]/`
    - Integration tests go in `tests/integration/[feature]/`
 
 2. **Use descriptive test names**
-
    - Test names should describe what is being tested
    - Use the format "should [expected behavior] when [condition]"
 
 3. **Test edge cases**
-
    - Empty inputs
    - Null or undefined values
    - Very large inputs
@@ -197,12 +194,10 @@ When writing new tests, follow these guidelines:
    - Invalid inputs
 
 4. **Keep tests focused**
-
    - Each test should verify one specific behavior
    - Use multiple small tests rather than one large test
 
 5. **Use appropriate assertions**
-
    - Be specific about what you're testing
    - Use the most appropriate matcher for the situation
 
@@ -219,17 +214,14 @@ Tests are run automatically as part of our CI/CD pipeline. Pull requests must pa
 If you encounter issues with tests:
 
 1. **Check the test environment**
-
    - Make sure all dependencies are installed
    - Verify that the test environment is properly configured
 
 2. **Isolate the problem**
-
    - Run specific test files or test cases
    - Use `test.only()` to run only a specific test
 
 3. **Check for timing issues**
-
    - Some tests may fail due to timing issues
    - Use Jest's async testing capabilities for asynchronous code
 

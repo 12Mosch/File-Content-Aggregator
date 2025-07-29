@@ -35,17 +35,20 @@ To prevent IPC calls from hanging indefinitely, the application implements timeo
 ```typescript
 // Example from App.tsx
 const timeoutPromise = new Promise<SearchResult>((_, reject) => {
-  const timeoutId = setTimeout(() => {
-    reject(new Error("Search request timed out after 5 minutes"));
-  }, 5 * 60 * 1000); // 5 minute timeout
-  
+  const timeoutId = setTimeout(
+    () => {
+      reject(new Error("Search request timed out after 5 minutes"));
+    },
+    5 * 60 * 1000
+  ); // 5 minute timeout
+
   return () => clearTimeout(timeoutId);
 });
 
 // Race the search against the timeout
 const searchResult: SearchResult = await Promise.race([
   window.electronAPI.invokeSearch(backendParams),
-  timeoutPromise
+  timeoutPromise,
 ]);
 ```
 
@@ -54,11 +57,14 @@ const searchResult: SearchResult = await Promise.race([
 ```typescript
 // Example from main.ts
 const timeoutPromise = new Promise<SearchResult>((_, reject) => {
-  const timeoutId = setTimeout(() => {
-    isSearchCancelled = true; // Set cancellation flag
-    reject(new Error("Search operation timed out after 5 minutes"));
-  }, 5 * 60 * 1000); // 5 minute timeout
-  
+  const timeoutId = setTimeout(
+    () => {
+      isSearchCancelled = true; // Set cancellation flag
+      reject(new Error("Search operation timed out after 5 minutes"));
+    },
+    5 * 60 * 1000
+  ); // 5 minute timeout
+
   // Clear the timeout if the component is unmounted
   return () => clearTimeout(timeoutId);
 });
@@ -66,7 +72,7 @@ const timeoutPromise = new Promise<SearchResult>((_, reject) => {
 // Race the search against the timeout
 const results = await Promise.race([
   searchFiles(params, progressCallback, checkCancellation),
-  timeoutPromise
+  timeoutPromise,
 ]);
 ```
 
@@ -84,20 +90,21 @@ this.logger.debug("Memory usage during file processing", {
   heapUsedMB,
   rssMB: Math.round(memoryUsage.rss / (1024 * 1024)),
   filesProcessed: filesProcessedCounter,
-  totalFiles: totalFilesToProcess
+  totalFiles: totalFilesToProcess,
 });
 
 // If memory usage is getting high, force GC if available and slow down processing
-if (heapUsedMB > 1200) { // 1.2GB
+if (heapUsedMB > 1200) {
+  // 1.2GB
   this.logger.warn("High memory usage during file processing", { heapUsedMB });
-  
+
   // Force garbage collection if available
   if (global.gc) {
     this.logger.info("Forcing garbage collection during processing");
     global.gc();
-    
+
     // Small delay to allow GC to complete and memory to be freed
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 }
 ```
