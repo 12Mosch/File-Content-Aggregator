@@ -17,10 +17,12 @@ class MockWorker {
     if (MockWorker.shouldFailInit) {
       setTimeout(() => {
         if (this.onerror) {
-          this.onerror(new ErrorEvent("error", {
-            message: "Worker initialization failed",
-            error: new Error("Failed to initialize worker")
-          }));
+          this.onerror(
+            new ErrorEvent("error", {
+              message: "Worker initialization failed",
+              error: new Error("Failed to initialize worker"),
+            })
+          );
         }
       }, 10);
       return;
@@ -43,10 +45,12 @@ class MockWorker {
     if (MockWorker.shouldTriggerError) {
       setTimeout(() => {
         if (this.onerror) {
-          this.onerror(new ErrorEvent("error", {
-            message: "Worker failed",
-            error: new Error("Test error")
-          }));
+          this.onerror(
+            new ErrorEvent("error", {
+              message: "Worker failed",
+              error: new Error("Test error"),
+            })
+          );
         }
       }, 10);
       return;
@@ -62,13 +66,18 @@ class MockWorker {
         };
 
         // Check for specific error action
-        if (MockWorker.errorAction && message.action === MockWorker.errorAction) {
+        if (
+          MockWorker.errorAction &&
+          message.action === MockWorker.errorAction
+        ) {
           setTimeout(() => {
             if (this.onerror) {
-              this.onerror(new ErrorEvent("error", {
-                message: "Worker failed",
-                error: new Error("Test error")
-              }));
+              this.onerror(
+                new ErrorEvent("error", {
+                  message: "Worker failed",
+                  error: new Error("Test error"),
+                })
+              );
             }
           }, 10);
           return;
@@ -211,10 +220,10 @@ describe("WorkerPool clearCache action", () => {
         executePromise,
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Test timeout")), 100)
-        )
+        ),
       ]);
     } catch (error) {
-      expect(error.message).toBe("Test timeout");
+      expect(error instanceof Error ? error.message : String(error)).toBe("Test timeout");
     }
   });
 
@@ -231,7 +240,7 @@ describe("WorkerPool clearCache action", () => {
           failingWorkerPool.execute("highlight", {}),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error("No workers available")), 100)
-          )
+          ),
         ])
       ).rejects.toThrow();
     } finally {

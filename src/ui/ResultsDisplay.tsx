@@ -599,7 +599,10 @@ const TreeRow = React.memo(
                   isVisible={isExpanded}
                   maxHeight="400px"
                   onHighlightError={(error) => {
-                    console.error("EnhancedCodeBlock highlighting error:", error);
+                    console.error(
+                      "EnhancedCodeBlock highlighting error:",
+                      error
+                    );
                   }}
                 />
                 {showShowMoreButton && (
@@ -916,7 +919,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
     try {
       if (!window.electronAPI?.invokeGetFileContent) {
-        console.error(`API function invokeGetFileContent not available for ${filePath}`);
+        console.error(
+          `API function invokeGetFileContent not available for ${filePath}`
+        );
         contentCacheRef.current.set(filePath, {
           status: "error",
           error: "ipcError",
@@ -1193,7 +1198,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         );
 
       if (error || content === null) {
-        console.error("Error generating export content:", error || "Content is null");
+        console.error(
+          "Error generating export content:",
+          error || "Content is null"
+        );
         setCopyStatus(t("copyButtonFailed"));
         return;
       }

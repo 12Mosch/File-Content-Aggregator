@@ -221,7 +221,10 @@ export class WorkerPool {
    * @param payload The payload for the action
    * @returns A promise that resolves with an object containing the result and task ID
    */
-  public async executeWithTaskId<T>(action: string, payload: unknown): Promise<{ result: T; taskId: string }> {
+  public async executeWithTaskId<T>(
+    action: string,
+    payload: unknown
+  ): Promise<{ result: T; taskId: string }> {
     // Wait for initialization if needed
     if (!this.isInitialized && this.initPromise) {
       await this.initPromise;

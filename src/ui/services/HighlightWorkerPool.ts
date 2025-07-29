@@ -76,10 +76,11 @@ export class HighlightWorkerPool {
 
     try {
       // Execute highlighting task and get task ID for cancellation tracking
-      const { result, taskId } = await this.workerPool.executeWithTaskId<HighlightResult>(
-        "highlight",
-        request
-      );
+      const { result, taskId } =
+        await this.workerPool.executeWithTaskId<HighlightResult>(
+          "highlight",
+          request
+        );
 
       // Store task ID for potential cancellation
       this.filePathToTaskId.set(request.filePath, taskId);
@@ -113,17 +114,6 @@ export class HighlightWorkerPool {
       this.filePathToTaskId.delete(request.filePath);
     }
   }
-
-  /**
-   * Batch highlight multiple files
-   */
-  async highlightBatch(
-    requests: HighlightRequest[]
-  ): Promise<HighlightResult[]> {
-    const promises = requests.map((request) => this.highlight(request));
-    return Promise.all(promises);
-  }
-
   /**
    * Cancel a specific highlighting request
    */
@@ -135,7 +125,9 @@ export class HighlightWorkerPool {
       if (taskId) {
         // Cancel the actual worker task
         this.workerPool.cancelTask(taskId);
-        console.log(`[HighlightWorkerPool] Cancelled highlighting task for ${filePath}`);
+        console.log(
+          `[HighlightWorkerPool] Cancelled highlighting task for ${filePath}`
+        );
       }
 
       // Clean up tracking maps

@@ -108,9 +108,12 @@ export function useResultsHighlighting() {
   /**
    * Update visibility status for a file
    */
-  const updateVisibility = useCallback((filePath: string, isVisible: boolean) => {
-    visibilityMap.set(filePath, isVisible);
-  }, [visibilityMap]);
+  const updateVisibility = useCallback(
+    (filePath: string, isVisible: boolean) => {
+      visibilityMap.set(filePath, isVisible);
+    },
+    [visibilityMap]
+  );
 
   /**
    * Get performance statistics

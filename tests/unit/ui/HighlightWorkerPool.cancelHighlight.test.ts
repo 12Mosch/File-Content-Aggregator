@@ -54,7 +54,11 @@ jest.mock("../../../src/ui/services/HighlightWorkerPool", () => {
       this.requestQueue = new Map();
     }
 
-    async highlight(request: { filePath: string; code: string; language?: string }): Promise<{
+    async highlight(request: {
+      filePath: string;
+      code: string;
+      language?: string;
+    }): Promise<{
       filePath: string;
       highlightedHtml: string;
       status: string;
@@ -120,7 +124,9 @@ jest.mock("../../../src/ui/services/HighlightWorkerPool", () => {
         if (taskId) {
           // Cancel the actual worker task
           this.workerPool.cancelTask(taskId);
-          console.log(`[HighlightWorkerPool] Cancelled highlighting task for ${filePath}`);
+          console.log(
+            `[HighlightWorkerPool] Cancelled highlighting task for ${filePath}`
+          );
         }
 
         // Clean up tracking maps
@@ -136,7 +142,10 @@ jest.mock("../../../src/ui/services/HighlightWorkerPool", () => {
       this.filePathToTaskId.clear();
     }
 
-    getStats(): typeof this.stats & { activeWorkers: number; queuedRequests: number } {
+    getStats(): typeof this.stats & {
+      activeWorkers: number;
+      queuedRequests: number;
+    } {
       const poolStats = this.workerPool.getStats();
       return {
         ...this.stats,
@@ -209,7 +218,7 @@ describe("HighlightWorkerPool cancelHighlight", () => {
     });
 
     // Give it a moment to start and add to tracking maps
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Manually add to tracking maps to simulate the task being in progress
     (highlightWorkerPool as any).activeRequests.add(testFilePath);
@@ -252,15 +261,23 @@ describe("HighlightWorkerPool cancelHighlight", () => {
     (highlightWorkerPool as any).filePathToTaskId.set(testFilePath, testTaskId);
 
     // Verify the file is in active requests
-    expect((highlightWorkerPool as any).activeRequests.has(testFilePath)).toBe(true);
-    expect((highlightWorkerPool as any).filePathToTaskId.has(testFilePath)).toBe(true);
+    expect((highlightWorkerPool as any).activeRequests.has(testFilePath)).toBe(
+      true
+    );
+    expect(
+      (highlightWorkerPool as any).filePathToTaskId.has(testFilePath)
+    ).toBe(true);
 
     // Cancel the highlighting task
     highlightWorkerPool.cancelHighlight(testFilePath);
 
     // Verify that the tracking maps are cleaned up
-    expect((highlightWorkerPool as any).activeRequests.has(testFilePath)).toBe(false);
-    expect((highlightWorkerPool as any).filePathToTaskId.has(testFilePath)).toBe(false);
+    expect((highlightWorkerPool as any).activeRequests.has(testFilePath)).toBe(
+      false
+    );
+    expect(
+      (highlightWorkerPool as any).filePathToTaskId.has(testFilePath)
+    ).toBe(false);
 
     // Verify that cancelTask was called
     expect(mockWorkerPool.cancelTask).toHaveBeenCalledWith(testTaskId);
@@ -281,6 +298,8 @@ describe("HighlightWorkerPool cancelHighlight", () => {
     expect(mockWorkerPool.cancelTask).not.toHaveBeenCalled();
 
     // Verify cleanup still happened
-    expect((highlightWorkerPool as any).activeRequests.has(testFilePath)).toBe(false);
+    expect((highlightWorkerPool as any).activeRequests.has(testFilePath)).toBe(
+      false
+    );
   });
 });
