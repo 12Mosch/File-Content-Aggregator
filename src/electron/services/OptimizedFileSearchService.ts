@@ -6,7 +6,6 @@
  */
 
 // Path module is used indirectly in file operations
-import _path from "path";
 import type PLimit from "p-limit";
 
 // Import module and create a require function
@@ -27,13 +26,14 @@ import {
   FileProcessingService,
   ContentMatchingService,
   SearchResultProcessor,
+  NearOperatorService,
   type ContentSearchMode,
 } from "./index.js";
 
 // Import utilities
 import { AppError } from "../../lib/errors.js";
 import { Logger } from "../../lib/services/Logger.js";
-import { ConfigService } from "../../lib/services/ConfigService.js";
+import { ConfigService } from "../../lib/services/index.js";
 import { updateBooleanSearchSettings } from "../utils/booleanExpressionUtils.js";
 
 // Import types
@@ -140,6 +140,19 @@ export class OptimizedFileSearchService {
     progressCallback: ProgressCallback,
     checkCancellation: CancellationChecker
   ): Promise<SearchResult> {
+    // Ensure p-limit is loaded correctly before starting search
+    // This validation is done outside the try-catch to avoid local exception handling
+    if (typeof pLimit !== "function") {
+      this.logger.error("pLimit was not loaded correctly", {
+        type: typeof pLimit,
+        value: pLimit,
+      });
+
+      throw AppError.configError(
+        "Internal error: Concurrency limiter failed to load."
+      );
+    }
+
     try {
       // Initialize services
       const fileDiscoveryService = FileDiscoveryService.getInstance();
@@ -168,18 +181,6 @@ export class OptimizedFileSearchService {
       // Initialize result variables
       const fileReadErrors: FileReadError[] = [];
       let wasCancelled = false;
-
-      // Ensure p-limit is loaded correctly
-      if (typeof pLimit !== "function") {
-        this.logger.error("pLimit was not loaded correctly", {
-          type: typeof pLimit,
-          value: pLimit,
-        });
-
-        throw AppError.configError(
-          "Internal error: Concurrency limiter failed to load."
-        );
-      }
 
       // Create a concurrency limiter
       const limit = pLimit(FILE_OPERATION_CONCURRENCY_LIMIT);
@@ -383,6 +384,21 @@ export class OptimizedFileSearchService {
                 // Use streaming file processing with timeout for NEAR operator
                 const isNearOperator =
                   contentSearchTerm?.includes("NEAR(") || false;
+
+                // Check circuit breaker for NEAR operator
+                if (isNearOperator) {
+                  const nearOperatorService = NearOperatorService.getInstance();
+                  if (nearOperatorService.shouldSkipFile(filePath)) {
+                    this.logger.debug(`Skipping problematic file: ${displayFilePath}`);
+                    return {
+                      filePath: displayFilePath,
+                      matched: false,
+                      readError: "File skipped due to repeated timeouts",
+                      size: stats?.size,
+                      mtime: stats?.mtime?.getTime(),
+                    };
+                  }
+                }
                 const processResult =
                   await fileProcessingService.processFileInChunks(
                     filePath,
@@ -398,18 +414,14 @@ export class OptimizedFileSearchService {
                   fileReadErrors.push({
                     filePath: displayFilePath,
                     error:
-                      processResult.error instanceof Error
-                        ? processResult.error.message
-                        : String(processResult.error),
+                      processResult.error.message,
                   });
 
                   return {
                     filePath: displayFilePath,
                     matched: false,
                     readError:
-                      processResult.error instanceof Error
-                        ? processResult.error.message
-                        : String(processResult.error),
+                      processResult.error.message,
                     size: stats?.size,
                     mtime: stats?.mtime?.getTime(),
                   };
@@ -486,6 +498,10 @@ export class OptimizedFileSearchService {
                   "Forcing garbage collection during processing"
                 );
                 global.gc();
+
+                // Clear NEAR operator caches to free memory
+                const nearOperatorService = NearOperatorService.getInstance();
+                nearOperatorService.clearCachesForMemoryPressure();
 
                 // Small delay to allow GC to complete and memory to be freed
                 await new Promise((resolve) => setTimeout(resolve, 500));

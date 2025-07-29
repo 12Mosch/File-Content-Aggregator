@@ -19,8 +19,8 @@ export interface WordBoundary {
 // Constants for performance tuning
 const BOUNDARIES_CACHE_SIZE = 100;
 const BOUNDARIES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-const WORD_INDEX_CACHE_SIZE = 500;
-const WORD_INDEX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const WORD_INDEX_CACHE_SIZE = 2000; // Increased cache size for better hit rate
+const WORD_INDEX_CACHE_TTL = 10 * 60 * 1000; // Increased TTL to match boundaries cache
 
 export class WordBoundaryService {
   private static instance: WordBoundaryService;
@@ -29,6 +29,9 @@ export class WordBoundaryService {
   // Caches for performance optimization
   private boundariesCache: LRUCache<string, WordBoundary[]>;
   private wordIndexCache: LRUCache<string, number>;
+
+  // Content fingerprint cache for efficient cache key generation
+  private contentFingerprintCache: LRUCache<string, string>;
 
   // Performance metrics
   private metrics = {
@@ -62,6 +65,15 @@ export class WordBoundaryService {
         maxSize: WORD_INDEX_CACHE_SIZE,
         timeToLive: WORD_INDEX_CACHE_TTL,
         name: "Word Indices",
+      }
+    );
+
+    this.contentFingerprintCache = cacheManager.getOrCreateCache<string, string>(
+      "contentFingerprints",
+      {
+        maxSize: 200,
+        timeToLive: WORD_INDEX_CACHE_TTL,
+        name: "Content Fingerprints",
       }
     );
 
@@ -136,8 +148,9 @@ export class WordBoundaryService {
       return -1;
     }
 
-    // Generate cache key for word index lookup
-    const cacheKey = `${this.hashString(content)}:${charIndex}`;
+    // Generate cache key for word index lookup using content fingerprint
+    const contentFingerprint = this.getContentFingerprint(content);
+    const cacheKey = `${contentFingerprint}:${charIndex}`;
 
     // Check if word index is already cached
     const cachedIndex = this.wordIndexCache.get(cacheKey);
@@ -414,6 +427,42 @@ export class WordBoundaryService {
     }
 
     return boundaries;
+  }
+
+  /**
+   * Gets a content fingerprint for efficient cache key generation
+   * Uses a smaller sample of the content to create a stable fingerprint
+   * @param content The content to fingerprint
+   * @returns A fingerprint string
+   */
+  private getContentFingerprint(content: string): string {
+    // Check if we already have a fingerprint for this content
+    const cachedFingerprint = this.contentFingerprintCache.get(content);
+    if (cachedFingerprint) {
+      return cachedFingerprint;
+    }
+
+    // For small content, use the full content as fingerprint
+    if (content.length <= 100) {
+      const fingerprint = this.hashString(content);
+      this.contentFingerprintCache.set(content, fingerprint);
+      return fingerprint;
+    }
+
+    // For larger content, create a fingerprint from strategic samples
+    const sampleSize = Math.min(200, Math.floor(content.length / 10));
+    const start = content.substring(0, sampleSize);
+    const middle = content.substring(
+      Math.floor(content.length / 2) - sampleSize / 2,
+      Math.floor(content.length / 2) + sampleSize / 2
+    );
+    const end = content.substring(content.length - sampleSize);
+
+    const sample = start + middle + end + content.length.toString();
+    const fingerprint = this.hashString(sample);
+
+    this.contentFingerprintCache.set(content, fingerprint);
+    return fingerprint;
   }
 
   /**

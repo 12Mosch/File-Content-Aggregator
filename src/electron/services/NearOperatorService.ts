@@ -17,6 +17,7 @@ import { LRUCache } from "../../lib/LRUCache.js";
 import { getProfiler } from "../../lib/utils/Profiler.js";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as crypto from "crypto";
 
 export interface NearOperatorOptions {
   caseSensitive?: boolean;
@@ -24,15 +25,22 @@ export interface NearOperatorOptions {
   wholeWordMatchingEnabled?: boolean;
 }
 
-// Constants for performance tuning
-const TERM_INDICES_CACHE_SIZE = 500; // Increased from 200
-const TERM_INDICES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (increased from 5)
-const PROXIMITY_CACHE_SIZE = 1000; // Increased from 500
-const PROXIMITY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes (increased from 10)
-// Maximum content size to process in full (larger contents will use sampling)
-const MAX_FULL_CONTENT_SIZE = 1024 * 1024; // 1MB
+// Constants for performance tuning - optimized values
+const TERM_INDICES_CACHE_SIZE = 1000; // Increased for better hit rates
+const TERM_INDICES_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const PROXIMITY_CACHE_SIZE = 2000; // Increased for better hit rates
+const PROXIMITY_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
+const CONTENT_FINGERPRINT_CACHE_SIZE = 500; // New cache for content fingerprints
+const CONTENT_FINGERPRINT_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+// Maximum content size to process in full (larger contents will use chunking)
+const MAX_FULL_CONTENT_SIZE = 2 * 1024 * 1024; // 2MB - increased threshold
+const CHUNK_SIZE = 64 * 1024; // 64KB chunks for large content processing
+const CHUNK_OVERLAP = 1024; // 1KB overlap between chunks
 // Maximum execution time before applying more aggressive optimizations
-const MAX_EXECUTION_TIME_MS = 500; // 500ms
+const MAX_EXECUTION_TIME_MS = 8000; // 8000ms (8 seconds) - aligned with file processing timeout
+// Memory pool constants
+const ARRAY_POOL_SIZE = 50; // Pool size for reusable arrays
+const MAX_POOLED_ARRAY_SIZE = 1000; // Maximum size of arrays to pool
 
 export class NearOperatorService {
   private static instance: NearOperatorService;
@@ -43,6 +51,14 @@ export class NearOperatorService {
   // Caches for performance optimization
   private termIndicesCache: LRUCache<string, number[]>;
   private proximityCache: LRUCache<string, boolean>;
+  private contentFingerprintCache: LRUCache<string, string>;
+
+  // Circuit breaker for problematic files
+  private problematicFiles: Set<string> = new Set();
+  private fileTimeoutCounts: Map<string, number> = new Map();
+
+  // Memory pool for array reuse to reduce GC pressure
+  private pooledArraySizes: Map<number, number[][]> = new Map();
 
   // Performance metrics
   private metrics = {
@@ -120,6 +136,18 @@ export class NearOperatorService {
       }
     );
 
+    this.contentFingerprintCache = cacheManager.getOrCreateCache<string, string>(
+      "nearOperatorContentFingerprints",
+      {
+        maxSize: CONTENT_FINGERPRINT_CACHE_SIZE,
+        timeToLive: CONTENT_FINGERPRINT_CACHE_TTL,
+        name: "NEAR Operator Content Fingerprints",
+      }
+    );
+
+    // Initialize memory pools
+    this.initializeMemoryPools();
+
     this.logger.debug("NearOperatorService initialized with optimized caching");
   }
 
@@ -135,12 +163,57 @@ export class NearOperatorService {
   }
 
   /**
+   * Checks if a file should be skipped due to circuit breaker
+   * @param filePath The file path to check
+   * @returns True if the file should be skipped
+   */
+  public shouldSkipFile(filePath: string): boolean {
+    return this.problematicFiles.has(filePath);
+  }
+
+  /**
+   * Records a timeout for a file and potentially adds it to problematic files
+   * @param filePath The file path that timed out
+   */
+  public recordFileTimeout(filePath: string): void {
+    const currentCount = this.fileTimeoutCounts.get(filePath) || 0;
+    const newCount = currentCount + 1;
+    this.fileTimeoutCounts.set(filePath, newCount);
+
+    // If a file times out 3 times, mark it as problematic
+    if (newCount >= 3) {
+      this.problematicFiles.add(filePath);
+      this.logger.warn(`File marked as problematic due to repeated timeouts: ${filePath}`);
+    }
+  }
+
+  /**
+   * Clears caches to free memory during high memory pressure
+   */
+  public clearCachesForMemoryPressure(): void {
+    const termIndicesCleared = this.termIndicesCache.size();
+    const proximityCleared = this.proximityCache.size();
+    const fingerprintCleared = this.contentFingerprintCache.size();
+
+    this.termIndicesCache.clear();
+    this.proximityCache.clear();
+    this.contentFingerprintCache.clear();
+
+    this.logger.info("Cleared NEAR operator caches due to memory pressure", {
+      termIndicesCleared,
+      proximityCleared,
+      fingerprintCleared
+    });
+  }
+
+  /**
    * Evaluates a NEAR operation between two terms with optimized performance
    * @param content The content to search in
    * @param term1 The first term (string or RegExp)
    * @param term2 The second term (string or RegExp)
    * @param distance The maximum word distance between terms
    * @param options Search options
+   * @param filePath Optional file path for circuit breaker tracking
    * @returns True if the terms are found within the specified distance
    */
   public evaluateNear(
@@ -148,7 +221,8 @@ export class NearOperatorService {
     term1: string | RegExp,
     term2: string | RegExp,
     distance: number,
-    options: NearOperatorOptions = {}
+    options: NearOperatorOptions = {},
+    filePath?: string
   ): boolean {
     const profiler = getProfiler();
     const profileId = profiler.start("NearOperatorService.evaluateNear", {
@@ -247,7 +321,6 @@ export class NearOperatorService {
       if (
         indices1.length === 0 &&
         !(term1 instanceof RegExp) &&
-        typeof term1 === "string" &&
         term1.length >= 3
       ) {
         fuzzySearchUsed = true;
@@ -274,7 +347,6 @@ export class NearOperatorService {
       if (
         indices2.length === 0 &&
         !(term2 instanceof RegExp) &&
-        typeof term2 === "string" &&
         term2.length >= 3 &&
         (indices1.length > 0 || term1 instanceof RegExp)
       ) {
@@ -316,6 +388,12 @@ export class NearOperatorService {
         "NEAR operation timed out during term matching, using early termination"
       );
       this.metrics.earlyTerminations++;
+
+      // Record timeout for circuit breaker if filePath is provided
+      if (filePath) {
+        this.recordFileTimeout(filePath);
+      }
+
       return false;
     }
 
@@ -345,7 +423,8 @@ export class NearOperatorService {
       indices1,
       indices2,
       distance,
-      content
+      content,
+      filePath
     );
     const proximityCheckEnd = performance.now();
     this.updatePhaseMetrics(
@@ -375,7 +454,7 @@ export class NearOperatorService {
           result,
           contentLength: content.length,
           fuzzySearchUsed,
-          cacheHit: cachedResult !== undefined,
+          cacheHit: false,
         });
       } catch (_error) {
         // Fallback if memory tracking fails
@@ -521,18 +600,20 @@ export class NearOperatorService {
   }
 
   /**
-   * Optimized version of checkProximity with better performance
+   * Highly optimized proximity checking with two-pointer algorithm and early termination
    * @param indices1 Sorted array of indices for the first term
    * @param indices2 Sorted array of indices for the second term
    * @param maxDistance Maximum word distance allowed
    * @param content The text content
+   * @param filePath Optional file path for circuit breaker tracking
    * @returns True if any pair is within the specified distance
    */
   private checkProximityOptimized(
     indices1: number[],
     indices2: number[],
     maxDistance: number,
-    content: string
+    content: string,
+    filePath?: string
   ): boolean {
     const profiler = getProfiler();
     const profileId = profiler.start(
@@ -545,188 +626,180 @@ export class NearOperatorService {
       }
     );
 
-    // Add timeout mechanism to prevent excessive processing time
     const startTime = performance.now();
 
-    // Early termination optimization:
-    // If we have many indices, first check if any character indices are close enough
-    // This avoids expensive word boundary calculations for obviously distant terms
-    if (indices1.length > 5 && indices2.length > 5) {
-      // Estimate average word length (typically 5-7 characters in English)
-      const avgWordLength = 6;
-      const maxCharDistance = maxDistance * avgWordLength * 2; // Conservative estimate
+    // For very large content, use chunked processing
+    if (content.length > MAX_FULL_CONTENT_SIZE) {
+      const result = this.checkProximityChunked(indices1, indices2, maxDistance, content);
+      profiler.end(profileId, { chunkedProcessing: true, result });
+      return result;
+    }
 
-      // Use a more efficient algorithm for checking character distance
-      if (
-        !this.areAnyIndicesWithinDistance(indices1, indices2, maxCharDistance)
-      ) {
+    // Early termination optimization: character distance pre-check
+    if (indices1.length > 5 && indices2.length > 5) {
+      const avgWordLength = 6;
+      const maxCharDistance = maxDistance * avgWordLength * 2;
+
+      if (!this.areAnyIndicesWithinDistance(indices1, indices2, maxCharDistance)) {
         this.metrics.earlyTerminations++;
-        profiler.end(profileId);
+        profiler.end(profileId, { earlyTermination: true });
         return false;
       }
     }
 
-    // For very large index sets, use sampling to improve performance
-    // Use more aggressive sampling for larger content or when we have many indices
-    const isLargeContent = content.length > MAX_FULL_CONTENT_SIZE;
-    const hasLargeIndices = indices1.length > 200 || indices2.length > 200;
+    // Use optimized two-pointer algorithm for better performance
+    const result = this.checkProximityTwoPointer(indices1, indices2, maxDistance, content, startTime, filePath);
 
-    // Adjust sample size based on content and indices size
-    const sampleSize = isLargeContent || hasLargeIndices ? 25 : 50;
+    profiler.end(profileId, {
+      result,
+      algorithm: "two-pointer",
+      executionTime: performance.now() - startTime
+    });
 
-    const sampledIndices1 =
-      indices1.length > sampleSize
-        ? this.sampleIndices(indices1, sampleSize)
-        : indices1;
+    return result;
+  }
 
-    // For each index in the first set
-    for (const index1 of sampledIndices1) {
-      // Check if we've exceeded the maximum execution time
-      if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
-        this.logger.debug("NEAR operation timed out, using early termination");
-        profiler.end(profileId, { timedOut: true });
-        return false; // Early termination due to timeout
-      }
+  /**
+   * Two-pointer algorithm for efficient proximity checking
+   * @param indices1 Sorted array of indices for the first term
+   * @param indices2 Sorted array of indices for the second term
+   * @param maxDistance Maximum word distance allowed
+   * @param content The text content
+   * @param startTime Start time for timeout checking
+   * @param filePath Optional file path for circuit breaker tracking
+   * @returns True if any pair is within the specified distance
+   */
+  private checkProximityTwoPointer(
+    indices1: number[],
+    indices2: number[],
+    maxDistance: number,
+    content: string,
+    startTime: number,
+    filePath?: string
+  ): boolean {
+    // Use memory pooling for word indices arrays
+    const wordIndices1 = this.getPooledArray(indices1.length);
+    const wordIndices2 = this.getPooledArray(indices2.length);
 
-      const wordBoundaryStart = performance.now();
-      const wordIndex1 = this.wordBoundaryService.getWordIndexFromCharIndex(
-        index1,
-        content
-      );
-      const wordBoundaryEnd = performance.now();
-      this.updatePhaseMetrics(
-        "wordBoundaryCalculation",
-        wordBoundaryEnd - wordBoundaryStart
-      );
+    try {
+      // Pre-calculate word indices for better performance
+      let validIndices1 = 0;
+      let validIndices2 = 0;
 
-      if (wordIndex1 === -1) continue;
-
-      // Binary search optimization for the second set
-      // Find the closest indices in the second set
-      // Estimate average word length (typically 5-7 characters in English)
-      const estimatedAvgWordLength = 6;
-      const closestIndices = this.findClosestIndicesOptimized(
-        indices2,
-        index1,
-        maxDistance * estimatedAvgWordLength * 2
-      );
-
-      for (const index2 of closestIndices) {
-        // Check for timeout in inner loop as well
+      // Calculate word indices for first term with timeout checking
+      for (let i = 0; i < indices1.length; i++) {
         if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
-          this.logger.debug(
-            "NEAR operation timed out in inner loop, using early termination"
-          );
-          profiler.end(profileId, { timedOut: true });
-          return false; // Early termination due to timeout
+          // Record timeout for circuit breaker if filePath is provided
+          if (filePath) {
+            this.recordFileTimeout(filePath);
+          }
+          return false; // Timeout
         }
 
-        const wordBoundaryStart = performance.now();
-        const wordIndex2 = this.wordBoundaryService.getWordIndexFromCharIndex(
-          index2,
+        const wordIndex = this.wordBoundaryService.getWordIndexFromCharIndex(
+          indices1[i],
           content
         );
-        const wordBoundaryEnd = performance.now();
-        this.updatePhaseMetrics(
-          "wordBoundaryCalculation",
-          wordBoundaryEnd - wordBoundaryStart
+        if (wordIndex !== -1) {
+          wordIndices1[validIndices1] = wordIndex;
+          validIndices1++;
+        }
+      }
+
+      // Calculate word indices for second term with timeout checking
+      for (let i = 0; i < indices2.length; i++) {
+        if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
+          // Record timeout for circuit breaker if filePath is provided
+          if (filePath) {
+            this.recordFileTimeout(filePath);
+          }
+          return false; // Timeout
+        }
+
+        const wordIndex = this.wordBoundaryService.getWordIndexFromCharIndex(
+          indices2[i],
+          content
+        );
+        if (wordIndex !== -1) {
+          wordIndices2[validIndices2] = wordIndex;
+          validIndices2++;
+        }
+      }
+
+      // Two-pointer algorithm for proximity checking
+      let i = 0, j = 0;
+      while (i < validIndices1 && j < validIndices2) {
+        if (performance.now() - startTime > MAX_EXECUTION_TIME_MS) {
+          // Record timeout for circuit breaker if filePath is provided
+          if (filePath) {
+            this.recordFileTimeout(filePath);
+          }
+          return false; // Timeout
+        }
+
+        const wordDist = Math.abs(wordIndices1[i] - wordIndices2[j]);
+        if (wordDist <= maxDistance) {
+          return true; // Found a match within distance
+        }
+
+        // Move the pointer that will potentially reduce the distance
+        if (wordIndices1[i] < wordIndices2[j]) {
+          i++;
+        } else {
+          j++;
+        }
+      }
+
+      return false;
+    } finally {
+      // Return arrays to pool
+      this.returnArrayToPool(wordIndices1);
+      this.returnArrayToPool(wordIndices2);
+    }
+  }
+
+  /**
+   * Chunked processing for very large content to prevent memory issues
+   * @param indices1 Sorted array of indices for the first term
+   * @param indices2 Sorted array of indices for the second term
+   * @param maxDistance Maximum word distance allowed
+   * @param content The text content
+   * @returns True if any pair is within the specified distance
+   */
+  private checkProximityChunked(
+    indices1: number[],
+    indices2: number[],
+    maxDistance: number,
+    content: string
+  ): boolean {
+    // For very large content, process in chunks to avoid memory issues
+    for (let start = 0; start < content.length; start += CHUNK_SIZE - CHUNK_OVERLAP) {
+      const end = Math.min(start + CHUNK_SIZE, content.length);
+      const chunk = content.substring(start, end);
+
+      // Filter indices that fall within this chunk
+      const chunkIndices1 = indices1.filter(idx => idx >= start && idx < end).map(idx => idx - start);
+      const chunkIndices2 = indices2.filter(idx => idx >= start && idx < end).map(idx => idx - start);
+
+      if (chunkIndices1.length > 0 && chunkIndices2.length > 0) {
+        const chunkResult = this.checkProximityTwoPointer(
+          chunkIndices1,
+          chunkIndices2,
+          maxDistance,
+          chunk,
+          performance.now()
         );
 
-        if (wordIndex2 === -1) continue;
-
-        // Check if the word distance is within the limit
-        const wordDist = Math.abs(wordIndex1 - wordIndex2);
-        if (wordDist <= maxDistance) {
-          profiler.end(profileId, {
-            result: true,
-            wordDistance: wordDist,
-            index1,
-            index2,
-            wordIndex1,
-            wordIndex2,
-          });
+        if (chunkResult) {
           return true;
         }
       }
     }
 
-    profiler.end(profileId, { result: false });
     return false;
   }
 
-  /**
-   * Optimized version of findClosestIndices that only returns indices within a maximum distance
-   * @param sortedIndices Sorted array of indices
-   * @param targetIndex The target index to find closest values to
-   * @param maxDistance Maximum distance to consider
-   * @returns Array of closest indices within the maximum distance
-   */
-  private findClosestIndicesOptimized(
-    sortedIndices: number[],
-    targetIndex: number,
-    maxDistance: number
-  ): number[] {
-    if (sortedIndices.length <= 10) {
-      // For small arrays, filter by distance directly
-      return sortedIndices.filter(
-        (index) => Math.abs(index - targetIndex) <= maxDistance
-      );
-    }
 
-    // Binary search to find the insertion point
-    let left = 0;
-    let right = sortedIndices.length - 1;
-
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      if (sortedIndices[mid] < targetIndex) {
-        left = mid + 1;
-      } else {
-        right = mid - 1;
-      }
-    }
-
-    // Now left is the insertion point
-    // Collect indices around the insertion point that are within maxDistance
-    const result: number[] = [];
-    const maxToCollect = 20; // Increased limit for better coverage
-
-    // Collect indices before and after the insertion point
-    let before = right;
-    let after = left;
-
-    // Alternately add from before and after until we have enough or exceed distance
-    while (
-      result.length < maxToCollect &&
-      (before >= 0 || after < sortedIndices.length)
-    ) {
-      if (before >= 0) {
-        const index = sortedIndices[before];
-        if (Math.abs(index - targetIndex) <= maxDistance) {
-          result.push(index);
-        } else if (targetIndex - index > maxDistance) {
-          // If we've gone too far back, stop looking in this direction
-          before = -1;
-          continue;
-        }
-        before--;
-      }
-
-      if (after < sortedIndices.length && result.length < maxToCollect) {
-        const index = sortedIndices[after];
-        if (Math.abs(index - targetIndex) <= maxDistance) {
-          result.push(index);
-        } else if (index - targetIndex > maxDistance) {
-          // If we've gone too far forward, stop looking in this direction
-          after = sortedIndices.length;
-          continue;
-        }
-        after++;
-      }
-    }
-
-    return result;
-  }
 
   /**
    * Checks if any pair of indices from two sets are within the specified distance
@@ -769,26 +842,7 @@ export class NearOperatorService {
     return false;
   }
 
-  /**
-   * Samples indices from an array for better performance with large datasets
-   * @param indices Array of indices to sample from
-   * @param sampleSize Number of samples to take
-   * @returns Sampled array of indices
-   */
-  private sampleIndices(indices: number[], sampleSize: number): number[] {
-    if (indices.length <= sampleSize) return indices;
 
-    const result: number[] = [];
-    const step = Math.max(1, Math.floor(indices.length / sampleSize));
-
-    // Take evenly spaced samples
-    for (let i = 0; i < indices.length; i += step) {
-      result.push(indices[i]);
-      if (result.length >= sampleSize) break;
-    }
-
-    return result;
-  }
 
   /**
    * Checks if an array is already sorted in ascending order
@@ -818,8 +872,8 @@ export class NearOperatorService {
     isRegex: boolean,
     useWholeWordMatching: boolean
   ): string {
-    // Use a hash of the content to avoid storing the entire content in the key
-    const contentHash = this.hashString(content);
+    // Use optimized content fingerprinting
+    const contentFingerprint = this.getContentFingerprint(content);
 
     // Convert term to string representation
     const termStr =
@@ -827,7 +881,7 @@ export class NearOperatorService {
         ? `${term.source}:${term.flags}`
         : String(term);
 
-    return `${contentHash}:${termStr}:${caseSensitive}:${isRegex}:${useWholeWordMatching}`;
+    return `${contentFingerprint}:${termStr}:${caseSensitive}:${isRegex}:${useWholeWordMatching}`;
   }
 
   /**
@@ -846,8 +900,8 @@ export class NearOperatorService {
     distance: number,
     options: NearOperatorOptions
   ): string {
-    // Use a hash of the content to avoid storing the entire content in the key
-    const contentHash = this.hashString(content);
+    // Use optimized content fingerprinting
+    const contentFingerprint = this.getContentFingerprint(content);
 
     // Convert terms to string representations
     const term1Str =
@@ -860,11 +914,40 @@ export class NearOperatorService {
         ? `${term2.source}:${term2.flags}`
         : String(term2);
 
-    return `${contentHash}:${term1Str}:${term2Str}:${distance}:${options.caseSensitive}:${options.fuzzySearchEnabled}:${options.wholeWordMatchingEnabled}`;
+    return `${contentFingerprint}:${term1Str}:${term2Str}:${distance}:${options.caseSensitive}:${options.fuzzySearchEnabled}:${options.wholeWordMatchingEnabled}`;
   }
 
   /**
-   * Simple string hashing function
+   * Optimized content fingerprinting using crypto hash for better cache keys
+   * @param content The content to fingerprint
+   * @returns A content fingerprint string
+   */
+  private getContentFingerprint(content: string): string {
+    // Check cache first
+    const cached = this.contentFingerprintCache.get(content);
+    if (cached) {
+      return cached;
+    }
+
+    // For small content, use simple hash
+    if (content.length < 1000) {
+      const fingerprint = this.hashString(content);
+      this.contentFingerprintCache.set(content, fingerprint);
+      return fingerprint;
+    }
+
+    // For larger content, use crypto hash of a sample
+    const sample = content.substring(0, 500) +
+                  content.substring(Math.floor(content.length / 2), Math.floor(content.length / 2) + 500) +
+                  content.substring(content.length - 500);
+
+    const fingerprint = crypto.createHash('md5').update(sample).digest('hex').substring(0, 16);
+    this.contentFingerprintCache.set(content, fingerprint);
+    return fingerprint;
+  }
+
+  /**
+   * Simple string hashing function (fallback for small content)
    * @param str The string to hash
    * @returns A hash string
    */
@@ -1032,6 +1115,64 @@ export class NearOperatorService {
           : 0,
       termIndicesCache: this.termIndicesCache.getStats(),
       proximityCache: this.proximityCache.getStats(),
+      contentFingerprintCache: this.contentFingerprintCache.getStats(),
+      memoryPoolStats: {
+        totalPools: this.pooledArraySizes.size,
+        poolSizes: Array.from(this.pooledArraySizes.entries()).map(([size, pool]) => ({
+          size,
+          available: pool.length
+        }))
+      }
+    };
+  }
+
+  /**
+   * Clear performance metrics for testing
+   */
+  public clearMetrics(): void {
+    this.metrics = {
+      totalEvaluations: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      averageEvaluationTime: 0,
+      totalEvaluationTime: 0,
+      earlyTerminations: 0,
+      phaseMetrics: {
+        termIndicesCalculation: {
+          totalTime: 0,
+          count: 0,
+          averageTime: 0,
+        },
+        fuzzySearch: {
+          totalTime: 0,
+          count: 0,
+          averageTime: 0,
+          successCount: 0,
+        },
+        proximityCheck: {
+          totalTime: 0,
+          count: 0,
+          averageTime: 0,
+        },
+        wordBoundaryCalculation: {
+          totalTime: 0,
+          count: 0,
+          averageTime: 0,
+        },
+      },
+      memoryMetrics: {
+        peakMemoryUsage: 0,
+        averageMemoryDelta: 0,
+        totalMemoryDelta: 0,
+        measurementCount: 0,
+      },
+      contentSizeMetrics: {
+        totalContentSize: 0,
+        maxContentSize: 0,
+        minContentSize: Number.MAX_VALUE,
+        contentCount: 0,
+        averageContentSize: 0,
+      },
     };
   }
 
@@ -1042,5 +1183,74 @@ export class NearOperatorService {
    */
   private escapeRegExp(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /**
+   * Initialize memory pools for array reuse
+   */
+  private initializeMemoryPools(): void {
+    // Pre-populate pools with common array sizes
+    const commonSizes = [10, 50, 100, 200, 500];
+    for (const size of commonSizes) {
+      const pool: number[][] = [];
+      for (let i = 0; i < Math.min(ARRAY_POOL_SIZE / commonSizes.length, 10); i++) {
+        pool.push(new Array<number>(size).fill(0));
+      }
+      this.pooledArraySizes.set(size, pool);
+    }
+  }
+
+  /**
+   * Get a reusable array from the pool
+   * @param size Approximate size needed
+   * @returns A reusable array
+   */
+  private getPooledArray(size: number): number[] {
+    if (size > MAX_POOLED_ARRAY_SIZE) {
+      return new Array<number>(size).fill(0);
+    }
+
+    // Find the closest pool size
+    let bestSize = size;
+    for (const poolSize of this.pooledArraySizes.keys()) {
+      if (poolSize >= size && poolSize < bestSize * 2) {
+        bestSize = poolSize;
+        break;
+      }
+    }
+
+    const pool = this.pooledArraySizes.get(bestSize);
+    if (pool && pool.length > 0) {
+      const array = pool.pop()!;
+      array.length = 0; // Clear the array
+      return array;
+    }
+
+    return new Array<number>(size).fill(0);
+  }
+
+  /**
+   * Return an array to the pool for reuse
+   * @param array The array to return
+   */
+  private returnArrayToPool(array: number[]): void {
+    if (array.length > MAX_POOLED_ARRAY_SIZE) {
+      return; // Don't pool very large arrays
+    }
+
+    // Find appropriate pool
+    let poolSize = array.length;
+    for (const size of this.pooledArraySizes.keys()) {
+      if (size >= array.length) {
+        poolSize = size;
+        break;
+      }
+    }
+
+    const pool = this.pooledArraySizes.get(poolSize);
+    if (pool && pool.length < ARRAY_POOL_SIZE / this.pooledArraySizes.size) {
+      array.length = 0; // Clear the array
+      pool.push(array);
+    }
   }
 }
