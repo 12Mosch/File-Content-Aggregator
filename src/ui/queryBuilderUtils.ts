@@ -1,4 +1,3 @@
-// D:/Code/Electron/src/ui/queryBuilderUtils.ts
 // Utility functions for the query builder
 import type {
   QueryGroup, // Import QueryGroup directly
@@ -28,7 +27,7 @@ function isQueryItem(item: unknown): item is QueryItem {
     typeof item === "object" &&
     item !== null &&
     "id" in item &&
-    typeof (item as QueryItem).id === "string"
+    true
   );
 }
 
@@ -272,7 +271,7 @@ export function extractSearchTermsFromQuery(
     if (typeof term === "string") {
       return term.trim().length > 0;
     }
-    return term instanceof RegExp;
+    return true;
   });
 
   console.log("Extracted search terms from query:", validResults);
@@ -282,7 +281,6 @@ export function extractSearchTermsFromQuery(
     console.warn("No valid terms extracted from query, using fallback");
     if (
       "value" in query &&
-      typeof query.value === "string" &&
       query.value.trim()
     ) {
       validResults.push(query.value.trim());
@@ -291,7 +289,6 @@ export function extractSearchTermsFromQuery(
       const firstCondition = query.conditions[0];
       if (
         "value" in firstCondition &&
-        typeof firstCondition.value === "string" &&
         firstCondition.value.trim()
       ) {
         validResults.push(firstCondition.value.trim());
@@ -354,8 +351,8 @@ export const convertStructuredQueryToString = (
             return trimmedValue; // Return as is if already quoted
           }
 
-          // Escape any existing double quotes within the value
-          const escapedValue = trimmedValue.replace(/"/g, '\\"');
+          // Escape backslashes first, then double quotes
+          const escapedValue = trimmedValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
           const result = `"${escapedValue}"`;
           console.log(`[QueryBuilder] Term condition converted to: ${result}`);
           return result;
@@ -369,8 +366,8 @@ export const convertStructuredQueryToString = (
           }
           // Ensure flags are valid and format as /pattern/flags
           const validFlags = (item.flags || "").replace(/[^gimyus]/g, "");
-          // Escape forward slashes within the pattern itself
-          const escapedPattern = trimmedPattern.replace(/\//g, "\\/");
+          // Escape backslashes first, then forward slashes
+          const escapedPattern = trimmedPattern.replace(/\\/g, '\\\\').replace(/\//g, "\\/");
           return `/${escapedPattern}/${validFlags}`;
         }
         case "near": {
@@ -384,17 +381,17 @@ export const convertStructuredQueryToString = (
             }
 
             // If it looks like a regex literal, pass it through
-            if (trimmedTerm.startsWith("/") && trimmedTerm.endsWith("/")) {
-              // Also escape internal forward slashes for NEAR parsing
+            if (trimmedTerm.startsWith("/")) {
+              // Also escape internal backslashes first, then forward slashes for NEAR parsing
               const match = trimmedTerm.match(/^\/(.+)\/([gimyus]*)$/);
               if (match) {
-                return `/${match[1].replace(/\//g, "\\/")}/${match[2]}`;
+                return `/${match[1].replace(/\\/g, '\\\\').replace(/\//g, "\\/")}/${match[2]}`;
               }
               // Fallback if regex parsing fails (shouldn't happen often)
               return trimmedTerm;
             }
-            // Otherwise, treat as a simple term and quote it, escaping internal quotes
-            return `"${trimmedTerm.replace(/"/g, '\\"')}"`;
+            // Otherwise, treat as a simple term and quote it, escaping backslashes first then quotes
+            return `"${trimmedTerm.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
           };
           return `NEAR(${formatNearTerm(item.term1)}, ${formatNearTerm(item.term2)}, ${item.distance})`;
         }
