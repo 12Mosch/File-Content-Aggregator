@@ -11,8 +11,11 @@
     "moduleResolution": "NodeNext",
     // define where to put generated JS
     "outDir": "../../dist-electron",
+    // Keep Electron output layout stable when shared type declarations are included.
+    "rootDir": "..",
     // ignore errors from dependencies
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
     // Allow importing JSON files
     "resolveJsonModule": true,
     // Ensure ES module interoperability

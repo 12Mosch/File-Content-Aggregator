@@ -14,7 +14,7 @@ jest.mock("../../../src/electron/utils/booleanExpressionUtils", () => {
 });
 
 // Mock the FileSearchService module
-jest.mock("../../../src/electron/FileSearchService.js", () => {
+jest.mock("../../../src/electron/fileSearchService.js", () => {
   return {
     updateSearchSettings: jest.fn(
       (booleanEnabled, nearEnabled, wholeWordEnabled) => {
@@ -38,7 +38,7 @@ jest.mock("../../../src/electron/FileSearchService.js", () => {
 });
 
 // Import after mocking
-import { updateFuzzySearchSettings } from "../../../src/electron/FileSearchService.js";
+import { updateFuzzySearchSettings } from "../../../src/electron/fileSearchService.js";
 
 // Get the mocked functions
 const { getBooleanSearchSettings: getFuzzySearchSettings } =

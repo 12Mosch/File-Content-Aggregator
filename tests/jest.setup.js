@@ -3,9 +3,6 @@
  * This file handles the setup needed for proper ES module support in Jest
  */
 
-/* eslint-env node */
-/* global global */
-
 // Set up global variables that might be needed for ES module compatibility
 global.__filename = "mock-filename";
 global.__dirname = "mock-dirname";

@@ -31,7 +31,6 @@ export const i18nOptions: InitOptions = {
   interpolation: {
     escapeValue: false,
   },
-  initImmediate: false,
   keySeparator: ":",
 };
 

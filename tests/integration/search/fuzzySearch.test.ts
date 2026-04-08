@@ -129,7 +129,7 @@ describe("Fuzzy Search Integration Tests", () => {
               filePath: "subfolder/file4.ts",
               matched: Boolean(
                 params.fuzzySearchEnabled &&
-                  params.contentSearchTerm.includes("tst")
+                params.contentSearchTerm.includes("tst")
               ),
               size: 768,
               mtime: new Date(),

@@ -5,14 +5,18 @@ import {
   generateId,
   isQueryStructure,
 } from "../../../src/ui/queryBuilderUtils.js";
-import type { QueryGroup, TermCondition, NearCondition } from "../../../src/ui/queryBuilderTypes.js";
+import type {
+  QueryGroup,
+  TermCondition,
+  NearCondition,
+} from "../../../src/ui/queryBuilderTypes.js";
 
 describe("queryBuilderUtils", () => {
   describe("generateId", () => {
     test("should generate unique IDs", () => {
       const id1 = generateId();
       const id2 = generateId();
-      
+
       expect(id1).toMatch(/^qb_[a-z0-9]{7}$/);
       expect(id2).toMatch(/^qb_[a-z0-9]{7}$/);
       expect(id1).not.toBe(id2);
@@ -24,7 +28,7 @@ describe("queryBuilderUtils", () => {
       const termCondition: TermCondition = {
         id: "test1",
         type: "term",
-        value: 'test\\"value',  // Input with backslash followed by quote
+        value: 'test\\"value', // Input with backslash followed by quote
         caseSensitive: false,
       };
 
@@ -35,7 +39,7 @@ describe("queryBuilderUtils", () => {
       };
 
       const result = convertStructuredQueryToString(queryGroup);
-      
+
       // Should escape backslash first, then quote: test\\"value -> test\\\\"value -> test\\\\"value
       expect(result).toBe('"test\\\\\\"value"');
     });
@@ -44,7 +48,7 @@ describe("queryBuilderUtils", () => {
       const termCondition: TermCondition = {
         id: "test2",
         type: "term",
-        value: 'test\\\\value',  // Input with double backslash
+        value: "test\\\\value", // Input with double backslash
         caseSensitive: false,
       };
 
@@ -55,7 +59,7 @@ describe("queryBuilderUtils", () => {
       };
 
       const result = convertStructuredQueryToString(queryGroup);
-      
+
       // Should escape each backslash: test\\value -> test\\\\value
       expect(result).toBe('"test\\\\\\\\value"');
     });
@@ -64,7 +68,7 @@ describe("queryBuilderUtils", () => {
       const termCondition: TermCondition = {
         id: "test3",
         type: "term",
-        value: 'test"value',  // Input with just a quote
+        value: 'test"value', // Input with just a quote
         caseSensitive: false,
       };
 
@@ -75,7 +79,7 @@ describe("queryBuilderUtils", () => {
       };
 
       const result = convertStructuredQueryToString(queryGroup);
-      
+
       // Should escape the quote: test"value -> test\"value
       expect(result).toBe('"test\\"value"');
     });
@@ -85,7 +89,7 @@ describe("queryBuilderUtils", () => {
         id: "test4",
         type: "near",
         term1: 'first\\"term',
-        term2: 'second\\term',
+        term2: "second\\term",
         distance: 5,
       };
 
@@ -96,7 +100,7 @@ describe("queryBuilderUtils", () => {
       };
 
       const result = convertStructuredQueryToString(queryGroup);
-      
+
       // Both terms should be properly escaped
       expect(result).toBe('NEAR("first\\\\\\"term", "second\\\\term", 5)');
     });
@@ -106,7 +110,7 @@ describe("queryBuilderUtils", () => {
       const termCondition: TermCondition = {
         id: "test5",
         type: "term",
-        value: 'value\\" OR 1=1 --',  // Potential SQL-like injection attempt
+        value: 'value\\" OR 1=1 --', // Potential SQL-like injection attempt
         caseSensitive: false,
       };
 
@@ -117,7 +121,7 @@ describe("queryBuilderUtils", () => {
       };
 
       const result = convertStructuredQueryToString(queryGroup);
-      
+
       // Should be properly escaped and contained within quotes
       expect(result).toBe('"value\\\\\\" OR 1=1 --"');
       // Verify the result starts and ends with quotes and contains the escaped content
@@ -130,7 +134,7 @@ describe("queryBuilderUtils", () => {
       const termCondition: TermCondition = {
         id: "test6",
         type: "term",
-        value: '',  // Empty value
+        value: "", // Empty value
         caseSensitive: false,
       };
 
@@ -141,16 +145,16 @@ describe("queryBuilderUtils", () => {
       };
 
       const result = convertStructuredQueryToString(queryGroup);
-      
+
       // Empty values should result in empty string
-      expect(result).toBe('');
+      expect(result).toBe("");
     });
 
     test("should properly escape backslashes and forward slashes in regex conditions", () => {
       const regexCondition = {
         id: "test7",
         type: "regex" as const,
-        value: 'test\\/pattern\\with\\backslashes',  // Input with backslashes and forward slashes
+        value: "test\\/pattern\\with\\backslashes", // Input with backslashes and forward slashes
         flags: "gi",
       };
 
@@ -163,15 +167,15 @@ describe("queryBuilderUtils", () => {
       const result = convertStructuredQueryToString(queryGroup);
 
       // Should escape backslashes first, then forward slashes
-      expect(result).toBe('/test\\\\\\/pattern\\\\with\\\\backslashes/gi');
+      expect(result).toBe("/test\\\\\\/pattern\\\\with\\\\backslashes/gi");
     });
 
     test("should handle regex patterns in NEAR conditions with backslashes", () => {
       const nearCondition = {
         id: "test8",
         type: "near" as const,
-        term1: '/pattern\\with\\backslashes/gi',  // Regex with backslashes
-        term2: '/another\\/pattern/i',  // Regex with forward slashes
+        term1: "/pattern\\with\\backslashes/gi", // Regex with backslashes
+        term2: "/another\\/pattern/i", // Regex with forward slashes
         distance: 3,
       };
 
@@ -184,7 +188,9 @@ describe("queryBuilderUtils", () => {
       const result = convertStructuredQueryToString(queryGroup);
 
       // Both regex patterns should have proper escaping
-      expect(result).toBe('NEAR(/pattern\\\\with\\\\backslashes/gi, /another\\\\\\/pattern/i, 3)');
+      expect(result).toBe(
+        "NEAR(/pattern\\\\with\\\\backslashes/gi, /another\\\\\\/pattern/i, 3)"
+      );
     });
   });
 

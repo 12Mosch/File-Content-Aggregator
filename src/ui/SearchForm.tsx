@@ -337,7 +337,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
       // --- query builder state using type guard ---
       const loadedQuery = params.structuredQuery;
-      let initialQueryStructure: QueryStructure | null = null;
+      let initialQueryStructure: QueryStructure | null;
 
       // First check if we have a valid structured query
       if (isQueryStructure(loadedQuery)) {

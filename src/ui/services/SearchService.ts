@@ -6,7 +6,10 @@
  */
 
 import { WorkerPool } from "./WorkerPool.js";
-import { v4 as uuidv4 } from "uuid";
+
+const createId = (): string =>
+  globalThis.crypto?.randomUUID?.() ??
+  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 // Define search options interface
 export interface SearchOptions {
@@ -91,7 +94,7 @@ export class SearchService {
     term: string | RegExp,
     options: SearchOptions
   ): string {
-    const searchId = uuidv4();
+    const searchId = createId();
 
     // Set up search state
     this.activeSearches.set(searchId, {
@@ -264,7 +267,7 @@ export class SearchService {
     const searchState = this.activeSearches.get(searchId);
     if (!searchState) return "";
 
-    const listenerId = uuidv4();
+    const listenerId = createId();
     searchState.listeners.set(listenerId, listener);
     return listenerId;
   }

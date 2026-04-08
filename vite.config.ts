@@ -12,6 +12,7 @@ export default defineConfig({
   base: "./", // Correct base for Electron builds
   build: {
     outDir: "dist-react", // Your React build output directory
+    chunkSizeWarningLimit: 900,
   },
   server: {
     port: 5123, // Your dev server port

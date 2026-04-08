@@ -93,6 +93,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      "react-hooks/immutability": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
@@ -149,6 +152,26 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "no-undef": "off", // Allow module/require
+    },
+  },
+  {
+    files: ["src/**/*.js", "tests/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.jest,
+      },
+    },
+    rules: {
+      "no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
   eslintConfigPrettier

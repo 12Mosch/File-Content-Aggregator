@@ -163,17 +163,16 @@ function CustomCaption(props: CustomCaptionProps) {
 }
 
 // --- Main Calendar Component ---
-interface CalendarProps
-  extends Omit<
-    DayPickerProps,
-    | "mode"
-    | "selected"
-    | "onSelect"
-    | "month"
-    | "onMonthChange"
-    | "captionLayout"
-    | "components"
-  > {
+interface CalendarProps extends Omit<
+  DayPickerProps,
+  | "mode"
+  | "selected"
+  | "onSelect"
+  | "month"
+  | "onMonthChange"
+  | "captionLayout"
+  | "components"
+> {
   mode?: "single";
   selected?: PropsSingle["selected"];
   onSelect?: PropsSingle["onSelect"];

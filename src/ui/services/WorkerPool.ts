@@ -5,7 +5,9 @@
  * Distributes tasks among workers and handles communication.
  */
 
-import { v4 as uuidv4 } from "uuid";
+const createId = (): string =>
+  globalThis.crypto?.randomUUID?.() ??
+  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 interface WorkerMessageData {
   id?: string;
@@ -199,7 +201,7 @@ export class WorkerPool {
       };
 
       const task: WorkerTask = {
-        id: uuidv4(),
+        id: createId(),
         action,
         payload,
         resolve: typedResolve,
@@ -237,7 +239,7 @@ export class WorkerPool {
       };
 
       const task: WorkerTask = {
-        id: uuidv4(),
+        id: createId(),
         action,
         payload,
         resolve: typedResolve,
@@ -268,7 +270,7 @@ export class WorkerPool {
       await this.initPromise;
     }
 
-    const taskId = uuidv4();
+    const taskId = createId();
 
     const resultPromise = new Promise<T>((resolve, reject) => {
       // Create a type-safe wrapper for the resolve function
@@ -314,7 +316,7 @@ export class WorkerPool {
     if (workerInfo) {
       // Send cancellation message to worker
       workerInfo.worker.postMessage({
-        id: uuidv4(),
+        id: createId(),
         action: "cancel",
         payload: {
           requestId: taskId,

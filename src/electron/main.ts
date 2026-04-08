@@ -29,7 +29,7 @@ import {
 } from "./utils/errorHandling.js";
 
 // Import from optimized file search service
-import { searchFiles, updateSearchSettings } from "./FileSearchService.js";
+import { searchFiles, updateSearchSettings } from "./fileSearchService.js";
 
 // Import types from types.ts
 import {
@@ -167,7 +167,6 @@ void i18nMain.use(Backend).init({
       ? path.resolve("public/locales/{{lng}}/{{ns}}.json")
       : path.join(app.getAppPath(), "dist-react/locales/{{lng}}/{{ns}}.json"),
   },
-  initImmediate: false,
   keySeparator: ":",
 });
 async function initializeMainI18nLanguage() {
@@ -277,7 +276,7 @@ function registerAppProtocol() {
       else if (fileExtension === ".woff") resolvedMimeType = "font/woff";
       else resolvedMimeType = mime.getType(absoluteFilePath);
 
-      return new Response(data, {
+      return new Response(new Uint8Array(data), {
         status: 200,
         headers: {
           "Content-Type": resolvedMimeType ?? "application/octet-stream",
@@ -307,7 +306,7 @@ function registerAppProtocol() {
  */
 function setupCSP() {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    let csp = "";
+    let csp: string;
     const selfSrc = `'self'`;
     const appProtoSrc = `${APP_PROTOCOL}:`;
 
@@ -606,7 +605,8 @@ function generateJson(items: ExportItem[]): string {
   } catch (error: unknown) {
     console.error("Error generating JSON:", error);
     throw new Error(
-      `Failed to serialize results to JSON: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to serialize results to JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 }
